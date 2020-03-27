@@ -399,21 +399,7 @@ def integrant_h3(qm_corr_func_freq,t1,t2,t3):
                 integrant[icount,jcount,0]=omega1
                 integrant[icount,jcount,1]=omega2
 
-#                val=0.0+1j*0.0
-#                if abs(omega1)<tol and abs(omega2)<tol:
-#                        val=-1j*t1*t2*t3/(4.0*math.pi**2.0)
-#                elif abs(omega_bar)<tol:
-#                        val=-1j*t3*(1.0-np.exp(-1j*omega1*t1))*(1.0-np.exp(1j*omega1*t2))/(4.0*math.pi**2.0*omega1**2.0)
-#                elif abs(omega1)<tol:
-#                        val=1j*t1*(np.exp(1j*omega2*t3)-1.0)*(1.0-np.exp(-1j*omega2*t2))/(4.0*math.pi**2.0*omega2**2.0)
-#                elif abs(omega2)<tol:
-#                        val=1j*t2*(np.exp(1j*omega1*t3)-1.0)*(1.0-np.exp(-1j*omega1*t1))/(4.0*math.pi**2.0*omega1**2.0)
-#		else:
-#			val=-(np.exp(1j*omega_bar*t3)-1.0)*(1.0-np.exp(-1j*omega1*t1))*(1.0-np.exp(-1j*omega2*t2))/(4.0*math.pi**2.0*omega_bar*omega1*omega2)
-
-#                integrant[icount,jcount,2]=qm_corr_func_freq[icount,jcount,2]*val
-
-		integrant[icount,jcount,2]=gbom_cumul.prefactor_2DES_h3_QM(qm_corr_func_freq[icount,jcount,2],omega1,omega2,0.0,t1,t2)
+		integrant[icount,jcount,2]=gbom_cumul.prefactor_2DES_h3_QM(qm_corr_func_freq[icount,jcount,2],omega1,omega2,0.0,t1,t2,t3)
 
                 jcount=jcount+1
         icount=icount+1

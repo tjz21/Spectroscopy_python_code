@@ -667,15 +667,11 @@ def calc_Rfuncs_3rd_tdelay(g_func,h1_func,h2_func,h4_func,h5_func, qm_corr_func_
 		t12_index=count1+steps_in_t_delay
 		t123_index=t12_index+count2
 
-		print(t1,t12,t123,t1_index,t12_index,t123_index)
-		print('Entering h3')
                 # now compute required h3 functions
  		h31=cumul.compute_h3_val(qm_corr_func_freq,t1,t12,t123)
-		print('computed first h3')
 		h32=cumul.compute_h3_val(qm_corr_func_freq,t12,t123,t1)
 		h33=cumul.compute_h3_val(qm_corr_func_freq,t1,t123,t12)
 		h34=cumul.compute_h3_val(qm_corr_func_freq,t123,t12,t1)
-		print('computed H3')
 		
 		# now build rfuncs
                 rfuncs[count1,count2,2]=-g_func[t1_index,1]-g_func[t12_index,1].conjugate()-g_func[t123_index,1]+h31+h1_func[t1_index,t12_index,2]-h1_func[t1_index,t123_index,2]-h2_func[t12_index,t123_index,2]-h4_func[t1_index,t123_index,2]+h4_func[t12_index,t123_index,2]-h5_func[t1_index,t12_index,2]
