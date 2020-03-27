@@ -1,0 +1,3 @@
+gbom.py: Main routine defining the GBOM class. 
+franck_condon_response.py: File containing all functions necessary to compute the FTFC response function
+ensemble_response.py: File containing all functions necessary to compute the ensemble response function in the GBOM, both for classical and QM treatment of nuclei

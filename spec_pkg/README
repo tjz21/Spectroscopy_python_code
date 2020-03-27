@@ -1,0 +1,74 @@
+Generalized python code that is capable of computing linear and non-linear optical response, both for input in terms of classical correlation functions and the GBOM. This code will come in a number of independent modules that allows for easy combinations between fundamentally different approaches.
+
+Things that are done or almost done:
+2a)
+2b) 
+2c)
+2d)
+2e)
+
+Need 1, 2f) and pretty much all of 3) 
+For 3) focus on 2nd order cumulant first. This just requires q as an input. 
+
+How does FFT of the response function work? What are the symmetries of the 1D response function? What about 3D response function?
+
+Modules:
+
+1) Input parser:
+- Reads in an imput file containing all important calculation parameters
+- Can read in either trajectory files in the cumulant approach or Gaussian output files for the GBOM
+- Packages up all input data into the right format and handles Unit conversion
+
+2) Linear response:
+2a) Cumulant GBOM
+- All GBOM helper routines. Definition of the energy gap/mean etc. 
+- Classical and quantum correlation functions
+- Lineshape function q and g exactly evaluated
+- SD can also be evaluated and printed
+
+2b) Corr func from MD
+- Construct classical correlation function (one- and 2 time) from MD input
+- Compute SD and handle averaging etc. 
+- Handles Jung quantum correction factor for 2time correlation function and can return the full one
+
+2c) Cumulant approach
+- Computes q from an input SD
+- Computes g from a classical correlation function that is passed as an input. 
+- Routine to compute g from time ordered integral of classical correlation function (mainly to double check?)
+- returns q and g (if required)
+
+2d) Solvent model:
+- Compute a solvent spectral density with solvent parameters, generates a lineshape function for it 
+  and returns it. Calls cumulant helper routine that computes a lineshape function from the spectral density
+
+2e) Construct linear response function:
+- Takes input dependent on requested calculations and construct a linear response function
+- For GBOM, can return linear response function in ensemble approach, exact FTFC approach, or E-ZTFC
+- Adds solvent degrees of freedom
+- For Cumulant, constructs response function simply from input of dipole moment, mean and q and g. Here, it
+  does not matter if q and g were computed from GBOM or exactly
+- If a trajectory input of vertical excitation energies is given, can also construct ensemble or 
+  E-ZTFC (if GBOM parameters are also given) spectra. 
+
+2f) Linear spectrum:
+- Takes linear response function (from whatever source) as an input and computes the linear spectrum
+- This is done via an FFT. Spectrum is automatically converted into required formats. 
+
+3) Non-linear spectroscopy
+For the time being, this set of routines will be limited to 2DES and the cumulant approach
+3a) 3rd oder corrections GBOM
+- Take GBOM params as an input and construct the exact extra correction terms for the 3rd order cumulant 
+  in 2DES. These terms have exact expressions. 
+- return h1,h2,h3. h1 and h2 are 2D functions and can be computed only once. h3 is a 3D function. Make sure to keep 
+  the expressions flexible enough that we don't have to evaluate the entire 3D function? Need to think about it. 
+
+3b) 3rd order corrections MD
+- Take the classical correlation function as an input to evaluate the 3rd order corrections numerically
+- Otherwise same as 3)
+
+3c) Construct 3rd order response function
+- Constructs full complex response functions/ rephasing/nonrephasing
+
+3d) 2DES
+- Compute 2DES from FFTs
+- 
