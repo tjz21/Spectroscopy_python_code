@@ -128,10 +128,10 @@ class MDtrajs:
 		self.g3=np.zeros((1,1))
 
 		# 2DES 3rd order cumulant lineshape functions
-		self.h1=np.zeros((1,1,1))
-		self.h2=np.zeros((1,1,1))
-		self.h4=np.zeros((1,1,1))
-		self.h5=np.zeros((1,1,1))
+		self.h1=np.zeros((1,1,1),dtype=complex)
+		self.h2=np.zeros((1,1,1),dtype=complex)
+		self.h4=np.zeros((1,1,1),dtype=complex)
+		self.h5=np.zeros((1,1,1),dtype=complex)
 	
 		# response functions
 		self.ensemble_response=np.zeros((1,1))
@@ -152,16 +152,15 @@ class MDtrajs:
 		kbT=temp*const.kb_in_Ha
 		self.g2=cumulant.compute_2nd_order_cumulant_from_spectral_dens(self.spectral_dens,kbT,max_t,num_steps)
 
-	def calc_corr_func_3rd_qm_freq(self,temp):
+	def calc_corr_func_3rd_qm_freq(self,temp,low_freq_filter):
 		kbT=temp*const.kb_in_Ha
 		sampling_rate_in_fs=1.0/(self.time_step*const.fs_to_Ha)
-		self.corr_func_3rd_qm_freq=cumulant.construct_corr_func_3rd_qm_freq(self.corr_func_3rd_cl,kbT,sampling_rate_in_fs)
+		self.corr_func_3rd_qm_freq=cumulant.construct_corr_func_3rd_qm_freq(self.corr_func_3rd_cl,kbT,sampling_rate_in_fs,low_freq_filter)
 
-
-	def calc_g3(self,temp,max_t,num_steps):
+	def calc_g3(self,temp,max_t,num_steps,low_freq_filter):
 		kbT=temp*const.kb_in_Ha
 		sampling_rate_in_fs=1.0/(self.time_step*const.fs_to_Ha)
-		self.g3=cumulant.compute_lineshape_func_3rd(self.corr_func_3rd_cl,kbT,sampling_rate_in_fs,max_t,num_steps)
+		self.g3=cumulant.compute_lineshape_func_3rd(self.corr_func_3rd_cl,kbT,sampling_rate_in_fs,max_t,num_steps,low_freq_filter)
 
 	def calc_h1(self,max_t,num_steps):
 		self.h1=cumulant.compute_h1_func(self.corr_func_3rd_qm_freq,max_t,num_steps)

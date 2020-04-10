@@ -5,6 +5,7 @@ import sys
 import os
 import numpy as np
 import math
+from numba import config
 import spec_pkg.constants.constants as const
 from spec_pkg.GBOM import gbom
 from spec_pkg.GBOM import extract_model_params_gaussian as gaussian_params
@@ -83,28 +84,37 @@ def compute_GBOM_absorption(param_list,GBOM_chromophore,solvent,is_emission):
 			np.savetxt(param_list.GBOM_root+'_spectral_density_exact_corr.dat', GBOM_chromophore.spectral_dens)
 			GBOM_chromophore.calc_g2_qm(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission)
 			#save lineshape function:
-			np.savetxt(param_list.GBOM_root+'_lineshape_func_2nd_order_exact_corr.dat',(GBOM_chromophore.g2_exact).real)
+			#np.savetxt(param_list.GBOM_root+'_lineshape_func_2nd_order_exact_corr.dat',(GBOM_chromophore.g2_exact).real)
 
 			# only compute third order cumulant if needed
 			if param_list.third_order:
 				GBOM_chromophore.calc_g3_qm(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission)
 				# sace lineshape function
-				temp_lineshape=(GBOM_chromophore.g2_exact).real
-				temp_lineshape[:,1]=temp_lineshape[:,1]+(GBOM_chromophore.g3_exact[:,1]).real
-				np.savetxt(param_list.GBOM_root+'_lineshape_func_3rd_order_exact_corr.dat',temp_lineshape)
+				#temp_lineshape2=(GBOM_chromophore.g2_exact).real
+				#temp_lineshape2[:,1]=(GBOM_chromophore.g2_exact[:,1]).real+(GBOM_chromophore.g3_exact[:,1]).real
+				#np.savetxt(param_list.GBOM_root+'_lineshape_func_3rd_order_exact_corr.dat',temp_lineshape2)
+
+				# also print only g:
+				#temp_lineshape2=(GBOM_chromophore.g3_exact).real
+				#np.savetxt(param_list.GBOM_root+'_g3_exact_corr_real.dat',temp_lineshape2)
+				#temp_lineshape2=(GBOM_chromophore.g3_exact).real
+				#temp_lineshape2[:,1]=(GBOM_chromophore.g3_exact[:,1]).imag
+				#np.savetxt(param_list.GBOM_root+'_g3_exact_corr_imag.dat',temp_lineshape2)
+
 		else:
 			GBOM_chromophore.calc_spectral_dens(param_list.temperature,param_list.max_t,param_list.num_steps,param_list.decay_length,True,is_emission)
 			np.savetxt(param_list.GBOM_root+'_spectral_density_harmonic_qcf.dat', GBOM_chromophore.spectral_dens)
 			GBOM_chromophore.calc_g2_cl(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission)
 			#save lineshape function:
-			np.savetxt(param_list.GBOM_root+'_lineshape_func_2nd_order_harmonic_qcf.dat',(GBOM_chromophore.g2_cl).real)
+			#np.savetxt(param_list.GBOM_root+'_lineshape_func_2nd_order_harmonic_qcf.dat',(GBOM_chromophore.g2_cl).real)
 
 			if param_list.third_order:
 				GBOM_chromophore.calc_g3_cl(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission)
 				# sace lineshape function
-				temp_lineshape=(GBOM_chromophore.g2_cl).real
-				temp_lineshape[:,1]=temp_lineshape[:,1]+(GBOM_chromophore.g3_cl[:,1]).real
-				np.savetxt(param_list.GBOM_root+'_lineshape_func_3rd_order_harmonic_qcf.dat',temp_lineshape)
+				#temp_lineshape=(GBOM_chromophore.g2_cl).real
+				#temp_lineshape[:,1]=temp_lineshape[:,1]+(GBOM_chromophore.g3_cl[:,1]).real
+				#np.savetxt(param_list.GBOM_root+'_lineshape_func_3rd_order_harmonic_qcf.dat',temp_lineshape)
+
 
 		GBOM_chromophore.calc_cumulant_response(param_list.third_order,param_list.exact_corr,is_emission)	
 		spectrum=linear_spectrum.full_spectrum(GBOM_chromophore.cumulant_response,solvent.solvent_response,param_list.num_steps,E_start,E_end,True)
@@ -238,7 +248,7 @@ def compute_MD_absorption(param_list,MDtraj,solvent,is_emission):
 			MDtraj.calc_3rd_order_corr(param_list.corr_length_3rd)
 			# technically, in 3rd order cumulant, can have 2 different temperatures again. one at
 			# which the MD was performed and one at wich the spectrum is simulated. Fix this...
-			MDtraj.calc_g3(param_list.temperature,param_list.max_t,param_list.num_steps)
+			MDtraj.calc_g3(param_list.temperature,param_list.max_t,param_list.num_steps,param_list.low_freq_cutoff)
 			MDtraj.calc_cumulant_response(True,is_emission)
 		else:
 			MDtraj.calc_cumulant_response(False,is_emission)
@@ -265,6 +275,12 @@ def compute_MD_absorption(param_list,MDtraj,solvent,is_emission):
 
 # main driver #
 input_file=sys.argv[1]
+if len(sys.argv)<3:
+	num_cores=1
+else:
+	num_cores=int(sys.argv[2])
+
+config.NUMBA_NUM_THREADS=num_cores
 
 # parse input values
 if os.path.exists(input_file):
@@ -296,8 +312,16 @@ if param_set.model=='GBOM':
 			freqs_gs=gaussian_params.extract_normal_mode_freqs(param_set.GBOM_root+'_gs.log',param_set.num_modes,param_set.num_frozen_atoms)
 			freqs_ex=gaussian_params.extract_normal_mode_freqs(param_set.GBOM_root+'_ex.log',param_set.num_modes,param_set.num_frozen_atoms)
 			K=gaussian_params.extract_Kmat(param_set.GBOM_root+'_vibronic.log',param_set.num_modes)
-			J=gaussian_params.extract_duschinsky_mat(param_set.GBOM_root+'_vibronic.log',param_set.num_modes)
+			J=np.zeros((freqs_gs.shape[0],freqs_gs.shape[0]))
+			if param_set.no_dusch:
+				counter=0
+				while counter<freqs_ex.shape[0]:
+					J[counter,counter]=1.0
+					counter=counter+1
+			else:
+				J=gaussian_params.extract_duschinsky_mat(param_set.GBOM_root+'_vibronic.log',param_set.num_modes)
 			param_set.E_adiabatic=gaussian_params.extract_adiabatic_freq(param_set.GBOM_root+'_vibronic.log')
+
 			GBOM=gbom.gbom(freqs_gs,freqs_ex,J,K,param_set.E_adiabatic,param_set.dipole_mom)
 
 		elif param_set.Jpath!='' and param_set.Kpath!='' and param_set.freq_gs_path!='' and param_set.freq_ex_path!='':
@@ -305,9 +329,16 @@ if param_set.model=='GBOM':
 				sys.exit('Error: Did not provide dipole moment or adiabatic energy gap for GBOM!')
 			# create GBOM from input J, K and freqs
 			else:
-				J=np.genfromtxt(param_set.Jpath)
-				K=np.genfromtxt(param_set.Kpath)
 				freqs_gs=np.genfromtxt(param_set.freq_gs_path)
+				J=np.zeros((freqs_gs.shape[0],freqs_gs.shape[0]))
+                        	if param_set.no_dusch:
+                                	counter=0
+                                	while counter<freqs_gs.shape[0]:
+                                        	J[counter,counter]=1.0
+						counter=counter+1
+                        	else:
+					J=np.genfromtxt(param_set.Jpath)
+				K=np.genfromtxt(param_set.Kpath)
 				freqs_ex=np.genfromtxt(param_set.freq_ex_path)
 				# created appropriate matrices: now create GBOM.
  
@@ -501,23 +532,29 @@ elif param_set.task=='2DES':
                                         GBOM.h5_exact[:,:,2]=GBOM.h5_exact[:,:,2]+temp_imag[:,:,2]
 
 				else:
-					GBOM.calc_h1_qm(param_set.temperature,param_set.num_steps,param_set.max_t)
+					GBOM.calc_h1_qm(param_set.temperature,param_set.num_steps,param_set.max_t,param_set.no_dusch)
 					twoDES.print_2D_spectrum('h1_real.dat',GBOM.h1_exact,False)
                                         twoDES.print_2D_spectrum('h1_imag.dat',GBOM.h1_exact,True)
-					GBOM.calc_h2_qm(param_set.temperature,param_set.num_steps,param_set.max_t)
+					GBOM.calc_h2_qm(param_set.temperature,param_set.num_steps,param_set.max_t,param_set.no_dusch)
 					twoDES.print_2D_spectrum('h2_real.dat',GBOM.h2_exact,False)
                                         twoDES.print_2D_spectrum('h2_imag.dat',GBOM.h2_exact,True)
-					GBOM.calc_h4_qm(param_set.temperature,param_set.num_steps,param_set.max_t)
+					GBOM.calc_h4_qm(param_set.temperature,param_set.num_steps,param_set.max_t,param_set.no_dusch)
 					twoDES.print_2D_spectrum('h4_real.dat',GBOM.h4_exact,False)
                                         twoDES.print_2D_spectrum('h4_imag.dat',GBOM.h4_exact,True)
-					GBOM.calc_h5_qm(param_set.temperature,param_set.num_steps,param_set.max_t)
+					GBOM.calc_h5_qm(param_set.temperature,param_set.num_steps,param_set.max_t,param_set.no_dusch)
 					twoDES.print_2D_spectrum('h5_real.dat',GBOM.h5_exact,False)
                                         twoDES.print_2D_spectrum('h5_imag.dat',GBOM.h5_exact,True)
 
-	
+				# now construct 3rd order correlation function. Needed to speed up evaluation of h3
+                        	#GBOM.compute_corr_func_3rd(param_set.temperature*const.kb_in_Ha,param_set.num_steps,param_set.max_t,True)
+				#twoDES.print_2D_spectrum('corr_func_3rd_real.dat',GBOM.corr_func_3rd_qm,False)
+                             	#twoDES.print_2D_spectrum('corr_func_3rd_imag.dat',GBOM.corr_func_3rd_qm,True)
+			print('NUMBA environment variable:')
+			print(config.NUMBA_NUM_THREADS)
+
 			if param_set.method_2DES=='2DES':
 				if param_set.third_order:
-					twoDES.calc_2DES_time_series_GBOM_3rd(q_func_eff,GBOM.g3_exact,GBOM.h1_exact,GBOM.h2_exact,GBOM.h4_exact,GBOM.h5_exact,GBOM.freqs_gs,GBOM.Omega_sq,GBOM.gamma,param_set.temperature*const.kb_in_Ha,E_start1,E_end1,E_start2,E_end2,param_set.num_steps_2DES,filename_2DES,param_set.num_time_samples_2DES,param_set.t_step_2DES,0.0,False)
+					twoDES.calc_2DES_time_series_GBOM_3rd(q_func_eff,GBOM.g3_exact,GBOM.h1_exact,GBOM.h2_exact,GBOM.h4_exact,GBOM.h5_exact,GBOM.corr_func_3rd_qm,GBOM.freqs_gs,GBOM.Omega_sq,GBOM.gamma,param_set.temperature*const.kb_in_Ha,E_start1,E_end1,E_start2,E_end2,param_set.num_steps_2DES,filename_2DES,param_set.num_time_samples_2DES,param_set.t_step_2DES,0.0,False,param_set.no_dusch)
 				else:
 					twoDES.calc_2DES_time_series(q_func_eff,E_start1,E_end1,E_start2,E_end2,param_set.num_steps_2DES,filename_2DES,param_set.num_time_samples_2DES,param_set.t_step_2DES,0.0)
 			elif param_set.method_2DES=='PUMP_PROBE':
@@ -547,7 +584,7 @@ elif param_set.task=='2DES':
 				if os.path.exists('h1_real.dat') and os.path.exists('h1_imag.dat') and os.path.exists('h2_real.dat') and os.path.exists('h2_imag.dat') and os.path.exists('h4_real.dat') and os.path.exists('h4_imag.dat') and os.path.exists('h5_real.dat') and os.path.exists('h5_imag.dat'):
                                 	# read in all files:
 					GBOM.h1_cl=twoDES.read_2D_spectrum('h1_real.dat',param_set.num_steps)
-                                	GBOM.h1_cl[:,:,2]=GBOM.h2_cl[:,:,2]+1j*(twoDES.read_2D_spectrum('h1_imag.dat',param_set.num_steps))[:,:,2]
+                                	GBOM.h1_cl[:,:,2]=GBOM.h1_cl[:,:,2]+1j*(twoDES.read_2D_spectrum('h1_imag.dat',param_set.num_steps))[:,:,2]
                                 	GBOM.h2_cl=twoDES.read_2D_spectrum('h2_real.dat',param_set.num_steps)
                                 	GBOM.h2_cl[:,:,2]=GBOM.h2_cl[:,:,2]+1j*(twoDES.read_2D_spectrum('h2_imag.dat',param_set.num_steps))[:,:,2]
 
@@ -558,23 +595,26 @@ elif param_set.task=='2DES':
 
 				else:
 					# Calc h and save to file
-					GBOM.calc_h1_cl(param_set.temperature,param_set.num_steps,param_set.max_t)
+					GBOM.calc_h1_cl(param_set.temperature,param_set.num_steps,param_set.max_t,param_set.no_dusch)
 					twoDES.print_2D_spectrum('h1_real.dat',(GBOM.h1_cl),False)
                                         twoDES.print_2D_spectrum('h1_imag.dat',GBOM.h1_cl,True)
-					GBOM.calc_h2_cl(param_set.temperature,param_set.num_steps,param_set.max_t)
+					GBOM.calc_h2_cl(param_set.temperature,param_set.num_steps,param_set.max_t,param_set.no_dusch)
 					twoDES.print_2D_spectrum('h2_real.dat',(GBOM.h2_cl),False)
                                         twoDES.print_2D_spectrum('h2_imag.dat',GBOM.h2_cl,True)
-					GBOM.calc_h4_cl(param_set.temperature,param_set.num_steps,param_set.max_t)
+					GBOM.calc_h4_cl(param_set.temperature,param_set.num_steps,param_set.max_t,param_set.no_dusch)
 					twoDES.print_2D_spectrum('h4_real.dat',(GBOM.h4_cl),False)
                                         twoDES.print_2D_spectrum('h4_imag.dat',GBOM.h4_cl,True)
-					GBOM.calc_h5_cl(param_set.temperature,param_set.num_steps,param_set.max_t)
+					GBOM.calc_h5_cl(param_set.temperature,param_set.num_steps,param_set.max_t,param_set.no_dusch)
 					twoDES.print_2D_spectrum('h5_real.dat',(GBOM.h5_cl),False)
-                                        twoDES.print_2D_spectrum('h5_imag.dat',GBOM.h5_cl,True)
+                                        twoDES.print_2D_spectrum('h5_imag.dat',GBOM.h5_cl,True,)
 	
-
+				# now construct 3rd order correlation function. Needed to speed up evaluation of h3
+				#GBOM.compute_corr_func_3rd(param_set.temperature*const.kb_in_Ha,param_set.num_steps,param_set.max_t,False)
+	
 			if param_set.method_2DES=='2DES':
 				if param_set.third_order:
-					twoDES.calc_2DES_time_series_GBOM_3rd(q_func_eff,GBOM.g3_cl,GBOM.h1_cl,GBOM.h2_cl,GBOM.h4_cl,GBOM.h5_cl,GBOM.freqs_gs,GBOM.Omega_sq,GBOM.gamma,param_set.temperature*const.kb_in_Ha,E_start1,E_end1,E_start2,E_end2,param_set.num_steps_2DES,filename_2DES,param_set.num_time_samples_2DES,param_set.t_step_2DES,0.0,True)
+					twoDES.calc_2DES_time_series_GBOM_3rd(q_func_eff,GBOM.g3_cl,GBOM.h1_cl,GBOM.h2_cl,GBOM.h4_cl,GBOM.h5_cl,GBOM.corr_func_3rd_cl,GBOM.freqs_gs,GBOM.Omega_sq,GBOM.gamma,param_set.temperature*const.kb_in_Ha,E_start1,E_end1,E_start2,E_end2,param_set.num_steps_2DES,filename_2DES,param_set.num_time_samples_2DES,param_set.t_step_2DES,0.0,True,param_set.no_dusch)
+
 				else:
 					twoDES.calc_2DES_time_series(q_func_eff,E_start1,E_end1,E_start2,E_end2,param_set.num_steps_2DES,filename_2DES,param_set.num_time_samples_2DES,param_set.t_step_2DES,0.0)	
 			elif param_set.method_2DES=='PUMP_PROBE':
@@ -725,15 +765,22 @@ elif param_set.task=='2DES':
 			MDtraj.calc_3rd_order_corr(param_set.corr_length_3rd)
                       	# technically, in 3rd order cumulant, can have 2 different temperatures again. one at
                         # which the MD was performed and one at wich the spectrum is simulated. Fix this...
-			MDtraj.calc_g3(param_set.temperature,param_set.max_t,param_set.num_steps)
-			MDtraj.calc_corr_func_3rd_qm_freq(param_set.temperature_MD)
+			MDtraj.calc_g3(param_set.temperature,param_set.max_t,param_set.num_steps,param_set.low_freq_cutoff)
+			MDtraj.calc_corr_func_3rd_qm_freq(param_set.temperature_MD,param_set.low_freq_cutoff)
 			# Check if h1 and h2 are already computed and stored. computational savings...
-			if os.path.exists('h1_real.dat') and os.path.exists('h1_imag.dat') and os.path.exists('h2_real.dat') and os.path.exists('h2_imag.dat'):
+			if os.path.exists('h1_real.dat') and os.path.exists('h1_imag.dat') and os.path.exists('h2_real.dat') and os.path.exists('h2_imag.dat') and os.path.exists('h4_real.dat') and os.path.exists('h4_imag.dat') and os.path.exists('h5_real.dat') and os.path.exists('h5_imag.dat'):
+
 				# read in all files:
 				MDtraj.h1=twoDES.read_2D_spectrum('h1_real.dat',param_set.num_steps)
-				MDtraj.h1[:,:,2]=MD_traj.h2[:,:,2]+1j*(twoDES.read_2D_spectrum('h1_imag.dat',param_set.num_steps))[:,:,2]	
+				MDtraj.h1[:,:,2]=MDtraj.h1[:,:,2]+1j*(twoDES.read_2D_spectrum('h1_imag.dat',param_set.num_steps))[:,:,2]	
 				MDtraj.h2=twoDES.read_2D_spectrum('h2_real.dat',param_set.num_steps)
-				MDtraj.h2[:,:,2]=MD_traj.h2[:,:,2]+1j*(twoDES.read_2D_spectrum('h2_imag.dat',param_set.num_steps))[:,:,2]	
+				MDtraj.h2[:,:,2]=MDtraj.h2[:,:,2]+1j*(twoDES.read_2D_spectrum('h2_imag.dat',param_set.num_steps))[:,:,2]	
+
+				MDtraj.h4=twoDES.read_2D_spectrum('h4_real.dat',param_set.num_steps)
+                                MDtraj.h4[:,:,2]=MDtraj.h4[:,:,2]+1j*(twoDES.read_2D_spectrum('h4_imag.dat',param_set.num_steps))[:,:,2]
+				MDtraj.h5=twoDES.read_2D_spectrum('h5_real.dat',param_set.num_steps)
+                                MDtraj.h5[:,:,2]=MDtraj.h5[:,:,2]+1j*(twoDES.read_2D_spectrum('h5_imag.dat',param_set.num_steps))[:,:,2]
+
 			else:
 				MDtraj.calc_h1(param_set.max_t,param_set.num_steps)
 				twoDES.print_2D_spectrum('h1_real.dat',(MDtraj.h1),False)

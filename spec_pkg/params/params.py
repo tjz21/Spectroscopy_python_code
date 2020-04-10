@@ -26,6 +26,7 @@ def get_param(filename,keyword):
 
 class params:
 	def __init__(self,filepath):
+		self.low_freq_cutoff=-1.0
 		self.stdout=open(filepath+'.out','w')  # standard output file
 		self.num_trajs=1
 		self.num_gboms=1
@@ -43,6 +44,7 @@ class params:
 					   # wigner distribution. Only relevant for GBOM and ensemble method
 		self.third_order=False
 		self.is_solvent=False
+		self.no_dusch=False
 		self.solvent_reorg=0.0001
 		self.solvent_cutoff_freq=0.0001	
 		self.pump_energy=3.0/const.Ha_to_eV  # pump energy for pump probe
@@ -95,7 +97,9 @@ class params:
 		par=get_param(filepath,'MAX_T')
 		if par != '':
                         self.max_t=(float(par)/const.fs_to_Ha)
-
+		par=get_param(filepath,'LOW_FREQ_CUTOFF')
+		if par != '':
+			self.low_freq_cutoff=(float(par)/const.Ha_to_cm)
                 par=get_param(filepath,'PUMP_ENERGY')
                 if par != '':
                         self.pump_energy=(float(par)/const.Ha_to_eV)
@@ -147,6 +151,13 @@ class params:
                 par=get_param(filepath,'SPECTRAL_WINDOW')
                 if par != '':
                         self.spectral_window=float(par)/const.Ha_to_eV
+
+		par=get_param(filepath, 'NO_DUSCH')
+                if par != '':
+                        if par== 'FALSE':
+                                self.no_dusch=False
+                        if par== 'TRUE':
+                                self.no_dusch=True
 
 		par=get_param(filepath,'EXACT_CORRELATION_FUNC')
 		if par != '':

@@ -138,6 +138,13 @@ class gbom:
 		self.corr_func_3rd_qm=np.zeros((1,1),dtype=complex)
 		self.corr_func_3rd_qm_freq=np.zeros((1,1),dtype=complex)
 
+	def compute_corr_func_3rd(self,kbT,num_points,max_t,is_qm):
+		if is_qm:
+			self.corr_func_3rd_qm=gbom_cumulant_response.full_third_order_corr_func(self.freqs_gs,self.Omega_sq,self.gamma,kbT,max_t,num_points,False)
+		else:
+			self_corr_func_3rd_cl=gbom_cumulant_response.full_third_order_corr_func(self.freqs_gs,self.Omega_sq,self.gamma,kbT,max_t,num_points,True)
+
+
 	def set_absorption_variables(self):
                 # temporary variable. Not needed to be accessible to the outside
                 omega_e_sq=get_omega_sq(self.freqs_ex)
@@ -192,40 +199,40 @@ class gbom:
 		else:
                 	self.g3_exact=gbom_cumulant_response.full_third_order_lineshape(self.freqs_gs,self.Omega_sq,self.gamma,kbT,max_time,num_points,False)
 
-        def calc_h4_qm(self,temp,num_points,max_time):
+        def calc_h4_qm(self,temp,num_points,max_time,no_dusch):
                 kbT=const.kb_in_Ha*temp
-                self.h4_exact=gbom_cumulant_response.full_h4_func(self.freqs_gs,self.Omega_sq,self.gamma,kbT,max_time,num_points,False)
+                self.h4_exact=gbom_cumulant_response.full_h4_func(self.freqs_gs,self.Omega_sq,self.gamma,kbT,max_time,num_points,False,no_dusch)
 
-        def calc_h5_qm(self,temp,num_points,max_time):
+        def calc_h5_qm(self,temp,num_points,max_time,no_dusch):
                 kbT=const.kb_in_Ha*temp
-                self.h5_exact=gbom_cumulant_response.full_h5_func(self.freqs_gs,self.Omega_sq,self.gamma,kbT,max_time,num_points,False)
+                self.h5_exact=gbom_cumulant_response.full_h5_func(self.freqs_gs,self.Omega_sq,self.gamma,kbT,max_time,num_points,False,no_dusch)
 
-        def calc_h4_cl(self,temp,num_points,max_time):
+        def calc_h4_cl(self,temp,num_points,max_time,no_dusch):
                 kbT=const.kb_in_Ha*temp
-                self.h4_cl=gbom_cumulant_response.full_h4_func(self.freqs_gs,self.Omega_sq,self.gamma,kbT,max_time,num_points,True)
+                self.h4_cl=gbom_cumulant_response.full_h4_func(self.freqs_gs,self.Omega_sq,self.gamma,kbT,max_time,num_points,True,no_dusch)
 
-        def calc_h5_cl(self,temp,num_points,max_time):
+        def calc_h5_cl(self,temp,num_points,max_time,no_dusch):
                 kbT=const.kb_in_Ha*temp
-                self.h5_cl=gbom_cumulant_response.full_h5_func(self.freqs_gs,self.Omega_sq,self.gamma,kbT,max_time,num_points,True)
+                self.h5_cl=gbom_cumulant_response.full_h5_func(self.freqs_gs,self.Omega_sq,self.gamma,kbT,max_time,num_points,True,no_dusch)
 
 
 
 
-        def calc_h1_qm(self,temp,num_points,max_time):
+        def calc_h1_qm(self,temp,num_points,max_time,no_dusch):
                 kbT=const.kb_in_Ha*temp
-                self.h1_exact=gbom_cumulant_response.full_h1_func(self.freqs_gs,self.Omega_sq,self.gamma,kbT,max_time,num_points,False)
+                self.h1_exact=gbom_cumulant_response.full_h1_func(self.freqs_gs,self.Omega_sq,self.gamma,kbT,max_time,num_points,False,no_dusch)
 
-	def calc_h2_qm(self,temp,num_points,max_time):
+	def calc_h2_qm(self,temp,num_points,max_time,no_dusch):
                 kbT=const.kb_in_Ha*temp
-                self.h2_exact=gbom_cumulant_response.full_h2_func(self.freqs_gs,self.Omega_sq,self.gamma,kbT,max_time,num_points,False)
+                self.h2_exact=gbom_cumulant_response.full_h2_func(self.freqs_gs,self.Omega_sq,self.gamma,kbT,max_time,num_points,False,no_dusch)
 
-        def calc_h1_cl(self,temp,num_points,max_time):
+        def calc_h1_cl(self,temp,num_points,max_time,no_dusch):
                 kbT=const.kb_in_Ha*temp
-                self.h1_cl=gbom_cumulant_response.full_h1_func(self.freqs_gs,self.Omega_sq,self.gamma,kbT,max_time,num_points,True)
+                self.h1_cl=gbom_cumulant_response.full_h1_func(self.freqs_gs,self.Omega_sq,self.gamma,kbT,max_time,num_points,True,no_dusch)
 
-        def calc_h2_cl(self,temp,num_points,max_time):
+        def calc_h2_cl(self,temp,num_points,max_time,no_dusch):
                 kbT=const.kb_in_Ha*temp
-                self.h2_cl=gbom_cumulant_response.full_h2_func(self.freqs_gs,self.Omega_sq,self.gamma,kbT,max_time,num_points,True)
+                self.h2_cl=gbom_cumulant_response.full_h2_func(self.freqs_gs,self.Omega_sq,self.gamma,kbT,max_time,num_points,True,no_dusch)
 
 	def calc_g2_qm(self,temp,num_points,max_time,is_emission):
 		kbT=const.kb_in_Ha*temp

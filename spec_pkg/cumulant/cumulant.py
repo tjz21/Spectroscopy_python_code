@@ -7,10 +7,10 @@ import cmath
 from scipy import integrate
 from ..constants import constants as const
 from ..GBOM import gbom_cumulant_response as gbom_cumul
-from numba import jit
+from numba import jit, njit, prange
 
-# 2D version of the simpson integral
-@jit
+# 2D version of the simpson integral. Parallelized accross cores
+@njit(fastmath=True, parallel=True)
 def simpson_integral_2D(integrant):
     limit1=integrant.shape[0]
     limit2=integrant.shape[1]
@@ -25,9 +25,7 @@ def simpson_integral_2D(integrant):
     step_x=integrant[1,0,0]-integrant[0,0,0]
     step_y=integrant[0,1,1]-integrant[0,0,1]
 
-    icount=0
-    jcount=0
-    while icount<limit1:
+    for icount in prange(limit1):
         if icount==0 or icount==limit1-1:
                 prefac_x=1.0
         elif icount%2<0.5:
@@ -35,8 +33,7 @@ def simpson_integral_2D(integrant):
         else:
                 prefac_x=4.0
 
-        jcount=0
-        while jcount<limit2:
+        for jcount in range(limit2):
 
                 if jcount==0 or jcount==limit1-1:
                         prefac_y=1.0
@@ -45,16 +42,13 @@ def simpson_integral_2D(integrant):
                 else:
                         prefac_y=4.0
 
-                result=result+prefac_x*prefac_y*integrant[icount,jcount,2]
+                result+=prefac_x*prefac_y*integrant[icount,jcount,2]
 
-
-                jcount=jcount+1
-        icount=icount+1
     return step_x*step_y*result/(9.0)
 
 # construct the effective quantum correlation function in frequency space using the Jung prefactor.
 # This is necessary for 2DES calculations.
-def construct_corr_func_3rd_qm_freq(corr_func,kbT,sampling_rate_in_fs):
+def construct_corr_func_3rd_qm_freq(corr_func,kbT,sampling_rate_in_fs,low_freq_filter):
     step_length_corr=corr_func[1,1,0]-corr_func[0,0,0]
     sample_rate=sampling_rate_in_fs*math.pi*2.0*const.hbar_in_eVfs
 
@@ -94,13 +88,16 @@ def construct_corr_func_3rd_qm_freq(corr_func,kbT,sampling_rate_in_fs):
 		eff_corr[icount,jcount,1]=freq_list[jcount]
 		prefac=prefactor_jung(freq_list[icount],freq_list[jcount],kbT)
                 eff_corr[icount,jcount,2]=(prefac*corr_func_freq[icount,jcount]).real
+		# now apply low freq filter:
+                if abs(freq_list[icount])<low_freq_filter and abs(freq_list[jcount])<low_freq_filter:
+                        eff_corr[icount,jcount,2]=0.0
                 jcount=jcount+1
         icount=icount+1
 
     return eff_corr
 
 # function constructing the complete 3rd order lineshape function from a correlation function
-def compute_lineshape_func_3rd(corr_func,kbT,sampling_rate_in_fs,max_t,steps):
+def compute_lineshape_func_3rd(corr_func,kbT,sampling_rate_in_fs,max_t,steps,low_freq_filter):
     g_func=np.zeros((steps,2),dtype=complex)
     # need to constuct 3rd order correlation function in the frequency domain. 
     step_length_corr=corr_func[1,1,0]-corr_func[0,0,0]
@@ -146,6 +143,10 @@ def compute_lineshape_func_3rd(corr_func,kbT,sampling_rate_in_fs,max_t,steps):
         jcount=0
         while jcount<corr_func_freq.shape[0]:
                 corr_func_freq[icount,jcount]=corr_func_freq[icount,jcount].real
+		# now apply low freq filter:
+		if abs(freq_list[icount])<low_freq_filter and abs(freq_list[jcount])<low_freq_filter:
+			corr_func_freq[icount,jcount]=0.0
+		
                 jcount=jcount+1
         icount=icount+1
 
@@ -251,7 +252,7 @@ def compute_h3_val(qm_corr_func_freq,t1,t2,t3):
 
 # the analogous routine to the second order lineshape integrant. We have to carefully treat the limits of the integrant
 # when omega1 or omega2=0, or when omega1=-omega2. Double checked all limits. They seem to be correct.   
-@jit
+@jit(fastmath=True, parallel=True)
 def integrant_3rd_order_cumulant_lineshape(corr_func_freq,freq_list,t_val,kbT):
     tol=10e-15
     integrant=np.zeros((corr_func_freq.shape[0],corr_func_freq.shape[0],3),dtype=complex)
@@ -292,7 +293,7 @@ def integrant_3rd_order_cumulant_lineshape(corr_func_freq,freq_list,t_val,kbT):
 # function evaluates the integrant for the auxilliary term h1 needed when constructing the 3rd order cumulant correction
 # to the 3rd order response function. Note that this function takes as an input the approximately reconstructed QUANTUM
 # correlation function ins frequency space. 
-@jit
+@jit(fastmath=True, parallel=True)
 def integrant_h1(qm_corr_func_freq,t1,t2):
     tol=10e-15
     integrant=np.zeros((qm_corr_func_freq.shape[0],qm_corr_func_freq.shape[0],3),dtype=complex)
@@ -316,7 +317,7 @@ def integrant_h1(qm_corr_func_freq,t1,t2):
 # function evaluates the integrant for the auxilliary term h2 needed when constructing the 3rd order cumulant correction
 # to the 3rd order response function. Note that this function takes as an input the approximately reconstructed QUANTUM
 # correlation function ins frequency space. 
-@jit
+@jit(fastmath=True, parallel=True)
 def integrant_h2(qm_corr_func_freq,t1,t2):
     tol=10e-15
     integrant=np.zeros((qm_corr_func_freq.shape[0],qm_corr_func_freq.shape[0],3),dtype=complex)
@@ -338,7 +339,7 @@ def integrant_h2(qm_corr_func_freq,t1,t2):
     return integrant
 
 
-@jit
+@jit(fastmath=True, parallel=True)
 def integrant_h4(qm_corr_func_freq,t1,t2):
     tol=10e-15
     integrant=np.zeros((qm_corr_func_freq.shape[0],qm_corr_func_freq.shape[0],3),dtype=complex)
@@ -360,7 +361,7 @@ def integrant_h4(qm_corr_func_freq,t1,t2):
     return integrant
 
 
-@jit
+@jit(fastmath=True, parallel=True)
 def integrant_h5(qm_corr_func_freq,t1,t2):
     tol=10e-15
     integrant=np.zeros((qm_corr_func_freq.shape[0],qm_corr_func_freq.shape[0],3),dtype=complex)
@@ -385,7 +386,7 @@ def integrant_h5(qm_corr_func_freq,t1,t2):
 # function evaluates the integrant for the auxilliary term h3 needed when constructing the 3rd order cumulant correction
 # to the 3rd order response function. Note that this function takes as an input the approximately reconstructed QUANTUM
 # correlation function ins frequency space. 
-@jit
+@jit(fastmath=True, parallel=True)
 def integrant_h3(qm_corr_func_freq,t1,t2,t3):
     tol=10e-15
     integrant=np.zeros((qm_corr_func_freq.shape[0],qm_corr_func_freq.shape[0],3),dtype=complex)
@@ -407,7 +408,7 @@ def integrant_h3(qm_corr_func_freq,t1,t2,t3):
     return integrant
 
 # prefactor defined by Jung that transforms the classical correlation function in Frequency space to its QM counterpart
-@jit
+@njit(fastmath=True, parallel=True)
 def prefactor_jung(omega1,omega2,kbT):
     omega_bar=omega1+omega2
     tol=10e-15
@@ -574,7 +575,7 @@ def compute_2nd_order_cumulant_from_spectral_dens(spectral_dens,kbT,max_t,steps)
         counter=counter+1
     return q_func
 
-@jit
+@jit(fastmath=True, parallel=True)
 def integrant_2nd_order_cumulant_lineshape(spectral_dens,t_val,kbT):
     integrant=np.zeros((spectral_dens.shape[0],2),dtype=complex)
     counter=0

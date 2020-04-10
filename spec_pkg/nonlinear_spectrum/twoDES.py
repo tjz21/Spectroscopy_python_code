@@ -6,7 +6,7 @@ import math
 import cmath
 from scipy import integrate
 import time
-from numba import jit
+from numba import config,jit, njit
 from ..cumulant import cumulant as cumul
 from ..GBOM import gbom_cumulant_response as cumul_gbom
 
@@ -34,7 +34,7 @@ def print_2D_spectrum(filename,spectrum_2D,is_imag):
 def read_2D_spectrum(filename,num_points):
         line_data=open(filename,"r")
         lines=line_data.readlines()
-        outarray=np.zeros((num_points,num_points,3))
+        outarray=np.zeros((num_points,num_points,3),dtype=complex)
         icount=0
         jcount=0
         while icount<num_points:
@@ -226,7 +226,7 @@ def calc_2DES_time_series_3rd(q_func,g_func,h1_func,h2_func,h4_func,h5_func,corr
 # basic calculation routines:
 # calculate a full series of 2DES spectra, sampled with a certain delay time step
 # this routine is specifically for the 3rd order cumulant correction and the GBOM
-def calc_2DES_time_series_GBOM_3rd(q_func,g_func,h1_func,h2_func,h4_func,h5_func,freqs_gs,Omega_sq,gamma,kbT,E_min1,E_max1,E_min2,E_max2,num_points_2D,rootname,num_times,time_step,mean,is_cl):
+def calc_2DES_time_series_GBOM_3rd(q_func,g_func,h1_func,h2_func,h4_func,h5_func,corr_func,freqs_gs,Omega_sq,gamma,kbT,E_min1,E_max1,E_min2,E_max2,num_points_2D,rootname,num_times,time_step,mean,is_cl,no_dusch):
         averaged_val=np.zeros((num_times,2))
         transient_abs=np.zeros((num_times,num_points_2D,3))
 
@@ -240,7 +240,7 @@ def calc_2DES_time_series_GBOM_3rd(q_func,g_func,h1_func,h2_func,h4_func,h5_func
         counter=0
         while counter<num_times:
                 print(counter,current_delay)
-                spectrum_2D=calc_2D_spectrum_GBOM_3rd(q_func,g_func,h1_func,h2_func,h4_func,h5_func,freqs_gs,Omega_sq,gamma,kbT,current_delay,current_delay_index,E_min1,E_max1,E_min2,E_max2,num_points_2D,mean,is_cl)
+                spectrum_2D=calc_2D_spectrum_GBOM_3rd(q_func,g_func,h1_func,h2_func,h4_func,h5_func,corr_func,freqs_gs,Omega_sq,gamma,kbT,current_delay,current_delay_index,E_min1,E_max1,E_min2,E_max2,num_points_2D,mean,is_cl,no_dusch)
                 print_2D_spectrum(rootname+'_2DES_'+str(counter)+'.dat',spectrum_2D,False)
 
                 #compute transient absorption contribution here:
@@ -420,7 +420,7 @@ def calc_2D_spectrum_3rd(q_func,g_func,h1_func,h2_func,h4_func,h5_func,corr_func
 
 # Calculation routine for the full spectrum in the 3rd order cumulant approximation for a GBOM
 @jit
-def calc_2D_spectrum_GBOM_3rd(q_func,g_func,h1_func,h2_func,h4_func,h5_func,freqs_gs,Omega_sq,gamma,kbT,delay_time,delay_index,E_min1,E_max1,E_min2,E_max2,num_points_2D,mean,is_cl):
+def calc_2D_spectrum_GBOM_3rd(q_func,g_func,h1_func,h2_func,h4_func,h5_func,corr_func,freqs_gs,Omega_sq,gamma,kbT,delay_time,delay_index,E_min1,E_max1,E_min2,E_max2,num_points_2D,mean,is_cl,no_dusch):
     full_2D_spectrum=np.zeros((num_points_2D,num_points_2D,3))
     counter1=0
     counter2=0
@@ -428,7 +428,8 @@ def calc_2D_spectrum_GBOM_3rd(q_func,g_func,h1_func,h2_func,h4_func,h5_func,freq
     print 'Compute rfunc'
     rfunc=calc_Rfuncs_tdelay(q_func,delay_time,delay_index)
     print 'Compute rfunc 3rd'
-    rfunc_3rd=calc_Rfuncs_3rd_GBOM_tdelay(g_func,h1_func,h2_func,h4_func,h5_func,freqs_gs,Omega_sq,gamma,kbT,delay_time,delay_index,is_cl)
+    rfunc_3rd=calc_Rfuncs_3rd_GBOM_tdelay(g_func,h1_func,h2_func,h4_func,h5_func,corr_func,freqs_gs,Omega_sq,gamma,kbT,delay_time,delay_index,is_cl,no_dusch)
+
     print 'DONE'
     print 'Dimensions RFunc and Rfunc 3rd'
     print rfunc.shape[0], rfunc_3rd.shape[0]
@@ -452,7 +453,7 @@ def calc_2D_spectrum_GBOM_3rd(q_func,g_func,h1_func,h2_func,h4_func,h5_func,freq
 
 # this function computes the R1,R2,R3 and R4 functions for a given delay time tdelay.
 # function works in the 2nd order cumulant approximation
-@jit
+@njit(fastmath=True, parallel=True)
 def calc_Rfuncs_tdelay(q_func,t_delay,steps_in_t_delay):
     # first find the effective step_length
     step_length=q_func[1,0].real-q_func[0,0].real
@@ -491,8 +492,8 @@ def calc_Rfuncs_tdelay(q_func,t_delay,steps_in_t_delay):
     return rfuncs
 
 #STUPID TEST: H4 H5 files
-@jit
-def calc_Rfuncs_3rd_GBOM_tdelay(g_func,h1_func,h2_func,h4_func,h5_func,freqs_gs,Omega_sq,gamma,kbT,t_delay,steps_in_t_delay,is_cl):
+@njit(fastmath=True, parallel=True)
+def calc_Rfuncs_3rd_GBOM_tdelay(g_func,h1_func,h2_func,h4_func,h5_func,corr_func,freqs_gs,Omega_sq,gamma,kbT,t_delay,steps_in_t_delay,is_cl,no_dusch):
     # first find the effective step_length
     print 'Entering Rfuncs_3rd'
     step_length=g_func[1,0].real-g_func[0,0].real
@@ -523,6 +524,12 @@ def calc_Rfuncs_3rd_GBOM_tdelay(g_func,h1_func,h2_func,h4_func,h5_func,freqs_gs,
 
     while count1<max_index:
         count2=0
+	# initialize h3 values
+    	h31=0.0+0.0j
+     	h32=0.0+0.0j
+     	h33=0.0+0.0j
+    	h34=0.0+0.0j
+
         while count2<max_index:
                 # set all required indices and parameters.
                 rfuncs[count1,count2,0]=g_func[count1,0]
@@ -530,24 +537,51 @@ def calc_Rfuncs_3rd_GBOM_tdelay(g_func,h1_func,h2_func,h4_func,h5_func,freqs_gs,
                 t1=g_func[count1,0]
                 t12=t1+t_delay
                 t123=t12+g_func[count2,0]
-		# INCONSISTENCY BETWEEN t12 and t12_index potentially?
                 t1_index=count1
                 t12_index=count1+steps_in_t_delay
                 t123_index=t12_index+count2
-		#print 'INDICES:'
-		#print t12,(count1+steps_in_t_delay)*step_length
-                # now compute required h3 functions
-                if is_cl:
-                        h31=cumul_gbom.h3_func_cl_t(freqs_gs,Omega_sq,gamma,kbT,t1,t12,t123)
-                        h32=cumul_gbom.h3_func_cl_t(freqs_gs,Omega_sq,gamma,kbT,t12,t123,t1)
-                        h33=cumul_gbom.h3_func_cl_t(freqs_gs,Omega_sq,gamma,kbT,t1,t123,t12)
-                        h34=cumul_gbom.h3_func_cl_t(freqs_gs,Omega_sq,gamma,kbT,t123,t12,t1)
-                else:
-                        h31=cumul_gbom.h3_func_qm_t(freqs_gs,Omega_sq,n_i_vec,gamma,kbT,t1,t12,t123)
-                        h32=cumul_gbom.h3_func_qm_t(freqs_gs,Omega_sq,n_i_vec,gamma,kbT,t12,t123,t1)
-                        h33=cumul_gbom.h3_func_qm_t(freqs_gs,Omega_sq,n_i_vec,gamma,kbT,t1,t123,t12)
-                        h34=cumul_gbom.h3_func_qm_t(freqs_gs,Omega_sq,n_i_vec,gamma,kbT,t123,t12,t1)
 
+		# if this is a no Duschinsky rotation it is fast. No action necessary
+		if no_dusch:
+			if is_cl:
+                                h31=cumul_gbom.h3_func_cl_t_no_dusch(freqs_gs,Omega_sq,gamma,kbT,t1,t12,t123)
+                                h32=cumul_gbom.h3_func_cl_t_no_dusch(freqs_gs,Omega_sq,gamma,kbT,t12,t123,t1)
+                                h33=cumul_gbom.h3_func_cl_t_no_dusch(freqs_gs,Omega_sq,gamma,kbT,t1,t123,t12)
+                                h34=cumul_gbom.h3_func_cl_t_no_dusch(freqs_gs,Omega_sq,gamma,kbT,t123,t12,t1)
+                        else:
+                                h31=cumul_gbom.h3_func_qm_t_no_dusch(freqs_gs,Omega_sq,n_i_vec,gamma,kbT,t1,t12,t123)
+                                h32=cumul_gbom.h3_func_qm_t_no_dusch(freqs_gs,Omega_sq,n_i_vec,gamma,kbT,t12,t123,t1)
+                                h33=cumul_gbom.h3_func_qm_t_no_dusch(freqs_gs,Omega_sq,n_i_vec,gamma,kbT,t1,t123,t12)
+                                h34=cumul_gbom.h3_func_qm_t_no_dusch(freqs_gs,Omega_sq,n_i_vec,gamma,kbT,t123,t12,t1)
+
+
+		else:
+                	if is_cl:
+                        	h31=cumul_gbom.h3_func_cl_t(freqs_gs,Omega_sq,gamma,kbT,t1,t12,t123)
+                        	h32=cumul_gbom.h3_func_cl_t(freqs_gs,Omega_sq,gamma,kbT,t12,t123,t1)
+                        	h33=cumul_gbom.h3_func_cl_t(freqs_gs,Omega_sq,gamma,kbT,t1,t123,t12)
+                        	h34=cumul_gbom.h3_func_cl_t(freqs_gs,Omega_sq,gamma,kbT,t123,t12,t1)
+                	else:
+                        	h31=cumul_gbom.h3_func_qm_t(freqs_gs,Omega_sq,n_i_vec,gamma,kbT,t1,t12,t123)
+                        	h32=cumul_gbom.h3_func_qm_t(freqs_gs,Omega_sq,n_i_vec,gamma,kbT,t12,t123,t1)
+                        	h33=cumul_gbom.h3_func_qm_t(freqs_gs,Omega_sq,n_i_vec,gamma,kbT,t1,t123,t12)
+                        	h34=cumul_gbom.h3_func_qm_t(freqs_gs,Omega_sq,n_i_vec,gamma,kbT,t123,t12,t1)
+
+			#h31=cumul_gbom.calc_h3_time_domain(corr_func,t1_index,t12_index,t123_index)
+			#h32=cumul_gbom.calc_h3_time_domain(corr_func,t12_index,t123_index,t1_index)
+			#h33=cumul_gbom.calc_h3_time_domain(corr_func,t1_index,t123_index,t12_index)
+			#h34=cumul_gbom.calc_h3_time_domain(corr_func,t123_index,t12_index,t1_index)
+
+			# sanity check.
+			#if count2<5 and count1<5: 
+			#	h31_ref=cumul_gbom.h3_func_qm_t(freqs_gs,Omega_sq,n_i_vec,gamma,kbT,t1,t12,t123)
+			#	h32_ref=cumul_gbom.h3_func_qm_t(freqs_gs,Omega_sq,n_i_vec,gamma,kbT,t12,t123,t1)
+			#	h33_ref=cumul_gbom.h3_func_qm_t(freqs_gs,Omega_sq,n_i_vec,gamma,kbT,t1,t123,t12)
+			#	h34_ref=cumul_gbom.h3_func_qm_t(freqs_gs,Omega_sq,n_i_vec,gamma,kbT,t123,t12,t1)
+			#	print('h31',t1_index,t12_index,t123_index,h31,h31_ref,h31-h31_ref)
+			#	print('h32',h32,h32_ref,h32-h32_ref)
+			#	print('h33',h33,h33_ref,h33-h33_ref)
+			#	print('h34',h34,h34_ref,h34-h34_ref)
 
 # FLIP SIGN OF g_func conjugate term! This is due to of our redefinition of g
 		rfuncs[count1,count2,2]=-g_func[t1_index,1]-g_func[t12_index,1].conjugate()-g_func[t123_index,1]+h31+h1_func[t1_index,t12_index,2]-h1_func[t1_index,t123_index,2]-h2_func[t12_index,t123_index,2]-h4_func[t1_index,t123_index,2]+h4_func[t12_index,t123_index,2]-h5_func[t1_index,t12_index,2]
@@ -632,7 +666,7 @@ def calc_Rfuncs_3rd_GBOM_tdelay(g_func,h1_func,h2_func,h4_func,h5_func,freqs_gs,
 
 # this function computes the 3rd order cumulant correction for R1, R2, R3 and R4 functions for a given
 # delay time t_delay
-@jit
+@jit(fastmath=True, parallel=True)
 def calc_Rfuncs_3rd_tdelay(g_func,h1_func,h2_func,h4_func,h5_func, qm_corr_func_freq,t_delay,steps_in_t_delay):
     print('Entering Rfuncs_3rd')
     step_length=g_func[1,0].real-g_func[0,0].real
@@ -668,6 +702,7 @@ def calc_Rfuncs_3rd_tdelay(g_func,h1_func,h2_func,h4_func,h5_func, qm_corr_func_
 		t123_index=t12_index+count2
 
                 # now compute required h3 functions
+                # in this inner loop, only t123 gets increased by delta_t
  		h31=cumul.compute_h3_val(qm_corr_func_freq,t1,t12,t123)
 		h32=cumul.compute_h3_val(qm_corr_func_freq,t12,t123,t1)
 		h33=cumul.compute_h3_val(qm_corr_func_freq,t1,t123,t12)
@@ -692,7 +727,7 @@ def calc_Rfuncs_3rd_tdelay(g_func,h1_func,h2_func,h4_func,h5_func, qm_corr_func_
 
 # integrant of the 3rd order response function in the 2nd order cumulant approximation. Need to include possibility to add pulse shape
 # omega_av is already incorporated in the function q. No need to account for the mean in the equation below
-@jit
+@jit(fastmath=True, parallel=True)
 def twoD_spectrum_integrant(rfuncs,q_func,omega1,omega2,t_delay):
     step_length=rfuncs[1,0,0]-rfuncs[0,0,0]
     steps_in_t_delay=int(t_delay/step_length)  # NOTE: delay time is rounded to match with steps in the response function
@@ -718,7 +753,7 @@ def twoD_spectrum_integrant(rfuncs,q_func,omega1,omega2,t_delay):
 
 # integrant of the 3rd order response function in the 3rd order cumulant approximation. Need to include possibility to add pulse shape
 # omega_av is already incorporated in the function q. No need to account for the mean in the equation below
-@jit
+@jit(fastmath=True, parallel=True)
 def twoD_spectrum_integrant_3rd(rfuncs,rfuncs_3rd,q_func,omega1,omega2,t_delay):
     step_length=rfuncs[1,0,0]-rfuncs[0,0,0]
     steps_in_t_delay=int(t_delay/step_length)  # NOTE: delay time is rounded to match with steps in the response function
