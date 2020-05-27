@@ -10,25 +10,28 @@ from numba import jit
 from ..constants import constants as const
 import cumulant
 
+# Works
 @jit
-def ensemble_response_for_given_t(fluctuations,dipole_mom_sq,mean,t):
+def ensemble_response_for_given_t(fluctuations,dipole_mom,mean,t):
 	response_val=0.0
 	icount=0
-        while icount<fluctuations.shape[0]:
-           	jcount=0
-              	while jcount<fluctuations.shape[1]:
-			response_val=response_val+dipole_mom_sq[icount,jcount]*cmath.exp(-1j*(fluctuations[icount,jcount]+mean)*t)
-                     	jcount=jcount+1
-             	icount=icount+1
+	while icount<fluctuations.shape[0]:
+		jcount=0
+		while jcount<fluctuations.shape[1]:
+			response_val=response_val+(dipole_mom[icount,jcount])**2.0*cmath.exp(-1j*((fluctuations[icount,jcount])+mean)*t)
+			jcount=jcount+1
+		icount=icount+1
 	return response_val/(fluctuations.shape[0]*fluctuations.shape[1]*1.0)
 	
-def construct_full_ensemble_response(fluctuations,dipole_mom_sq, mean, max_t,num_steps):
+# introduce artificial, constant SD for ensemble spectra. This can be treated as a convergence parameter to ensure smoothness
+# for insufficient sampling
+def construct_full_ensemble_response(fluctuations,dipole_mom, mean, max_t,num_steps):
 	response_func=np.zeros((num_steps,2),dtype=complex)
 	tcount=0
 	t_step=max_t/num_steps
 	while tcount<num_steps:
 		response_func[tcount,0]=tcount*t_step
-		response_func[tcount,1]=ensemble_response_for_given_t(fluctuations,dipole_mom_sq,mean,response_func[tcount,0])
+		response_func[tcount,1]=ensemble_response_for_given_t(fluctuations,dipole_mom,mean,response_func[tcount,0])
 		tcount=tcount+1
 
 	return response_func
@@ -55,53 +58,55 @@ def construct_full_cumulant_response(g2,g3,mean,is_3rd_order,is_emission):
 
 # return dipole moment squared for all transitions 
 def get_dipole_mom(oscillators,trajs):
-        # compute fluctuations for each trajectory around the common mean
-        icount=0
-        while icount<trajs.shape[0]:
-                jcount=0
-                while jcount<trajs.shape[1]:
-                        oscillators[icount,jcount]=oscillators[icount,jcount]/(trajs[icount,jcount]/const.Ha_to_eV)*3.0/2.0
-                        jcount=jcount+1
-                icount=icount+1
+	# compute fluctuations for each trajectory around the common mean
+	dipole_moms=np.zeros((oscillators.shape[0],oscillators.shape[1]))
+	icount=0
+ 	while icount<trajs.shape[0]:
+		jcount=0
+		while jcount<trajs.shape[1]:
+			dipole_moms[icount,jcount]=np.sqrt(oscillators[icount,jcount]/(trajs[icount,jcount]/const.Ha_to_eV)*3.0/2.0)
+			jcount=jcount+1
+		icount=icount+1
 
-        return trajs
+	return dipole_moms
 
-def get_fluctuations(trajs,mean):
-        # compute fluctuations for each trajectory around the common mean
-        icount=0
-        while icount<trajs.shape[0]:
-                jcount=0
-                while jcount<trajs.shape[1]:
-                        trajs[icount,jcount]=trajs[icount,jcount]/const.Ha_to_eV-mean
-                        jcount=jcount+1
-                icount=icount+1
+def get_fluctuations(trajectories,mean):
+	# compute fluctuations for each trajectory around the common mean
+	flucts=np.zeros((trajectories.shape[0],trajectories.shape[1]))
+	icount=0
+	while icount<flucts.shape[0]:
+		jcount=0
+		while jcount<flucts.shape[1]:
+			flucts[icount,jcount]=trajectories[icount,jcount]/const.Ha_to_eV-mean
+			jcount=jcount+1
+		icount=icount+1
 
-        return trajs
+	return flucts
 
 # calculate the total mean of a batch of trajectory functions
 def mean_of_func_batch(func):
-        mean=0.0
-        for x in func:
-                for y in x:
-                        mean=mean+y
+	mean=0.0
+	for x in func:
+		for y in x:
+			mean=mean+y
 
-        return mean/(func.shape[0]*func.shape[1])/const.Ha_to_eV
+	return mean/(func.shape[0]*func.shape[1])/const.Ha_to_eV
 
 # generate an array of trajectory functions from files
 def get_all_trajs(num_trajs,name_list):
-        traj1=np.genfromtxt(name_list[0])
-        num_points=traj1.shape[0]
-        trajs=np.zeros((num_points,num_trajs))
-        traj_count=1
-        while traj_count<num_trajs:
-                traj_current=np.genfromtxt(name_list[traj_count])
-                icount=0
-                while icount<traj_current.shape[0]:
-                        trajs[icount,traj_count-1]=traj_current[icount,0]/const.Ha_to_eV
-                        icount=icount+1
-                traj_count=traj_count+1
+	traj1=np.genfromtxt(name_list[0])
+	num_points=traj1.shape[0]
+	trajs=np.zeros((num_points,num_trajs))
+	traj_count=1
+	while traj_count<num_trajs:
+		traj_current=np.genfromtxt(name_list[traj_count])
+		icount=0
+		while icount<traj_current.shape[0]:
+			trajs[icount,traj_count-1]=traj_current[icount,0]/const.Ha_to_eV
+			icount=icount+1
+		traj_count=traj_count+1
 
-        return trajs
+	return trajs
 
 
 #-----------------------------------------------------------
@@ -110,11 +115,15 @@ def get_all_trajs(num_trajs,name_list):
 class MDtrajs:
 	def __init__(self,trajs,oscillators,tau,num_trajs,time_step):
 		self.num_trajs=num_trajs
+		print(trajs)
 		self.mean=mean_of_func_batch(trajs)
+		print(trajs)
 		self.fluct=get_fluctuations(trajs,self.mean)
+		print(trajs)
 		self.dipole_mom=get_dipole_mom(oscillators,trajs)
+		self.dipole_mom_av=np.sum(self.dipole_mom)/(1.0*self.dipole_mom.shape[0]*self.dipole_mom.shape[1]) # average dipole mom
 		self.time_step=time_step # time between individual snapshots. Only relevant
-		# for cumulant approach
+		# for cumulant approach. In the ensemble approach it is assumed that snapshots are completely decorrelated
 		self.tau=tau    # Artificial decay length applied to correlation funcs
 
 		# funtions needed to compute the cumulant response
@@ -178,6 +187,7 @@ class MDtrajs:
 		self.cumulant_response=construct_full_cumulant_response(self.g2,self.g3,self.mean,is_3rd_order,is_emission)	
 
 	def calc_ensemble_response(self,max_t,num_steps):
-		self.ensemble_response=construct_full_ensemble_response(self.fluct,self.dipole_mom, self.mean, max_t,num_steps)
+		# Adjust for the fact that ensemble spectrum already contains dipole moment scaling
+		self.ensemble_response=1.0/(self.dipole_mom_av**2.0)*construct_full_ensemble_response(self.fluct,self.dipole_mom, self.mean, max_t,num_steps)
 
 

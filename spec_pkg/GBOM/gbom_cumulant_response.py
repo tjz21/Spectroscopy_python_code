@@ -14,9 +14,10 @@ def compute_cumulant_response(g2,g3,is_3rd_order_cumulant,is_emission):
 	response_func[counter,0]=g2[counter,0].real
 	# if required add 3rd order contribution
 	if is_emission:
+		# Fix exmission expression for 3rd order cumulant
 		if is_3rd_order_cumulant:
-			eff_g3=1j*g3[counter,1]
-			response_func[counter,1]=cmath.exp(-np.conj(g2[counter,1])-1j*np.conj(eff_g3))
+			eff_g3=1j*g3[counter,1] # eff_g now coincides with the Fidler definition of g_3
+			response_func[counter,1]=cmath.exp(-np.conj(g2[counter,1])-1j*np.conj(eff_g3))# this should be the correct expression
 		else:
 			response_func[counter,1]=cmath.exp(-np.conj(g2[counter,1]))
 	else:
@@ -36,7 +37,7 @@ def two_time_corr_func_term_jung(prefac,omega1,omega2,kbT,t1,t2):
 
 
 @jit(fastmath=True)
-def full_third_order_corr_func(freqs_gs,Omega_sq,gamma,kbT,max_t,num_points,is_cl):
+def full_third_order_corr_func(freqs_gs,Omega_sq,gamma,kbT,max_t,num_points,is_cl,four_phonon_term):
     	corr_func=np.zeros((num_points*2+1,num_points*2+1,3),dtype=complex)
 	step_length=max_t/num_points
 	#create n_i_vec
@@ -55,9 +56,9 @@ def full_third_order_corr_func(freqs_gs,Omega_sq,gamma,kbT,max_t,num_points,is_c
 			corr_func[count1,count2,0]=t1
 			corr_func[count1,count2,1]=t2
 			if is_cl:
-				corr_func[count1,count2,2]=third_order_corr_t_cl(freqs_gs,Omega_sq,gamma,kbT,t1,t2)
+				corr_func[count1,count2,2]=third_order_corr_t_cl(freqs_gs,Omega_sq,gamma,kbT,t1,t2,four_phonon_term)
 			else:
-				corr_func[count1,count2,2]=third_order_corr_t_QM(freqs_gs,Omega_sq,gamma,n_i_vec,t1,t2)
+				corr_func[count1,count2,2]=third_order_corr_t_QM(freqs_gs,Omega_sq,gamma,n_i_vec,t1,t2,four_phonon_term)
 			count2=count2+1
 			t2=t2+step_length
 		count1=count1+1
@@ -67,7 +68,7 @@ def full_third_order_corr_func(freqs_gs,Omega_sq,gamma,kbT,max_t,num_points,is_c
 # compute third order quantum correlation function constructed from the classical correlation function using the 
 # jung prefactor
 @njit(fastmath=True,parallel=True)
-def third_order_corr_t_cl(freqs_gs,Omega_sq,gamma,kbT,t1,t2):
+def third_order_corr_t_cl(freqs_gs,Omega_sq,gamma,kbT,t1,t2,four_phonon_term):
     corr_val=0.0+0.0j
     gamma_term=0.0+0.0j
     omega_term=0.0+0.0j
@@ -99,12 +100,13 @@ def third_order_corr_t_cl(freqs_gs,Omega_sq,gamma,kbT,t1,t2):
                         jcount=jcount+1
         icount=icount+1
     # now do the more complicated term that is a sum over 3 indices:
-    icount=0
-    while icount<freqs_gs.shape[0]:
-        jcount=0
-        while jcount<freqs_gs.shape[0]:
-                kcount=0
-                while kcount<freqs_gs.shape[0]:
+    if four_phonon_term:
+    	icount=0
+    	while icount<freqs_gs.shape[0]:
+        	jcount=0
+        	while jcount<freqs_gs.shape[0]:
+                	kcount=0
+                	while kcount<freqs_gs.shape[0]:
                                 const_fac=4.0*math.pi**2.0*Omega_sq[icount,jcount]*Omega_sq[jcount,kcount]*Omega_sq[icount,kcount]
                                 const_fac=const_fac*(kbT)**3.0/(freqs_gs[icount]*freqs_gs[jcount]*freqs_gs[kcount])**2.0
 
@@ -126,8 +128,8 @@ def third_order_corr_t_cl(freqs_gs,Omega_sq,gamma,kbT,t1,t2):
                                 omega_term=omega_term+two_time_corr_func_term_jung(const_fac,ik_m,-ij_m,kbT,t1,t2)
 
                                 kcount=kcount+1
-                jcount=jcount+1
-        icount=icount+1
+                	jcount=jcount+1
+        	icount=icount+1
 
     corr_val=(omega_term+gamma_term)
     return corr_val
@@ -135,7 +137,7 @@ def third_order_corr_t_cl(freqs_gs,Omega_sq,gamma,kbT,t1,t2):
 
 # compute the third order quantum correlation function for two points in time
 @njit(fastmath=True,parallel=True)
-def third_order_corr_t_QM(freqs_gs,Omega_sq,gamma,n_i_vec,t1,t2):
+def third_order_corr_t_QM(freqs_gs,Omega_sq,gamma,n_i_vec,t1,t2,four_phonon_term):
     corr_val=0.0+0.0j
     gamma_term=0.0+0.0j
     omega_term=0.0+0.0j
@@ -165,14 +167,15 @@ def third_order_corr_t_QM(freqs_gs,Omega_sq,gamma,n_i_vec,t1,t2):
         icount=icount+1
 
     # now do the more complicated term that is a sum over 3 indices:
-    icount=0
-    while icount<freqs_gs.shape[0]:
-        n_i=n_i_vec[icount]
-        jcount=0
-        while jcount<freqs_gs.shape[0]:
-                n_j=n_i_vec[jcount]
-                kcount=0
-                while kcount<freqs_gs.shape[0]:
+    if four_phonon_term:
+    	icount=0
+    	while icount<freqs_gs.shape[0]:
+        	n_i=n_i_vec[icount]
+        	jcount=0
+        	while jcount<freqs_gs.shape[0]:
+                	n_j=n_i_vec[jcount]
+                	kcount=0
+                	while kcount<freqs_gs.shape[0]:
                                 n_k=n_i_vec[kcount]
                                 const_fac=Omega_sq[icount,jcount]*Omega_sq[jcount,kcount]*Omega_sq[icount,kcount]
                                 const_fac=const_fac/(freqs_gs[icount]*freqs_gs[jcount]*freqs_gs[kcount])
@@ -191,8 +194,8 @@ def third_order_corr_t_QM(freqs_gs,Omega_sq,gamma,n_i_vec,t1,t2):
                                 omega_term=omega_term+const_fac*(term1+term2+term3+term4)
 
                                 kcount=kcount+1
-                jcount=jcount+1
-        icount=icount+1
+                	jcount=jcount+1
+        	icount=icount+1
 
     corr_val=(omega_term+gamma_term)
     return corr_val
@@ -365,7 +368,7 @@ def bose_einstein(freq,kbT):
     return 1.0/n
 
 # g2 as derived from either the exact classical correlation function or the exact QM correlation function
-def full_2nd_order_lineshape(freqs_gs,freqs_ex,Kmat,Jmat,gamma,Omega_sq,kbT,av_energy_gap,max_t,num_points,is_cl):
+def full_2nd_order_lineshape(freqs_gs,freqs_ex,Kmat,Jmat,gamma,Omega_sq,kbT,av_energy_gap,max_t,num_points,is_cl,is_emission,E_adiabatic):
     lineshape_func=np.zeros((num_points,2),dtype=complex)
     print 'Computing lineshape function'
     print 'av energy gap:'
@@ -380,18 +383,25 @@ def full_2nd_order_lineshape(freqs_gs,freqs_ex,Kmat,Jmat,gamma,Omega_sq,kbT,av_e
     count1=0
     while count1<num_points:
         lineshape_func[count1,0]=t
-	if is_cl:
-        	lineshape_func[count1,1]=second_order_lineshape_cl_t(freqs_gs,Omega_sq,gamma,kbT,t)+1j*t*av_energy_gap
+	if is_emission:
+		if is_cl:
+        		lineshape_func[count1,1]=second_order_lineshape_cl_t(freqs_gs,Omega_sq,gamma,kbT,t)-1j*t*av_energy_gap
+		else:
+			lineshape_func[count1,1]=second_order_lineshape_qm_t(freqs_gs,Omega_sq,gamma,kbT,t)-1j*t*av_energy_gap
 	else:
-		lineshape_func[count1,1]=second_order_lineshape_qm_t(freqs_gs,Omega_sq,gamma,kbT,t)+1j*t*av_energy_gap
-        count1=count1+1
+		if is_cl:
+                        lineshape_func[count1,1]=second_order_lineshape_cl_t(freqs_gs,Omega_sq,gamma,kbT,t)+1j*t*av_energy_gap
+                else:
+                        lineshape_func[count1,1]=second_order_lineshape_qm_t(freqs_gs,Omega_sq,gamma,kbT,t)+1j*t*av_energy_gap	
+	
+	count1=count1+1
         t=t+step_length
         print lineshape_func[count1-1,0],lineshape_func[count1-1,1]
 
     return lineshape_func
 
 # third order cumulant lineshape
-def full_third_order_lineshape(freqs_gs,Omega_sq,gamma,kbT,max_t,num_points,is_cl):
+def full_third_order_lineshape(freqs_gs,Omega_sq,gamma,kbT,max_t,num_points,is_cl,four_phonon_term):
     lineshape_func=np.zeros((num_points,2),dtype=complex)
     step_length=max_t/num_points
     # only compute n_i_vec if this is a QM lineshape calculation:
@@ -406,16 +416,16 @@ def full_third_order_lineshape(freqs_gs,Omega_sq,gamma,kbT,max_t,num_points,is_c
     while count1<num_points:
         lineshape_func[count1,0]=t
 	if is_cl:
-		lineshape_func[count1,1]=third_order_lineshape_cl_t(freqs_gs,Omega_sq,gamma,kbT,t)
+		lineshape_func[count1,1]=third_order_lineshape_cl_t(freqs_gs,Omega_sq,gamma,kbT,t,four_phonon_term)
 	else:
-        	lineshape_func[count1,1]=third_order_lineshape_qm_t(freqs_gs,Omega_sq,n_i_vec,gamma,kbT,t)
+        	lineshape_func[count1,1]=third_order_lineshape_qm_t(freqs_gs,Omega_sq,n_i_vec,gamma,kbT,t,four_phonon_term)
         count1=count1+1
         t=t+step_length
         print lineshape_func[count1-1,0],lineshape_func[count1-1,1]
     return lineshape_func
 
 # h1 factor necessary for computing 2DES in 3rd order cumulant:
-def full_h1_func(freqs_gs,Omega_sq,gamma,kbT,max_t,num_points,is_cl,no_dusch):
+def full_h1_func(freqs_gs,Omega_sq,gamma,kbT,max_t,num_points,is_cl,no_dusch,four_phonon_term):
     h1_func=np.zeros((num_points,num_points,3),dtype=complex)
     step_length=max_t/num_points
     # precompute n_i_vec. Only necessary for h1_func_qm
@@ -445,9 +455,9 @@ def full_h1_func(freqs_gs,Omega_sq,gamma,kbT,max_t,num_points,is_cl,no_dusch):
 
                 else:
                         if is_cl:
-                                h1_func[count1,count2,2]=h1_func_cl_t(freqs_gs,Omega_sq,gamma,kbT,t1,t2)
+                                h1_func[count1,count2,2]=h1_func_cl_t(freqs_gs,Omega_sq,gamma,kbT,t1,t2,four_phonon_term)
                         else:
-                                h1_func[count1,count2,2]=h1_func_qm_t(freqs_gs,Omega_sq,n_i_vec,gamma,kbT,t1,t2)
+                                h1_func[count1,count2,2]=h1_func_qm_t(freqs_gs,Omega_sq,n_i_vec,gamma,kbT,t1,t2,four_phonon_term)
 
 		count2=count2+1
 		t2=t2+step_length
@@ -456,7 +466,7 @@ def full_h1_func(freqs_gs,Omega_sq,gamma,kbT,max_t,num_points,is_cl,no_dusch):
     return h1_func
 
 # h2 factor necessary for computing 2DES in 3rd order cumulant:
-def full_h2_func(freqs_gs,Omega_sq,gamma,kbT,max_t,num_points,is_cl,no_dusch):
+def full_h2_func(freqs_gs,Omega_sq,gamma,kbT,max_t,num_points,is_cl,no_dusch,four_phonon_term):
     h2_func=np.zeros((num_points,num_points,3),dtype=complex)
     step_length=max_t/num_points
     # precompute n_i_vec. Only necessary for h1_func_qm
@@ -486,9 +496,9 @@ def full_h2_func(freqs_gs,Omega_sq,gamma,kbT,max_t,num_points,is_cl,no_dusch):
 
                 else:
                         if is_cl:
-                                h2_func[count1,count2,2]=h2_func_cl_t(freqs_gs,Omega_sq,gamma,kbT,t1,t2)
+                                h2_func[count1,count2,2]=h2_func_cl_t(freqs_gs,Omega_sq,gamma,kbT,t1,t2,four_phonon_term)
                         else:
-                                h2_func[count1,count2,2]=h2_func_qm_t(freqs_gs,Omega_sq,n_i_vec,gamma,kbT,t1,t2)
+                                h2_func[count1,count2,2]=h2_func_qm_t(freqs_gs,Omega_sq,n_i_vec,gamma,kbT,t1,t2,four_phonon_term)
 
                 count2=count2+1
                 t2=t2+step_length
@@ -497,7 +507,7 @@ def full_h2_func(freqs_gs,Omega_sq,gamma,kbT,max_t,num_points,is_cl,no_dusch):
     return h2_func
 
 # h4 factor necessary for computing 2DES in 3rd order cumulant:
-def full_h4_func(freqs_gs,Omega_sq,gamma,kbT,max_t,num_points,is_cl,no_dusch):
+def full_h4_func(freqs_gs,Omega_sq,gamma,kbT,max_t,num_points,is_cl,no_dusch,four_phonon_term):
     h4_func=np.zeros((num_points,num_points,3),dtype=complex)
     step_length=max_t/num_points
     # precompute n_i_vec. Only necessary for h1_func_qm
@@ -526,9 +536,9 @@ def full_h4_func(freqs_gs,Omega_sq,gamma,kbT,max_t,num_points,is_cl,no_dusch):
 
 		else:
                 	if is_cl:
-                        	h4_func[count1,count2,2]=h4_func_cl_t(freqs_gs,Omega_sq,gamma,kbT,t1,t2)
+                        	h4_func[count1,count2,2]=h4_func_cl_t(freqs_gs,Omega_sq,gamma,kbT,t1,t2,four_phonon_term)
                 	else:
-                        	h4_func[count1,count2,2]=h4_func_qm_t(freqs_gs,Omega_sq,n_i_vec,gamma,kbT,t1,t2)
+                        	h4_func[count1,count2,2]=h4_func_qm_t(freqs_gs,Omega_sq,n_i_vec,gamma,kbT,t1,t2,four_phonon_term)
                 count2=count2+1
                 t2=t2+step_length
         count1=count1+1
@@ -537,7 +547,7 @@ def full_h4_func(freqs_gs,Omega_sq,gamma,kbT,max_t,num_points,is_cl,no_dusch):
 
 
 # h5 factor necessary for computing 2DES in 3rd order cumulant:
-def full_h5_func(freqs_gs,Omega_sq,gamma,kbT,max_t,num_points,is_cl,no_dusch):
+def full_h5_func(freqs_gs,Omega_sq,gamma,kbT,max_t,num_points,is_cl,no_dusch,four_phonon_term):
     h5_func=np.zeros((num_points,num_points,3),dtype=complex)
     step_length=max_t/num_points
     # precompute n_i_vec. Only necessary for h1_func_qm
@@ -566,9 +576,9 @@ def full_h5_func(freqs_gs,Omega_sq,gamma,kbT,max_t,num_points,is_cl,no_dusch):
 
                 else:
                         if is_cl:
-                                h5_func[count1,count2,2]=h5_func_cl_t(freqs_gs,Omega_sq,gamma,kbT,t1,t2)
+                                h5_func[count1,count2,2]=h5_func_cl_t(freqs_gs,Omega_sq,gamma,kbT,t1,t2,four_phonon_term)
                         else:
-                                h5_func[count1,count2,2]=h5_func_qm_t(freqs_gs,Omega_sq,n_i_vec,gamma,kbT,t1,t2)
+                                h5_func[count1,count2,2]=h5_func_qm_t(freqs_gs,Omega_sq,n_i_vec,gamma,kbT,t1,t2,four_phonon_term)
 
                 count2=count2+1
                 t2=t2+step_length
@@ -849,9 +859,8 @@ def calc_h3_time_domain(full_corr_func_3rd,t1_index,t2_index,t3_index):
 
     return h_val
 
-#HACK: ASSUME twophonon term is small
 @njit(fastmath=True,parallel=True)
-def h3_func_cl_t(freqs_gs,Omega_sq,gamma,kbT,t1,t2,t3):
+def h3_func_cl_t(freqs_gs,Omega_sq,gamma,kbT,t1,t2,t3,four_phonon_term):
     corr_val=0.0+0.0j
     gamma_term=0.0+0.0j
     omega_term=0.0+0.0j
@@ -881,26 +890,26 @@ def h3_func_cl_t(freqs_gs,Omega_sq,gamma,kbT,t1,t2,t3):
                         gamma_term+=prefactor_2DES_h3_cl(const_fac,-omegaj,-omegai,kbT,t1,t2,t3)
 
     # now do the more complicated term that is a sum over 3 indices:
-    # only parallelize this part of the loop 
-#    for icount in range(freqs_gs.shape[0]):
-#        for jcount in range(freqs_gs.shape[0]):
-#                for kcount in range(freqs_gs.shape[0]):
-#                                const_fac=4.0*math.pi**2.0*Omega_sq[icount,jcount]*Omega_sq[jcount,kcount]*Omega_sq[icount,kcount]
-#                                const_fac=const_fac*(kbT)**3.0/(freqs_gs[icount]*freqs_gs[jcount]*freqs_gs[kcount])**2.0
-#                                ik_p=freqs_gs[icount]+freqs_gs[kcount]
-#                                ik_m=freqs_gs[icount]-freqs_gs[kcount]
-#                                ij_p=freqs_gs[icount]+freqs_gs[jcount]
-#                                ij_m=freqs_gs[icount]-freqs_gs[jcount]
-#                                omega_term+=prefactor_2DES_h3_cl(const_fac,-ik_m,ij_p,kbT,t1,t2,t3)
-#                                omega_term+=prefactor_2DES_h3_cl(const_fac,-ik_p,ij_p,kbT,t1,t2,t3)
-#                                omega_term+=prefactor_2DES_h3_cl(const_fac,ik_p,-ij_p,kbT,t1,t2,t3)
-#                                omega_term+=prefactor_2DES_h3_cl(const_fac,ik_m,-ij_p,kbT,t1,t2,t3)
-#
-#                                omega_term+=prefactor_2DES_h3_cl(const_fac,-ik_m,ij_m,kbT,t1,t2,t3)
-#                                omega_term+=prefactor_2DES_h3_cl(const_fac,-ik_p,ij_m,kbT,t1,t2,t3)
-#                                omega_term+=prefactor_2DES_h3_cl(const_fac,ik_p,-ij_m,kbT,t1,t2,t3)
-#                                omega_term+=prefactor_2DES_h3_cl(const_fac,ik_m,-ij_m,kbT,t1,t2,t3)
+    # only parallelize this part of the loop
+    if four_phonon_term: 
+	    for icount in range(freqs_gs.shape[0]):
+    	    	for jcount in range(freqs_gs.shape[0]):
+                	for kcount in range(freqs_gs.shape[0]):
+                                	const_fac=4.0*math.pi**2.0*Omega_sq[icount,jcount]*Omega_sq[jcount,kcount]*Omega_sq[icount,kcount]
+                                	const_fac=const_fac*(kbT)**3.0/(freqs_gs[icount]*freqs_gs[jcount]*freqs_gs[kcount])**2.0
+                                	ik_p=freqs_gs[icount]+freqs_gs[kcount]
+                                	ik_m=freqs_gs[icount]-freqs_gs[kcount]
+                                	ij_p=freqs_gs[icount]+freqs_gs[jcount]
+                                	ij_m=freqs_gs[icount]-freqs_gs[jcount]
+                                	omega_term+=prefactor_2DES_h3_cl(const_fac,-ik_m,ij_p,kbT,t1,t2,t3)
+                                	omega_term+=prefactor_2DES_h3_cl(const_fac,-ik_p,ij_p,kbT,t1,t2,t3)
+                                	omega_term+=prefactor_2DES_h3_cl(const_fac,ik_p,-ij_p,kbT,t1,t2,t3)
+                                	omega_term+=prefactor_2DES_h3_cl(const_fac,ik_m,-ij_p,kbT,t1,t2,t3)
 
+                                	omega_term+=prefactor_2DES_h3_cl(const_fac,-ik_m,ij_m,kbT,t1,t2,t3)
+                                	omega_term+=prefactor_2DES_h3_cl(const_fac,-ik_p,ij_m,kbT,t1,t2,t3)
+                                	omega_term+=prefactor_2DES_h3_cl(const_fac,ik_p,-ij_m,kbT,t1,t2,t3)
+                                	omega_term+=prefactor_2DES_h3_cl(const_fac,ik_m,-ij_m,kbT,t1,t2,t3)
 
     corr_val=omega_term+gamma_term
     return corr_val
@@ -908,7 +917,7 @@ def h3_func_cl_t(freqs_gs,Omega_sq,gamma,kbT,t1,t2,t3):
 
 
 @jit
-def h4_func_cl_t(freqs_gs,Omega_sq,gamma,kbT,t1,t2):
+def h4_func_cl_t(freqs_gs,Omega_sq,gamma,kbT,t1,t2,four_phonon_term):
     corr_val=0.0+0.0j
     gamma_term=0.0+0.0j
     omega_term=0.0+0.0j
@@ -942,12 +951,13 @@ def h4_func_cl_t(freqs_gs,Omega_sq,gamma,kbT,t1,t2):
         icount=icount+1
 
     # now do the more complicated term that is a sum over 3 indices:
-    icount=0
-    while icount<freqs_gs.shape[0]:
-        jcount=0
-        while jcount<freqs_gs.shape[0]:
-                kcount=0
-                while kcount<freqs_gs.shape[0]:
+    if four_phonon_term:
+    	icount=0
+    	while icount<freqs_gs.shape[0]:
+        	jcount=0
+        	while jcount<freqs_gs.shape[0]:
+                	kcount=0
+                	while kcount<freqs_gs.shape[0]:
                                 const_fac=4.0*math.pi**2.0*Omega_sq[icount,jcount]*Omega_sq[jcount,kcount]*Omega_sq[icount,kcount]
                                 const_fac=const_fac*(kbT)**3.0/(freqs_gs[icount]*freqs_gs[jcount]*freqs_gs[kcount])**2.0
                                 ik_p=freqs_gs[icount]+freqs_gs[kcount]
@@ -965,14 +975,14 @@ def h4_func_cl_t(freqs_gs,Omega_sq,gamma,kbT,t1,t2):
                                 omega_term=omega_term+prefactor_2DES_h4_cl(const_fac,ik_m,-ij_m,kbT,t1,t2)
 
                                 kcount=kcount+1
-                jcount=jcount+1
-        icount=icount+1
+                	jcount=jcount+1
+        	icount=icount+1
     corr_val=omega_term+gamma_term
     return corr_val
 
 
 @jit
-def h5_func_cl_t(freqs_gs,Omega_sq,gamma,kbT,t1,t2):
+def h5_func_cl_t(freqs_gs,Omega_sq,gamma,kbT,t1,t2,four_phonon_term):
     corr_val=0.0+0.0j
     gamma_term=0.0+0.0j
     omega_term=0.0+0.0j
@@ -1006,12 +1016,13 @@ def h5_func_cl_t(freqs_gs,Omega_sq,gamma,kbT,t1,t2):
         icount=icount+1
 
     # now do the more complicated term that is a sum over 3 indices:
-    icount=0
-    while icount<freqs_gs.shape[0]:
-        jcount=0
-        while jcount<freqs_gs.shape[0]:
-                kcount=0
-                while kcount<freqs_gs.shape[0]:
+    if four_phonon_term:
+    	icount=0
+    	while icount<freqs_gs.shape[0]:
+        	jcount=0
+        	while jcount<freqs_gs.shape[0]:
+                	kcount=0
+                	while kcount<freqs_gs.shape[0]:
                                 const_fac=4.0*math.pi**2.0*Omega_sq[icount,jcount]*Omega_sq[jcount,kcount]*Omega_sq[icount,kcount]
                                 const_fac=const_fac*(kbT)**3.0/(freqs_gs[icount]*freqs_gs[jcount]*freqs_gs[kcount])**2.0
                                 ik_p=freqs_gs[icount]+freqs_gs[kcount]
@@ -1029,15 +1040,15 @@ def h5_func_cl_t(freqs_gs,Omega_sq,gamma,kbT,t1,t2):
                                 omega_term=omega_term+prefactor_2DES_h5_cl(const_fac,ik_m,-ij_m,kbT,t1,t2)
 
                                 kcount=kcount+1
-                jcount=jcount+1
-        icount=icount+1
+                	jcount=jcount+1
+        	icount=icount+1
 
     corr_val=omega_term+gamma_term
     return corr_val
 
 
 @jit
-def h2_func_cl_t(freqs_gs,Omega_sq,gamma,kbT,t1,t2):
+def h2_func_cl_t(freqs_gs,Omega_sq,gamma,kbT,t1,t2,four_phonon_term):
     corr_val=0.0+0.0j
     gamma_term=0.0+0.0j
     omega_term=0.0+0.0j
@@ -1071,12 +1082,13 @@ def h2_func_cl_t(freqs_gs,Omega_sq,gamma,kbT,t1,t2):
         icount=icount+1
 
     # now do the more complicated term that is a sum over 3 indices:
-    icount=0
-    while icount<freqs_gs.shape[0]:
-        jcount=0
-        while jcount<freqs_gs.shape[0]:
-                kcount=0
-                while kcount<freqs_gs.shape[0]:
+    if four_phonon_term:
+    	icount=0
+    	while icount<freqs_gs.shape[0]:
+        	jcount=0
+        	while jcount<freqs_gs.shape[0]:
+                	kcount=0
+                	while kcount<freqs_gs.shape[0]:
                                 const_fac=4.0*math.pi**2.0*Omega_sq[icount,jcount]*Omega_sq[jcount,kcount]*Omega_sq[icount,kcount]
                                 const_fac=const_fac*(kbT)**3.0/(freqs_gs[icount]*freqs_gs[jcount]*freqs_gs[kcount])**2.0
                                 ik_p=freqs_gs[icount]+freqs_gs[kcount]
@@ -1094,15 +1106,15 @@ def h2_func_cl_t(freqs_gs,Omega_sq,gamma,kbT,t1,t2):
                                 omega_term=omega_term+prefactor_2DES_h2_cl(const_fac,ik_m,-ij_m,kbT,t1,t2)
 
                                 kcount=kcount+1
-                jcount=jcount+1
-        icount=icount+1
+                	jcount=jcount+1
+        	icount=icount+1
 
     corr_val=omega_term+gamma_term
     return corr_val
 
 
 @jit
-def h1_func_cl_t(freqs_gs,Omega_sq,gamma,kbT,t1,t2):
+def h1_func_cl_t(freqs_gs,Omega_sq,gamma,kbT,t1,t2,four_phonon_term):
     corr_val=0.0+0.0j
     gamma_term=0.0+0.0j
     omega_term=0.0+0.0j
@@ -1136,12 +1148,13 @@ def h1_func_cl_t(freqs_gs,Omega_sq,gamma,kbT,t1,t2):
         icount=icount+1
 
     # now do the more complicated term that is a sum over 3 indices:
-    icount=0
-    while icount<freqs_gs.shape[0]:
-        jcount=0
-        while jcount<freqs_gs.shape[0]:
-                kcount=0
-                while kcount<freqs_gs.shape[0]:
+    if four_phonon_term:
+    	icount=0
+    	while icount<freqs_gs.shape[0]:
+        	jcount=0
+        	while jcount<freqs_gs.shape[0]:
+                	kcount=0
+                	while kcount<freqs_gs.shape[0]:
                                 const_fac=4.0*math.pi**2.0*Omega_sq[icount,jcount]*Omega_sq[jcount,kcount]*Omega_sq[icount,kcount]
                                 const_fac=const_fac*(kbT)**3.0/(freqs_gs[icount]*freqs_gs[jcount]*freqs_gs[kcount])**2.0
                                 ik_p=freqs_gs[icount]+freqs_gs[kcount]
@@ -1159,14 +1172,14 @@ def h1_func_cl_t(freqs_gs,Omega_sq,gamma,kbT,t1,t2):
                                 omega_term=omega_term+prefactor_2DES_h1_cl(const_fac,ik_m,-ij_m,kbT,t1,t2)
 
                                 kcount=kcount+1
-                jcount=jcount+1
-        icount=icount+1
+                	jcount=jcount+1
+        	icount=icount+1
     corr_val=omega_term+gamma_term
     return corr_val
 
 
 @njit(fastmath=True, parallel=True)
-def third_order_lineshape_cl_t(freqs_gs,Omega_sq,gamma,kbT,t):
+def third_order_lineshape_cl_t(freqs_gs,Omega_sq,gamma,kbT,t,four_phonon_term):
     corr_val=0.0+0.0j
     gamma_term=0.0+0.0j
     omega_term=0.0+0.0j
@@ -1200,12 +1213,13 @@ def third_order_lineshape_cl_t(freqs_gs,Omega_sq,gamma,kbT,t):
         icount=icount+1
 
     # now do the more complicated term that is a sum over 3 indices:
-    icount=0
-    while icount<freqs_gs.shape[0]:
-        jcount=0
-        while jcount<freqs_gs.shape[0]:
-                kcount=0
-                while kcount<freqs_gs.shape[0]:
+    if four_phonon_term:
+    	icount=0
+    	while icount<freqs_gs.shape[0]:
+        	jcount=0
+        	while jcount<freqs_gs.shape[0]:
+                	kcount=0
+                	while kcount<freqs_gs.shape[0]:
                                 const_fac=4.0*math.pi**2.0*Omega_sq[icount,jcount]*Omega_sq[jcount,kcount]*Omega_sq[icount,kcount]
                                 const_fac=const_fac*(kbT)**3.0/(freqs_gs[icount]*freqs_gs[jcount]*freqs_gs[kcount])**2.0
                                 ik_p=freqs_gs[icount]+freqs_gs[kcount]
@@ -1223,8 +1237,8 @@ def third_order_lineshape_cl_t(freqs_gs,Omega_sq,gamma,kbT,t):
                                 omega_term=omega_term+prefactor_3rd_order_lineshape(const_fac,ik_m,-ij_m,kbT,t)
 
                                 kcount=kcount+1
-                jcount=jcount+1
-        icount=icount+1
+                	jcount=jcount+1
+        	icount=icount+1
 
     corr_val=omega_term+gamma_term
     return corr_val
@@ -1649,9 +1663,9 @@ def h3_func_qm_t_fast(freqs_gs,Omega_sq,n_i_vec,gamma,kbT,t1,t2,t3):
     corr_val=omega_term+gamma_term
     return corr_val
 
-#HACK!!!! ASSUME 2phonon term is small
+
 @njit(fastmath=True,parallel=True)
-def h3_func_qm_t(freqs_gs,Omega_sq,n_i_vec,gamma,kbT,t1,t2,t3):
+def h3_func_qm_t(freqs_gs,Omega_sq,n_i_vec,gamma,kbT,t1,t2,t3,four_phonon_term):
     corr_val=0.0+0.0j
     gamma_term=0.0+0.0j
     omega_term=0.0+0.0j
@@ -1690,39 +1704,40 @@ def h3_func_qm_t(freqs_gs,Omega_sq,n_i_vec,gamma,kbT,t1,t2,t3):
 
     # now do the more complicated term that is a sum over 3 indices:
     # only parallelize the outer loop here. Inner loop is a nested double loop so worth the effort
-#    for icount in range(freqs_gs.shape[0]):
-#        for jcount in range(freqs_gs.shape[0]):
-#                for kcount in range(freqs_gs.shape[0]):
-#                                const_fac=4.0*math.pi**2.0*Omega_sq[icount,jcount]*Omega_sq[jcount,kcount]*Omega_sq[icount,kcount]
-#                                const_fac=const_fac/(freqs_gs[icount]*freqs_gs[jcount]*freqs_gs[kcount])
-#                                ik_p=freqs_gs[icount]+freqs_gs[kcount]
-#                                ik_m=freqs_gs[icount]-freqs_gs[kcount]
-#                                ij_p=freqs_gs[icount]+freqs_gs[jcount]
-#                                ij_m=freqs_gs[icount]-freqs_gs[jcount]
-#                                ni=n_i_vec[icount]
-#                                nj=n_i_vec[jcount]
-#                                nk=n_i_vec[kcount]
-#                                ni_p=ni+1.0
-#                                nj_p=nj+1.0
-#                                nk_p=nk+1.0
-#
-#				# we need the following terms: e^(-iomega1*t2),e^(-iomega2*t1),e^(i(omega1+omega2)*t3)
-#
-#                                omega_term+=ni_p*nj_p*nk_p*prefactor_2DES_h3_QM(const_fac,-ik_m,ij_p,kbT,t1,t2,t3)
-#                                omega_term+=ni_p*nj_p*nk*prefactor_2DES_h3_QM(const_fac,-ik_p,ij_p,kbT,t1,t2,t3)
-#                                omega_term+=ni*nj*nk_p*prefactor_2DES_h3_QM(const_fac,ik_p,-ij_p,kbT,t1,t2,t3)
-#                                omega_term+=ni*nj*nk*prefactor_2DES_h3_QM(const_fac,ik_m,-ij_p,kbT,t1,t2,t3)
-#
-#                                omega_term+=ni_p*nj*nk_p*prefactor_2DES_h3_QM(const_fac,-ik_m,ij_m,kbT,t1,t2,t3)
-#                                omega_term+=ni_p*nj*nk*prefactor_2DES_h3_QM(const_fac,-ik_p,ij_m,kbT,t1,t2,t3)
-#                                omega_term+=ni*nj_p*nk_p*prefactor_2DES_h3_QM(const_fac,ik_p,-ij_m,kbT,t1,t2,t3)
-#                                omega_term+=ni*nj_p*nk*prefactor_2DES_h3_QM(const_fac,ik_m,-ij_m,kbT,t1,t2,t3)
+    if four_phonon_term:
+    	for icount in range(freqs_gs.shape[0]):
+        	for jcount in range(freqs_gs.shape[0]):
+                	for kcount in range(freqs_gs.shape[0]):
+                                const_fac=4.0*math.pi**2.0*Omega_sq[icount,jcount]*Omega_sq[jcount,kcount]*Omega_sq[icount,kcount]
+                                const_fac=const_fac/(freqs_gs[icount]*freqs_gs[jcount]*freqs_gs[kcount])
+                                ik_p=freqs_gs[icount]+freqs_gs[kcount]
+                                ik_m=freqs_gs[icount]-freqs_gs[kcount]
+                                ij_p=freqs_gs[icount]+freqs_gs[jcount]
+                                ij_m=freqs_gs[icount]-freqs_gs[jcount]
+                                ni=n_i_vec[icount]
+                                nj=n_i_vec[jcount]
+                                nk=n_i_vec[kcount]
+                                ni_p=ni+1.0
+                                nj_p=nj+1.0
+                                nk_p=nk+1.0
+
+				# we need the following terms: e^(-iomega1*t2),e^(-iomega2*t1),e^(i(omega1+omega2)*t3)
+
+                                omega_term+=ni_p*nj_p*nk_p*prefactor_2DES_h3_QM(const_fac,-ik_m,ij_p,kbT,t1,t2,t3)
+                                omega_term+=ni_p*nj_p*nk*prefactor_2DES_h3_QM(const_fac,-ik_p,ij_p,kbT,t1,t2,t3)
+                                omega_term+=ni*nj*nk_p*prefactor_2DES_h3_QM(const_fac,ik_p,-ij_p,kbT,t1,t2,t3)
+                                omega_term+=ni*nj*nk*prefactor_2DES_h3_QM(const_fac,ik_m,-ij_p,kbT,t1,t2,t3)
+
+                                omega_term+=ni_p*nj*nk_p*prefactor_2DES_h3_QM(const_fac,-ik_m,ij_m,kbT,t1,t2,t3)
+                                omega_term+=ni_p*nj*nk*prefactor_2DES_h3_QM(const_fac,-ik_p,ij_m,kbT,t1,t2,t3)
+                                omega_term+=ni*nj_p*nk_p*prefactor_2DES_h3_QM(const_fac,ik_p,-ij_m,kbT,t1,t2,t3)
+                                omega_term+=ni*nj_p*nk*prefactor_2DES_h3_QM(const_fac,ik_m,-ij_m,kbT,t1,t2,t3)
 
     corr_val=omega_term+gamma_term
     return corr_val
 
 @jit
-def h5_func_qm_t(freqs_gs,Omega_sq,n_i_vec,gamma,kbT,t1,t2):
+def h5_func_qm_t(freqs_gs,Omega_sq,n_i_vec,gamma,kbT,t1,t2,four_phonon_term):
     corr_val=0.0+0.0j
     gamma_term=0.0+0.0j
     omega_term=0.0+0.0j
@@ -1760,12 +1775,13 @@ def h5_func_qm_t(freqs_gs,Omega_sq,n_i_vec,gamma,kbT,t1,t2):
         icount=icount+1
 
     # now do the more complicated term that is a sum over 3 indices:
-    icount=0
-    while icount<freqs_gs.shape[0]:
-        jcount=0
-        while jcount<freqs_gs.shape[0]:
-                kcount=0
-                while kcount<freqs_gs.shape[0]:
+    if four_phonon_term:
+    	icount=0
+   	while icount<freqs_gs.shape[0]:
+        	jcount=0
+        	while jcount<freqs_gs.shape[0]:
+                	kcount=0
+                	while kcount<freqs_gs.shape[0]:
                                 const_fac=4.0*math.pi**2.0*Omega_sq[icount,jcount]*Omega_sq[jcount,kcount]*Omega_sq[icount,kcount]
                                 const_fac=const_fac/(freqs_gs[icount]*freqs_gs[jcount]*freqs_gs[kcount])
                                 ik_p=freqs_gs[icount]+freqs_gs[kcount]
@@ -1790,14 +1806,14 @@ def h5_func_qm_t(freqs_gs,Omega_sq,n_i_vec,gamma,kbT,t1,t2):
                                 omega_term=omega_term+ni*nj_p*nk*prefactor_2DES_h5_QM(const_fac,ik_m,-ij_m,kbT,t1,t2)
 
                                 kcount=kcount+1
-                jcount=jcount+1
-        icount=icount+1
+                	jcount=jcount+1
+        	icount=icount+1
     corr_val=omega_term+gamma_term
     return corr_val
 
 
 @jit
-def h4_func_qm_t(freqs_gs,Omega_sq,n_i_vec,gamma,kbT,t1,t2):
+def h4_func_qm_t(freqs_gs,Omega_sq,n_i_vec,gamma,kbT,t1,t2,four_phonon_term):
     corr_val=0.0+0.0j
     gamma_term=0.0+0.0j
     omega_term=0.0+0.0j
@@ -1835,12 +1851,13 @@ def h4_func_qm_t(freqs_gs,Omega_sq,n_i_vec,gamma,kbT,t1,t2):
         icount=icount+1
 
     # now do the more complicated term that is a sum over 3 indices:
-    icount=0
-    while icount<freqs_gs.shape[0]:
-        jcount=0
-        while jcount<freqs_gs.shape[0]:
-                kcount=0
-                while kcount<freqs_gs.shape[0]:
+    if four_phonon_term:
+    	icount=0
+   	while icount<freqs_gs.shape[0]:
+        	jcount=0
+        	while jcount<freqs_gs.shape[0]:
+                	kcount=0
+                	while kcount<freqs_gs.shape[0]:
                                 const_fac=4.0*math.pi**2.0*Omega_sq[icount,jcount]*Omega_sq[jcount,kcount]*Omega_sq[icount,kcount]
                                 const_fac=const_fac/(freqs_gs[icount]*freqs_gs[jcount]*freqs_gs[kcount])
                                 ik_p=freqs_gs[icount]+freqs_gs[kcount]
@@ -1865,15 +1882,15 @@ def h4_func_qm_t(freqs_gs,Omega_sq,n_i_vec,gamma,kbT,t1,t2):
                                 omega_term=omega_term+ni*nj_p*nk*prefactor_2DES_h4_QM(const_fac,ik_m,-ij_m,kbT,t1,t2)
 
                                 kcount=kcount+1
-                jcount=jcount+1
-        icount=icount+1
+                	jcount=jcount+1
+        	icount=icount+1
 
     corr_val=omega_term+gamma_term
     return corr_val
 
 
 @jit
-def h2_func_qm_t(freqs_gs,Omega_sq,n_i_vec,gamma,kbT,t1,t2):
+def h2_func_qm_t(freqs_gs,Omega_sq,n_i_vec,gamma,kbT,t1,t2,four_phonon_term):
     corr_val=0.0+0.0j
     gamma_term=0.0+0.0j
     omega_term=0.0+0.0j
@@ -1911,12 +1928,13 @@ def h2_func_qm_t(freqs_gs,Omega_sq,n_i_vec,gamma,kbT,t1,t2):
         icount=icount+1
 
     # now do the more complicated term that is a sum over 3 indices:
-    icount=0
-    while icount<freqs_gs.shape[0]:
-        jcount=0
-        while jcount<freqs_gs.shape[0]:
-                kcount=0
-                while kcount<freqs_gs.shape[0]:
+    if four_phonon_term:
+    	icount=0
+   	while icount<freqs_gs.shape[0]:
+        	jcount=0
+        	while jcount<freqs_gs.shape[0]:
+                	kcount=0
+                	while kcount<freqs_gs.shape[0]:
                                 const_fac=4.0*math.pi**2.0*Omega_sq[icount,jcount]*Omega_sq[jcount,kcount]*Omega_sq[icount,kcount]
                                 const_fac=const_fac/(freqs_gs[icount]*freqs_gs[jcount]*freqs_gs[kcount])
                                 ik_p=freqs_gs[icount]+freqs_gs[kcount]
@@ -1941,8 +1959,8 @@ def h2_func_qm_t(freqs_gs,Omega_sq,n_i_vec,gamma,kbT,t1,t2):
                                 omega_term=omega_term+ni*nj_p*nk*prefactor_2DES_h2_QM(const_fac,ik_m,-ij_m,kbT,t1,t2)
 
                                 kcount=kcount+1
-                jcount=jcount+1
-        icount=icount+1
+                	jcount=jcount+1
+        	icount=icount+1
 
     corr_val=omega_term+gamma_term
     return corr_val
@@ -1950,7 +1968,7 @@ def h2_func_qm_t(freqs_gs,Omega_sq,n_i_vec,gamma,kbT,t1,t2):
 
 
 @jit
-def h1_func_qm_t(freqs_gs,Omega_sq,n_i_vec,gamma,kbT,t1,t2):
+def h1_func_qm_t(freqs_gs,Omega_sq,n_i_vec,gamma,kbT,t1,t2,four_phonon_term):
     corr_val=0.0+0.0j
     gamma_term=0.0+0.0j
     omega_term=0.0+0.0j
@@ -1988,12 +2006,13 @@ def h1_func_qm_t(freqs_gs,Omega_sq,n_i_vec,gamma,kbT,t1,t2):
         icount=icount+1
 
     # now do the more complicated term that is a sum over 3 indices:
-    icount=0
-    while icount<freqs_gs.shape[0]:
-        jcount=0
-        while jcount<freqs_gs.shape[0]:
-                kcount=0
-                while kcount<freqs_gs.shape[0]:
+    if four_phonon_term:
+    	icount=0
+    	while icount<freqs_gs.shape[0]:
+        	jcount=0
+        	while jcount<freqs_gs.shape[0]:
+                	kcount=0
+                	while kcount<freqs_gs.shape[0]:
                                 const_fac=4.0*math.pi**2.0*Omega_sq[icount,jcount]*Omega_sq[jcount,kcount]*Omega_sq[icount,kcount]
                                 const_fac=const_fac/(freqs_gs[icount]*freqs_gs[jcount]*freqs_gs[kcount])
                                 ik_p=freqs_gs[icount]+freqs_gs[kcount]
@@ -2018,15 +2037,15 @@ def h1_func_qm_t(freqs_gs,Omega_sq,n_i_vec,gamma,kbT,t1,t2):
                                 omega_term=omega_term+ni*nj_p*nk*prefactor_2DES_h1_QM(const_fac,ik_m,-ij_m,kbT,t1,t2)
 
                                 kcount=kcount+1
-                jcount=jcount+1
-        icount=icount+1
+                	jcount=jcount+1
+        	icount=icount+1
     corr_val=omega_term+gamma_term
 
     return corr_val
 
 
 @njit(fastmath=True, parallel=True)
-def third_order_lineshape_qm_t(freqs_gs,Omega_sq,n_i_vec,gamma,kbT,t):
+def third_order_lineshape_qm_t(freqs_gs,Omega_sq,n_i_vec,gamma,kbT,t,four_phonon_term):
     corr_val=0.0+0.0j
     gamma_term=0.0+0.0j
     omega_term=0.0+0.0j
@@ -2060,9 +2079,10 @@ def third_order_lineshape_qm_t(freqs_gs,Omega_sq,n_i_vec,gamma,kbT,t):
                         gamma_term=gamma_term+ni*nj*prefactor_3rd_order_lineshape_QM(const_fac,-omegaj,-omegai,kbT,t)
 
     # now do the more complicated term that is a sum over 3 indices:
-    for icount in range(freqs_gs.shape[0]):
-        for jcount in range(freqs_gs.shape[0]):
-                for kcount in range(freqs_gs.shape[0]):
+    if four_phonon_term:
+    	for icount in range(freqs_gs.shape[0]):
+        	for jcount in range(freqs_gs.shape[0]):
+                	for kcount in range(freqs_gs.shape[0]):
                                 const_fac=4.0*math.pi**2.0*Omega_sq[icount,jcount]*Omega_sq[jcount,kcount]*Omega_sq[icount,kcount]
                                 const_fac=const_fac/(freqs_gs[icount]*freqs_gs[jcount]*freqs_gs[kcount])
                                 ik_p=freqs_gs[icount]+freqs_gs[kcount]
