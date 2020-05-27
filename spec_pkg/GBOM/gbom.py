@@ -4,10 +4,10 @@ import os.path
 import numpy as np
 import math
 import cmath
-import franck_condon_response
-import gbom_ensemble_response
-import gbom_cumulant_response
-from ..constants import constants as const
+import spec_pkg.GBOM.franck_condon_response as franck_condon_response
+import spec_pkg.GBOM.gbom_ensemble_response as gbom_ensemble_response
+import spec_pkg.GBOM.gbom_cumulant_response as gbom_cumulant_response
+from spec_pkg.constants import constants as const
 
 # Global variable definition
 
@@ -67,7 +67,7 @@ def av_energy_gap_exact_qm(Omega_sq,lambda_0,E_adiabatic,kbT,freqs_gs,is_emissio
 			av_gap=av_gap-Omega_sq[counter,counter]/(2.0*freqs_gs[counter])*math.cosh(freqs_gs[counter]/(2.0*kbT))/math.sinh(freqs_gs[counter]/(2.0*kbT))
 		else:
 			av_gap=av_gap+Omega_sq[counter,counter]/(2.0*freqs_gs[counter])*math.cosh(freqs_gs[counter]/(2.0*kbT))/math.sinh(freqs_gs[counter]/(2.0*kbT))
- 		counter=counter+1
+		counter=counter+1
 
 	return av_gap
 
@@ -244,11 +244,11 @@ class gbom:
 
 	def calc_h1_cl(self,temp,num_points,max_time,no_dusch,four_phonon_term):
 		kbT=const.kb_in_Ha*temp
- 		self.h1_cl=gbom_cumulant_response.full_h1_func(self.freqs_gs,self.Omega_sq,self.gamma,kbT,max_time,num_points,True,no_dusch,four_phonon_term)
+		self.h1_cl=gbom_cumulant_response.full_h1_func(self.freqs_gs,self.Omega_sq,self.gamma,kbT,max_time,num_points,True,no_dusch,four_phonon_term)
 
 	def calc_h2_cl(self,temp,num_points,max_time,no_dusch,four_phonon_term):
 		kbT=const.kb_in_Ha*temp
- 		self.h2_cl=gbom_cumulant_response.full_h2_func(self.freqs_gs,self.Omega_sq,self.gamma,kbT,max_time,num_points,True,no_dusch,four_phonon_term)
+		self.h2_cl=gbom_cumulant_response.full_h2_func(self.freqs_gs,self.Omega_sq,self.gamma,kbT,max_time,num_points,True,no_dusch,four_phonon_term)
 
 	def calc_g2_qm(self,temp,num_points,max_time,is_emission):
 		kbT=const.kb_in_Ha*temp
@@ -404,7 +404,7 @@ class gbom_list:
 			counter=counter+1
 		self.avFTFC_response[:,1]=self.avFTFC_response[:,1]/(1.0*self.num_gboms)
 
-        def calc_full_FTFC_response(self,temp,num_points,max_time,is_emission):
+	def calc_full_FTFC_response(self,temp,num_points,max_time,is_emission):
 		kbT=temp*const.kb_in_Ha
 		counter=0
 		while counter<self.num_gboms:

@@ -23,8 +23,8 @@ def get_Bmat(full_Omega_sq,freqs_gs,kbT,t,is_QM):
 @jit
 def get_inv_freqs_gs_sq(freqs_gs):
 	inv_freqs_gs=np.zeros((freqs_gs.shape[0],freqs_gs.shape[0]))
- 	counter=0
- 	while counter<freqs_gs.shape[0]:
+	counter=0
+	while counter<freqs_gs.shape[0]:
 		inv_freqs_gs[counter,counter]=1.0/(freqs_gs[counter]**2.0)
 		counter=counter+1
 	return inv_freqs_gs
@@ -37,7 +37,7 @@ def get_Bdash_mat(Jmat,freqs_gs,omega_e_sq,kbT,inv_omega_g_sq,t,is_QM):
 	temp_mat2=np.dot(Jmat,temp_mat)
 	if is_QM:
 		# create effective inv_omega_sq matrix which in this case is given by 1/2omega*coth(beta omega/2)
- 		eff_inv_mat=np.zeros((freqs_gs.shape[0],freqs_gs.shape[0]),dtype=complex)
+		eff_inv_mat=np.zeros((freqs_gs.shape[0],freqs_gs.shape[0]),dtype=complex)
 		counter=0
 		while counter<eff_inv_mat.shape[0]:
 			eff_inv_mat[counter,counter]=1j*t/(2.0*freqs_gs[counter]*math.tanh(freqs_gs[counter]/(2.0*kbT)))
@@ -97,13 +97,13 @@ def compute_ensemble_response(freq_gs,freq_ex,Jmat,Kmat,E_adiabatic,lambda_0,gam
 			chi_val=calc_chi_for_given_time(freq_gs,freq_ex,Jmat,Kmat,lambda_0,gamma,Omega_sq,omega_e_sq,omega_g_sq,kBT,current_t, is_QM)
 		chi[counter,1]=chi_val[0]
 		chi[counter,2]=chi_val[1]
-        	counter=counter+1
+		counter=counter+1
 
 	# now make sure the phase is a continuous function
 	counter=0
 	phase_fac=0.0
 	while counter<steps-1:
-	chi[counter,2]=chi[counter,2]+phase_fac
+		chi[counter,2]=chi[counter,2]+phase_fac
 		if abs(chi[counter,2]-phase_fac-chi[counter+1,2])>0.7*math.pi: #check for discontinuous jump.
 			diff=chi[counter+1,2]-(chi[counter,2]-phase_fac)
 			frac=diff/math.pi
