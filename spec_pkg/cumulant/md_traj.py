@@ -7,8 +7,8 @@ import cmath
 from scipy import integrate
 import time
 from numba import jit
-from ..constants import constants as const
-import cumulant
+from spec_pkg.constants import constants as const
+import spec_pkg.cumulant.cumulant as cumulant
 
 # Works
 @jit
@@ -61,7 +61,7 @@ def get_dipole_mom(oscillators,trajs):
 	# compute fluctuations for each trajectory around the common mean
 	dipole_moms=np.zeros((oscillators.shape[0],oscillators.shape[1]))
 	icount=0
- 	while icount<trajs.shape[0]:
+	while icount<trajs.shape[0]:
 		jcount=0
 		while jcount<trajs.shape[1]:
 			dipole_moms[icount,jcount]=np.sqrt(oscillators[icount,jcount]/(trajs[icount,jcount]/const.Ha_to_eV)*3.0/2.0)

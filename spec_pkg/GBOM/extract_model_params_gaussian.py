@@ -4,7 +4,7 @@ import os.path
 import numpy as np
 import math
 import numba
-from ..constants import constants as const
+from spec_pkg.constants import constants as const
 
 
 def extract_normal_mode_freqs(filename,num_modes,frozen_atoms):
@@ -16,7 +16,7 @@ def extract_normal_mode_freqs(filename,num_modes,frozen_atoms):
 		searchphrase='Frequencies'
 		if searchphrase in line and freq_line==0:
  			freq_line=line_count
-  		line_count=line_count+1
+		line_count=line_count+1
 
 	# found first line of frequencies:
 	#check number of loops over frequency lines have to be 
@@ -32,19 +32,19 @@ def extract_normal_mode_freqs(filename,num_modes,frozen_atoms):
 	freq_counter=0
 	if freq_line>0:
 		row_counter=0
- 		searchfile.close()
+		searchfile.close()
 		linefile=open(filename,"r")
 		lines=linefile.readlines()
 		while row_counter<num_freq_loops:
 			current_line_start=row_counter*lines_between_freq_rows+freq_line
 			current_line=lines[current_line_start].split()
- 			freq_list[freq_counter]=float(current_line[2])
+			freq_list[freq_counter]=float(current_line[2])
 			freq_list[freq_counter+1]=float(current_line[3])
 			freq_list[freq_counter+2]=float(current_line[4])
 			freq_list[freq_counter+3]=float(current_line[5])
 			freq_list[freq_counter+4]=float(current_line[6])
 			freq_counter=freq_counter+5
- 			row_counter=row_counter+1
+			row_counter=row_counter+1
 
 
 	#deal with missing frequencies.
@@ -53,8 +53,8 @@ def extract_normal_mode_freqs(filename,num_modes,frozen_atoms):
 		current_line_start=row_counter*lines_between_freq_rows+freq_line
 		current_line=lines[current_line_start].split()
 		#print current_line
- 		missing_counter=0
- 		while missing_counter<missing_freqs:
+		missing_counter=0
+		while missing_counter<missing_freqs:
 			freq_list[freq_counter+missing_counter]=float(current_line[2+missing_counter])
 			missing_counter=missing_counter+1
 
@@ -75,28 +75,28 @@ def convert_string_format(string):
 def extract_adiabatic_freq(filename):
 	searchfile = open(filename,"r")
 	line_count=0
- 	freq_line=0
+	freq_line=0
 	for line in searchfile:
 		searchphrase='Energy of the 0-0 transition:'
- 		if searchphrase in line:
+		if searchphrase in line:
 			freq_line=line_count
 		line_count=line_count+1
 
 	if freq_line>0:
- 		searchfile.close()
+		searchfile.close()
 		linefile=open(filename,"r")
- 		lines=linefile.readlines()
+		lines=linefile.readlines()
 		current_line=lines[freq_line].split()
 		temp_string=convert_string_format(current_line[5])
 		freq=float(temp_string)
- 		return freq/const.Ha_to_cm    # units
+		return freq/const.Ha_to_cm    # units
 
 	else:
 		return 0.0
 
 def extract_Kmat(filename,num_modes):
 	searchfile = open(filename,"r")
- 	line_count=0
+	line_count=0
 	k_line=0
 	for line in searchfile:
 		searchphrase='Shift Vector'
@@ -134,9 +134,9 @@ def extract_duschinsky_mat(filename,num_modes):
 
 	if duschinsky_line>0:
 		start_line=duschinsky_line+5
- 		lines_between_rows=num_modes+1
+		lines_between_rows=num_modes+1
 		full_rows=int(num_modes/5)  # 5 columns in each row
- 		num_leftover_rows=num_modes-full_rows*5  # only if total value of normal modes is divisible by 5 this is zero
+		num_leftover_rows=num_modes-full_rows*5  # only if total value of normal modes is divisible by 5 this is zero
 		searchfile.close()
 		linefile=open(filename,"r")
 		lines=linefile.readlines()
@@ -166,7 +166,7 @@ def extract_duschinsky_mat(filename,num_modes):
 		while mode_counter<num_modes:
 			current_line=lines[row_start+mode_counter].split()
 			missing_row_count=0
- 			while missing_row_count<num_leftover_rows:
+			while missing_row_count<num_leftover_rows:
 				freq=float(convert_string_format(current_line[1+missing_row_count]))
 				duschinsky_mat[mode_counter,row_counter*5+missing_row_count]=freq
 				missing_row_count=missing_row_count+1

@@ -5,8 +5,8 @@ import numpy as np
 import math
 import cmath
 from scipy import integrate
-from ..constants import constants as const
-from ..GBOM import gbom_cumulant_response as gbom_cumul
+from spec_pkg.constants import constants as const
+from spec_pkg.GBOM import gbom_cumulant_response as gbom_cumul
 from numba import jit, njit, prange
 
 # 2D version of the simpson integral. Parallelized accross cores
@@ -157,10 +157,10 @@ def compute_h1_func(qm_corr_func_freq,max_t,steps):
 	step_length=max_t/steps
 	h1_func=np.zeros((steps,steps,3),dtype=complex)
 	icount=0
-	print 'Computing H1'
+	print('Computing H1')
 	while icount<steps:
 		jcount=0
-		print icount
+		print(icount)
 		while jcount<steps:
 			t1=icount*step_length
 			t2=jcount*step_length
@@ -177,10 +177,10 @@ def compute_h2_func(qm_corr_func_freq,max_t,steps):
 	step_length=max_t/steps
 	h2_func=np.zeros((steps,steps,3),dtype=complex)
 	icount=0
-	print 'Computing H2'
+	print('Computing H2')
 	while icount<steps:
 		jcount=0
-		print icount
+		print(icount)
 		while jcount<steps:
 			t1=icount*step_length
 			t2=jcount*step_length
@@ -197,10 +197,10 @@ def compute_h4_func(qm_corr_func_freq,max_t,steps):
 	step_length=max_t/steps	
 	h4_func=np.zeros((steps,steps,3),dtype=complex)
 	icount=0
-	print 'Computing H4'
+	print('Computing H4')
 	while icount<steps:
 		jcount=0
-		print icount
+		print(icount)
 		while jcount<steps:
 			t1=icount*step_length
 			t2=jcount*step_length
@@ -218,10 +218,10 @@ def compute_h5_func(qm_corr_func_freq,max_t,steps):
 	step_length=max_t/steps
 	h5_func=np.zeros((steps,steps,3),dtype=complex)
 	icount=0
-	print 'Computing H5'
+	print('Computing H5')
 	while icount<steps:
 		jcount=0
-		print icount
+		print(icount)
 		while jcount<steps:
 			t1=icount*step_length
 			t2=jcount*step_length
@@ -420,7 +420,7 @@ def construct_classical_3rd_order_corr_from_single_traj(fluctuations,correlation
 	icount=0
 	while icount<corr_func.shape[0]:
 		jcount=icount
-		print icount
+		print(icount)
 		while jcount<corr_func.shape[0]:
 			integrant=get_correlation_integrant_3rd(fluctuations,icount,jcount,correlation_length,time_step)
 			corr_func[icount,jcount,0]=(icount*time_step)-(corr_func.shape[0]-1)/2.0*time_step
@@ -438,7 +438,7 @@ def construct_classical_3rd_order_corr_from_single_traj(fluctuations,correlation
 	icount=0
 	while icount<corr_func.shape[0]:
 		jcount=0
- 		while jcount<corr_func.shape[0]:
+		while jcount<corr_func.shape[0]:
 			corr_func[icount,jcount,2]=corr_func[icount,jcount,2]/(time_step)
 			jcount=jcount+1
 		icount=icount+1
@@ -536,7 +536,7 @@ def compute_spectral_dens(corr_func,kbT, sample_rate,time_step):
 	corr_freq=time_step*np.fft.fftshift(np.fft.fft(np.fft.ifftshift(corr_func)))
 
 	spectral_dens=np.zeros(((corr_freq.shape[-1]+1)/2,2))
- 	freqs=np.fft.fftshift(np.fft.fftfreq(corr_func.size,d=1.0/sample_rate))
+	freqs=np.fft.fftshift(np.fft.fftfreq(corr_func.size,d=1.0/sample_rate))
 
 	counter=0
 	shift_index=corr_freq.shape[-1]-spectral_dens.shape[0]

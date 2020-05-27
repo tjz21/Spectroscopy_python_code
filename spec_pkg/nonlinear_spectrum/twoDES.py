@@ -7,8 +7,8 @@ import cmath
 from scipy import integrate
 import time
 from numba import config,jit, njit
-from ..cumulant import cumulant as cumul
-from ..GBOM import gbom_cumulant_response as cumul_gbom
+from spec_pkg.cumulant import cumulant as cumul
+from spec_pkg.GBOM import gbom_cumulant_response as cumul_gbom
 
 # basic analysis routines. Printing full 2DES, printing slices through the full 2DES along xaxis, yaxis and diagonal.
 
@@ -106,7 +106,7 @@ def calc_2DES_time_series_batch(q_batch,num_batches,E_min1,E_max1,E_min2,E_max2,
 
 				averaged_val[counter,0]=current_delay
 				averaged_val[counter,1]=cumul.simpson_integral_2D(spectrum_2D)
-				print averaged_val[counter,1]
+				print(averaged_val[counter,1])
 				counter=counter+1
 				current_delay=current_delay+eff_time_step_2DES
 				current_delay_index=current_delay_index+eff_time_index_2DES
@@ -144,7 +144,7 @@ def calc_2DES_time_series(q_func,E_min1,E_max1,E_min2,E_max2,num_points_2D,rootn
 				averaged_val[counter,0]=current_delay
 				averaged_val[counter,1]=cumul.simpson_integral_2D(spectrum_2D)
 				#averaged_val[counter,1]=np.sum(spectrum_2D[:,:,2])/(spectrum_2D.shape[0]*2.0)
-				print averaged_val[counter,1]
+				print(averaged_val[counter,1])
 				counter=counter+1
 				current_delay=current_delay+eff_time_step_2DES
 				current_delay_index=current_delay_index+eff_time_index_2DES
@@ -234,7 +234,7 @@ def calc_pump_probe_time_series(q_func,E_min,E_max,num_points_2D,rootname,pump_e
 		counter=0
 		current_delay=0.0
 		while counter<num_times:
-				print counter,current_delay,pump_energy
+				print(counter,current_delay,pump_energy)
 #				current_spec=calc_2D_spectrum_y_slice(q_func,current_delay,E_min,E_max,num_points_2D,pump_energy,mean)
 				pump_probe_spectrum[counter,:,0]=current_delay
 				pump_probe_spectrum[counter,:,1]=current_spec[:,0]
@@ -277,13 +277,13 @@ def calc_2D_spectrum_3rd(q_func,g_func,h1_func,h2_func,h4_func,h5_func,corr_func
 	counter1=0
 	counter2=0
 	step_length=((E_max1-E_min1)/num_points_2D)
-	print 'Compute rfunc'
+	print('Compute rfunc')
 	rfunc=calc_Rfuncs_tdelay(q_func,delay_time,delay_index)
-	print 'Compute rfunc 3rd'
+	print('Compute rfunc 3rd')
 	rfunc_3rd=calc_Rfuncs_3rd_tdelay(g_func,h1_func,h2_func,h4_func,h5_func,corr_func_freq_qm,delay_time,delay_index)
-	print 'DONE'
-	print 'DIMENSIONS of RFUNC and RFUNC_3rd:'
-	print rfunc.shape[0],rfunc_3rd.shape[0]
+	print('DONE')
+	print('DIMENSIONS of RFUNC and RFUNC_3rd:')
+	print(rfunc.shape[0],rfunc_3rd.shape[0])
 	while counter1<num_points_2D:
 		counter2=0
 		omega1=E_min1+counter1*step_length
@@ -306,14 +306,14 @@ def calc_2D_spectrum_GBOM_3rd(q_func,g_func,h1_func,h2_func,h4_func,h5_func,corr
 	counter1=0
 	counter2=0
 	step_length=((E_max1-E_min1)/num_points_2D)
-	print 'Compute rfunc'
+	print('Compute rfunc')
 	rfunc=calc_Rfuncs_tdelay(q_func,delay_time,delay_index)
-	print 'Compute rfunc 3rd'
+	print('Compute rfunc 3rd')
 	rfunc_3rd=calc_Rfuncs_3rd_GBOM_tdelay(g_func,h1_func,h2_func,h4_func,h5_func,corr_func,freqs_gs,Omega_sq,gamma,kbT,delay_time,delay_index,is_cl,no_dusch,four_phonon_term)
 
-	print 'DONE'
-	print 'Dimensions RFunc and Rfunc 3rd'
-	print rfunc.shape[0], rfunc_3rd.shape[0]
+	print('DONE')
+	print('Dimensions RFunc and Rfunc 3rd')
+	print(rfunc.shape[0], rfunc_3rd.shape[0])
 
 	while counter1<num_points_2D:
 		counter2=0
@@ -376,7 +376,6 @@ def calc_Rfuncs_tdelay(q_func,t_delay,steps_in_t_delay):
 @njit(fastmath=True, parallel=True)
 def calc_Rfuncs_3rd_GBOM_tdelay(g_func,h1_func,h2_func,h4_func,h5_func,corr_func,freqs_gs,Omega_sq,gamma,kbT,t_delay,steps_in_t_delay,is_cl,no_dusch,four_phonon_term):
 	# first find the effective step_length
-	print 'Entering Rfuncs_3rd'
 	step_length=g_func[1,0].real-g_func[0,0].real
 	#steps_in_t_delay=int(round(t_delay/step_length))  # NOTE: delay time is rounded to match with steps in the response function
 	# this means that by default, the resolution of delay time in the 2DES spectrum is 1 fs.
@@ -391,8 +390,8 @@ def calc_Rfuncs_3rd_GBOM_tdelay(g_func,h1_func,h2_func,h4_func,h5_func,corr_func
 #	 max_index=int(((g_func.shape[0]-steps_in_t_delay)/2.0))
 	rfuncs=np.zeros((max_index,max_index,6),dtype=np.complex_) # first and 2nd number are the times, 3rd number is R1, 4th number is R2 etc.
 
-	print 'step_length, steps_in_t_delay,t_delay, eff_tdelay'
-	print step_length,steps_in_t_delay,t_delay,steps_in_t_delay*step_length
+	print('step_length, steps_in_t_delay,t_delay, eff_tdelay')
+	print(step_length,steps_in_t_delay,t_delay,steps_in_t_delay*step_length)
 	count1=0
 	count2=0
 	# if this is a calculation based on the exact quantum correlation function, need to precompute n_i_vec

@@ -1,5 +1,5 @@
 import os.path
-from ..constants import constants as const
+from spec_pkg.constants import constants as const
 
 # Function definition
 # function searches through input file for given keyword and returns keyword string
@@ -11,7 +11,7 @@ def get_param(filename,keyword):
 	for line in searchfile:
 		if keyword in line and keyword_line==9999999:
 			keyword_line=line_count
-		 line_count=line_count+1
+		line_count=line_count+1
 	searchfile.close()
 	if keyword_line < 9999999:
 		linefile=open(filename,"r")
@@ -163,7 +163,7 @@ class params:
 			self.E_adiabatic=float(par)/const.Ha_to_eV
 		par=get_param(filepath,'SPECTRAL_WINDOW')
 		if par != '':
-		self.spectral_window=float(par)/const.Ha_to_eV
+			self.spectral_window=float(par)/const.Ha_to_eV
 
 		par=get_param(filepath, 'COMPUTE_4PHONON_TERM')
 		if par != '':

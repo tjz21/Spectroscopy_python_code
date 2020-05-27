@@ -576,14 +576,14 @@ def full_2nd_order_lineshape(
     E_adiabatic,
 ):
     lineshape_func = np.zeros((num_points, 2), dtype=complex)
-    print "Computing lineshape function"
-    print "av energy gap:"
-    print av_energy_gap
-    print "gamma:"
-    print gamma
-    print Omega_sq
-    print "kbT:"
-    print kbT
+    print("Computing lineshape function")
+    print("av energy gap:")
+    print(av_energy_gap)
+    print("gamma:")
+    print(gamma)
+    print(Omega_sq)
+    print("kbT:")
+    print(kbT)
     step_length = max_t / num_points
     t = 0.0
     count1 = 0
@@ -614,7 +614,7 @@ def full_2nd_order_lineshape(
 
         count1 = count1 + 1
         t = t + step_length
-        print lineshape_func[count1 - 1, 0], lineshape_func[count1 - 1, 1]
+        print(lineshape_func[count1 - 1, 0], lineshape_func[count1 - 1, 1])
 
     return lineshape_func
 
@@ -646,7 +646,7 @@ def full_third_order_lineshape(
             )
         count1 = count1 + 1
         t = t + step_length
-        print lineshape_func[count1 - 1, 0], lineshape_func[count1 - 1, 1]
+        print(lineshape_func[count1 - 1, 0], lineshape_func[count1 - 1, 1])
     return lineshape_func
 
 
@@ -666,11 +666,11 @@ def full_h1_func(
 
     t1 = 0.0
     count1 = 0
-    print "COMPUTING H1"
+    print("COMPUTING H1")
     while count1 < num_points:
         count2 = 0
         t2 = 0.0
-        print count1
+        print(count1)
         while count2 < num_points:
             h1_func[count1, count2, 0] = t1
             h1_func[count1, count2, 1] = t2
@@ -725,11 +725,11 @@ def full_h2_func(
 
     t1 = 0.0
     count1 = 0
-    print "COMPUTING H2"
+    print("COMPUTING H2")
     while count1 < num_points:
         count2 = 0
         t2 = 0.0
-        print count1
+        print(count1)
         while count2 < num_points:
             h2_func[count1, count2, 0] = t1
             h2_func[count1, count2, 1] = t2
@@ -784,11 +784,11 @@ def full_h4_func(
 
     t1 = 0.0
     count1 = 0
-    print "COMPUTING H4"
+    print("COMPUTING H4")
     while count1 < num_points:
         count2 = 0
         t2 = 0.0
-        print count1
+        print(count1)
         while count2 < num_points:
             h4_func[count1, count2, 0] = t1
             h4_func[count1, count2, 1] = t2
@@ -841,11 +841,11 @@ def full_h5_func(
 
     t1 = 0.0
     count1 = 0
-    print "COMPUTING H5"
+    print("COMPUTING H5")
     while count1 < num_points:
         count2 = 0
         t2 = 0.0
-        print count1
+        print(count1)
         while count2 < num_points:
             h5_func[count1, count2, 0] = t1
             h5_func[count1, count2, 1] = t2
