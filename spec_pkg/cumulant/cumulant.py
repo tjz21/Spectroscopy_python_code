@@ -10,7 +10,7 @@ from spec_pkg.GBOM import gbom_cumulant_response as gbom_cumul
 from numba import jit, njit, prange
 
 # 2D version of the simpson integral. Parallelized accross cores
-@njit(fastmath=True, parallel=True)
+@jit(fastmath=True)
 def simpson_integral_2D(integrant):
 	limit1=integrant.shape[0]
 	limit2=integrant.shape[1]
@@ -25,7 +25,7 @@ def simpson_integral_2D(integrant):
 	step_x=integrant[1,0,0]-integrant[0,0,0]
 	step_y=integrant[0,1,1]-integrant[0,0,1]
 
-	for icount in prange(limit1):
+	for icount in range(limit1):
 		if icount==0 or icount==limit1-1:
 			prefac_x=1.0
 		elif icount%2<0.5:
@@ -97,22 +97,31 @@ def construct_corr_func_3rd_qm_freq(corr_func,kbT,sampling_rate_in_fs,low_freq_f
 
 # function constructing the complete 3rd order lineshape function from a correlation function
 def compute_lineshape_func_3rd(corr_func,kbT,sampling_rate_in_fs,max_t,steps,low_freq_filter):
-	g_func=np.zeros((steps,2),dtype=complex)
+	g_func=np.zeros((steps,2),dtype=np.complex)
 	# need to constuct 3rd order correlation function in the frequency domain. 
 	step_length_corr=corr_func[1,1,0]-corr_func[0,0,0]
  
 	sample_rate=sampling_rate_in_fs*math.pi*2.0*const.hbar_in_eVfs
 
 	# pad corr func with zeros to have a finer resolution in the frequency range. Double the range, see if results change
-	new_dim=corr_func.shape[0]*2+1  # pad with a factor of 2
+	new_dim=corr_func.shape[0]*2+1  # pad with a factor of 2 . Resulting value is guaranteed to be odd
 	padding=np.array([new_dim,new_dim])
 
 	# try padding:
-	extended_func=np.zeros((new_dim,new_dim),dtype=complex)
+	extended_func=np.zeros((new_dim,new_dim),dtype=np.complex)
 
 	# pad with zeros:
-	start_index=(new_dim-corr_func.shape[0])/2
+	# 1001 and 2003 in both python3 and python
+	print(corr_func.shape[0],new_dim)
+
+	start_index=int((new_dim-corr_func.shape[0])/2)
 	end_index=start_index+corr_func.shape[0]
+	print(start_index,end_index)
+	# (501, 1502) in python2
+	# 501.0 1502.0 in python 3
+	# meaning: 0-500 is padded with 0s, 501-1501 is function values, 1502-2002 is zeros:
+	#          501 values zero; 1001 values function values; 501 values=0
+
 	icount=0
 	while icount<new_dim:
 		jcount=0
@@ -149,6 +158,7 @@ def compute_lineshape_func_3rd(corr_func,kbT,sampling_rate_in_fs,max_t,steps,low
 		g_func[counter,0]=t_current
 		integrant=integrant_3rd_order_cumulant_lineshape(corr_func_freq,freq_list,t_current,kbT)
 		g_func[counter,1]=simpson_integral_2D(integrant)   #  give x and y axis
+		print(g_func[counter,0],g_func[counter,1])
 		counter=counter+1
 	return g_func
 
@@ -243,14 +253,12 @@ def compute_h3_val(qm_corr_func_freq,t1,t2,t3):
 
 # the analogous routine to the second order lineshape integrant. We have to carefully treat the limits of the integrant
 # when omega1 or omega2=0, or when omega1=-omega2. Double checked all limits. They seem to be correct.   
-@jit(fastmath=True, parallel=True)
+@jit(fastmath=True)
 def integrant_3rd_order_cumulant_lineshape(corr_func_freq,freq_list,t_val,kbT):
 	tol=10e-15
-	integrant=np.zeros((corr_func_freq.shape[0],corr_func_freq.shape[0],3),dtype=complex)
-	icount=0
-	while icount<corr_func_freq.shape[0]:
-		jcount=0
-		while jcount<corr_func_freq.shape[0]:
+	integrant=np.zeros((corr_func_freq.shape[0],corr_func_freq.shape[0],3),dtype=np.complex_)
+	for icount in range(corr_func_freq.shape[0]):
+		for jcount in range(corr_func_freq.shape[0]):
 			omega1=freq_list[icount]
 			omega2=freq_list[jcount]
 			omega_bar=omega1+omega2
@@ -415,33 +423,26 @@ def prefactor_jung(omega1,omega2,kbT):
 	return prefac
 
 # This function constructs the 2D classical correlation function in time domain from a single trajectory.
+#@jit(fastmath=True)
 def construct_classical_3rd_order_corr_from_single_traj(fluctuations,correlation_length,time_step):
-	corr_func=np.zeros((correlation_length*2+1,correlation_length*2+1,3))      
-	icount=0
-	while icount<corr_func.shape[0]:
-		jcount=icount
+	func_size=correlation_length*2+1
+	corr_func=np.zeros((func_size,func_size,3))      
+	for icount in range(corr_func.shape[0]):
 		print(icount)
-		while jcount<corr_func.shape[0]:
+		for jcount in range(icount,corr_func.shape[0]):
 			integrant=get_correlation_integrant_3rd(fluctuations,icount,jcount,correlation_length,time_step)
 			corr_func[icount,jcount,0]=(icount*time_step)-(corr_func.shape[0]-1)/2.0*time_step
 			corr_func[icount,jcount,1]=(jcount*time_step)-(corr_func.shape[0]-1)/2.0*time_step
-			corr_func[icount,jcount,2]=integrate.simps(integrant[:,1],dx=(integrant[1,0]-integrant[0,0]))/(integrant.shape[0])
+			corr_func[icount,jcount,2]=integrate.simps(integrant[:,1],dx=time_step)/(1.0*integrant.shape[0])
 			# exploit symmetry of classical correlation function under exchange of w and w'
 			corr_func[jcount,icount,0]=corr_func[icount,jcount,1]
 			corr_func[jcount,icount,1]=corr_func[icount,jcount,0]
 			corr_func[jcount,icount,2]=corr_func[icount,jcount,2]
 
-			jcount=jcount+1
-		icount=icount+1
-
 	# make sure that the step length does not get multiplied in the trapezium integral function
-	icount=0
-	while icount<corr_func.shape[0]:
-		jcount=0
-		while jcount<corr_func.shape[0]:
+	for icount in range(corr_func.shape[0]):
+		for jcount in range(corr_func.shape[0]):
 			corr_func[icount,jcount,2]=corr_func[icount,jcount,2]/(time_step)
-			jcount=jcount+1
-		icount=icount+1
 
 	return corr_func
 
@@ -475,25 +476,46 @@ def construct_corr_func_3rd(fluctuations,num_trajs,correlation_length,tau,time_s
 
 	return classical_corr
 
-@jit
+# OLD ROUTINE: THIS PRODUCES A SEGFAULT WITH NUMBA PARALLEL=TRUE BUT NOT WITHOUT...
+@jit(fastmath=True)
 def get_correlation_integrant_3rd(fluctuations,current_corr_i,current_corr_j,correlation_length,MD_steplength):
-	relative_start_i=current_corr_i-correlation_length
-	relative_start_j=current_corr_j-correlation_length
-
+	relative_start_i=current_corr_i-correlation_length   # these can be negative or positive and define a range
+	relative_start_j=current_corr_j-correlation_length   # over which the correlation function gets calculated
+#	print(current_corr_i,current_corr_j,correlation_length,relative_start_i,relative_start_j)
 	min_index=min(relative_start_i,relative_start_j)
 	max_index=max(relative_start_i,relative_start_j)
-	if max_index<0.0:
+	if max_index<0:
 		max_index=0
-	if min_index>0.0:
+	if min_index>0:
  		min_index=0
-
-	integrant=np.zeros((fluctuations.shape[0]-(abs(min_index)+max_index+2),2))
-	counter=min_index
+	# counter must be choosen in such a way that 
+#	print(max_index,min_index)
+#
+	# set maximum size that the integrant can have. This is chosen such that counter+min_index and counter+max_index
+	# are guaranteed to be within the range of the integrant
+	integrant_size=fluctuations.shape[0]-(abs(min_index)+max_index+2)
+	integrant=np.zeros((integrant_size,2))
+	counter=abs(min_index)
 	while counter<integrant.shape[0]:
 		integrant[counter,0]=(counter*MD_steplength)
 		integrant[counter,1]=(fluctuations[counter])*(fluctuations[counter+relative_start_i])*(fluctuations[counter+relative_start_j])
 		counter=counter+1
 	return integrant
+
+#ALTERNATIVE
+#@jit(fastmath=True,parallel=True)
+#def get_correlation_integrant_3rd(fluctuations,current_corr_i,current_corr_j,correlation_length,MD_steplength):
+#       max_index_i=fluctuations.shape[0]-current_corr_i
+#       max_index_j=fluctuations.shape[0]-current_corr_j
+#       max_index=min(max_index_i,max_index_j)
+#
+#       integrant=np.zeros((max_index,2))
+#       counter=0
+#       while counter<integrant.shape[0]:
+#               integrant[counter,0]=(counter*MD_steplength)
+#               integrant[counter,1]=(fluctuations[counter])*(fluctuations[counter+current_corr_i])*(fluctuations[counter+current_corr_j])
+#               counter=counter+1
+#       return integrant
 
 
 def construct_corr_func(fluctuations,num_trajs,tau,time_step):
@@ -535,7 +557,7 @@ def compute_spectral_dens(corr_func,kbT, sample_rate,time_step):
 	# the FFT and the prefactor. The FFT is only a sum over components. Does not account for the time step 
 	corr_freq=time_step*np.fft.fftshift(np.fft.fft(np.fft.ifftshift(corr_func)))
 
-	spectral_dens=np.zeros(((corr_freq.shape[-1]+1)/2,2))
+	spectral_dens=np.zeros((int((corr_freq.shape[-1]+1)/2),2))
 	freqs=np.fft.fftshift(np.fft.fftfreq(corr_func.size,d=1.0/sample_rate))
 
 	counter=0
@@ -561,18 +583,16 @@ def compute_2nd_order_cumulant_from_spectral_dens(spectral_dens,kbT,max_t,steps)
 		counter=counter+1
 	return q_func
 
-@jit(fastmath=True, parallel=True)
+@jit(fastmath=True)
 def integrant_2nd_order_cumulant_lineshape(spectral_dens,t_val,kbT):
-	integrant=np.zeros((spectral_dens.shape[0],2),dtype=complex)
-	counter=0
-	while counter<spectral_dens.shape[0]:
+	integrant=np.zeros((spectral_dens.shape[0],spectral_dens.shape[1]),dtype=np.complex_)
+	for counter in range(spectral_dens.shape[0]):
 		omega=spectral_dens[counter,0]
 		integrant[counter,0]=omega
 		if counter==0:
 			integrant[counter,1]=0.0
 		else:
 			integrant[counter,1]=1.0/math.pi*spectral_dens[counter,1]/(omega**2.0)*(2.0*cmath.cosh(omega/(2.0*kbT))/cmath.sinh(omega/(2.0*kbT))*(math.sin(omega*t_val/2.0))**2.0+1j*(math.sin(omega*t_val)-omega*t_val))
-		counter=counter+1
 
 	return integrant
 

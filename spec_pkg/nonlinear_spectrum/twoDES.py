@@ -68,6 +68,40 @@ def transient_abs_from_2DES(spec):
 		return transient_data
 
 
+def calc_2DES_time_series_batch_Eopt_av(q_batch,num_batches,E_min1,E_max1,E_min2,E_max2,num_points_2D,rootname,num_times,time_step,mean_fluct):
+                averaged_val=np.zeros((num_times,2))
+                transient_abs=np.zeros((num_times,num_points_2D,3))
+
+                # make sure chosen delay times break down into an integer number of timesteps in the response function
+                step_length_t=((q_batch[0])[1,0]-(q_batch[0])[0,0]).real
+                eff_time_index_2DES=int(round(time_step/step_length_t))
+                eff_time_step_2DES=eff_time_index_2DES*step_length_t
+
+                current_delay=0.0
+                current_delay_index=0
+                counter=0
+                while counter<num_times:
+                                print(counter,current_delay,E_min1,E_max1)
+                                spectrum_2D=calc_2D_spectrum_Eopt_av_cumul(q_batch,current_delay,current_delay_index,E_min1,E_max1,E_min2,E_max2,num_points_2D,mean_fluct)
+                                print_2D_spectrum(rootname+'_2DES_Eopt_av'+str(counter)+'.dat',spectrum_2D,False)
+
+                                #compute transient absorption contribution here:
+                                transient_temp=transient_abs_from_2DES(spectrum_2D)
+                                transient_abs[counter,:,0]=current_delay
+                                transient_abs[counter,:,1]=transient_temp[:,0]
+                                transient_abs[counter,:,2]=transient_temp[:,1]
+
+
+                                averaged_val[counter,0]=current_delay
+                                averaged_val[counter,1]=cumul.simpson_integral_2D(spectrum_2D)
+                                print(averaged_val[counter,1])
+                                counter=counter+1
+                                current_delay=current_delay+eff_time_step_2DES
+                                current_delay_index=current_delay_index+eff_time_index_2DES
+
+                print_2D_spectrum(rootname+'_2nd_order_cumulant_transient_absorption_spec.txt',transient_abs,False)
+                np.savetxt(rootname+'_2DES_2nd_order_cumulant_averaged_spectrum.txt',averaged_val)
+
 # 2DES time series for a batch of spectra
 def calc_2DES_time_series_batch(q_batch,num_batches,E_min1,E_max1,E_min2,E_max2,num_points_2D,rootname,num_times,time_step,mean):
 		averaged_val=np.zeros((num_times,2))
@@ -92,7 +126,6 @@ def calc_2DES_time_series_batch(q_batch,num_batches,E_min1,E_max1,E_min2,E_max2,
 								spectrum_2D=spectrum_2D+spectrum_2D_temp
 						else:
 								spectrum_2D[:,:,2]=spectrum_2D[:,:,2]+spectrum_2D_temp[:,:,2]
-						
 						batch_count=batch_count+1
 				spectrum_2D[:,:,2]=spectrum_2D[:,:,2]/(1.0*num_batches)
 				print_2D_spectrum(rootname+'_2DES_'+str(counter)+'.dat',spectrum_2D,False)
@@ -269,6 +302,88 @@ def calc_2D_spectrum(q_func,delay_time,delay_index,E_min1,E_max1,E_min2,E_max2,n
 
 	return full_2D_spectrum
 
+
+
+@jit(fastmath=True, parallel=True)
+def twoD_spectrum_integrant_Eopt_av_cumulant(exp_rfunc_av,q_func,omega1,omega2,t_delay):
+        step_length=exp_rfunc_av[1,0,0]-exp_rfunc_av[0,0,0]
+        steps_in_t_delay=int(t_delay/step_length)  # NOTE: delay time is rounded to match with steps in the response function
+        # this means that by default, the resolution of delay time in the 2DES spectrum is 1 fs. 
+        max_index=int((q_func.shape[0]-steps_in_t_delay)/2.0)
+
+        integrant=np.zeros((max_index,max_index,3),dtype=np.complex_)
+
+        count1=0
+        count2=0
+        while count1<max_index:
+                count2=0
+                while count2<max_index:
+                                integrant[count1,count2,0]=exp_rfunc_av[count1,0,0]
+                                integrant[count1,count2,1]=exp_rfunc_av[count2,0,0]
+                                # rephasing diagrams=2,3. Non-rephasing=1,4. Rephasing has a negative sign, non-rephasing a positive sign. 
+                                integrant[count1,count2,2]=np.exp(1j*(exp_rfunc_av[count1,0,0]*(omega1)+exp_rfunc_av[count2,0,0]*(omega2)))*(exp_rfunc_av[count1,count2,2])+np.exp(1j*(-exp_rfunc_av[count1,0,0]*(omega1)+exp_rfunc_av[count2,0,0]*(omega2)))*(exp_rfunc_av[count1,count2,3])
+
+                                count2=count2+1
+                count1=count1+1
+        return integrant
+
+
+# compute an effective Eopt_av_cumul spectrum by building an averaged response function from a list of q_functions that are 
+# all shifted to the same energy. Then calculate individual cumulant spectra with the averaged 2DES response function, shifted
+# to different pints contained in the omeg
+def calc_2D_spectrum_Eopt_av_cumul(q_func_list,delay_time,delay_index,E_min1,E_max1,E_min2,E_max2,num_points_2D,mean_fluct):
+        full_2D_spectrum=np.zeros((num_points_2D,num_points_2D,3))
+        counter1=0
+        counter2=0
+        step_length=((E_max1-E_min1)/num_points_2D)
+	# work out size of Rfuncs:
+        temp_max_index=q_func_list[0].shape[0]-delay_index
+        max_index=0
+        if (temp_max_index%2)==0:
+                # even.
+                max_index=temp_max_index/2
+        else:
+                # odd
+                max_index=(temp_max_index-1)/2
+
+        print(delay_time,delay_index)	
+        print(E_min1,E_max1)
+	# build rfunc list:
+        exp_rfunc_av=np.zeros((max_index,max_index,4),dtype=complex)
+        for i in range(len(q_func_list)):
+                rfuncs_temp=calc_Rfuncs_tdelay(q_func_list[i],delay_time,delay_index)
+                exp_rfunc_av[:,:,0]=rfuncs_temp[:,:,0]
+                exp_rfunc_av[:,:,1]=rfuncs_temp[:,:,1]
+                exp_rfunc_av[:,:,2]=exp_rfunc_av[:,:,2]+(np.exp(rfuncs_temp[:,:,2])+np.exp(rfuncs_temp[:,:,5]))
+                exp_rfunc_av[:,:,3]=exp_rfunc_av[:,:,3]+(np.exp(rfuncs_temp[:,:,3])+np.exp(rfuncs_temp[:,:,4]))
+
+        # now divide by batch number
+        exp_rfunc_av[:,:,2]=exp_rfunc_av[:,:,2]/(1.0*len(q_func_list))
+        exp_rfunc_av[:,:,3]=exp_rfunc_av[:,:,3]/(1.0*len(q_func_list))
+
+	
+	# now use rfuncs_av to compute spectrum 
+        for i in range(len(q_func_list)):
+                temp_spec=np.zeros((full_2D_spectrum.shape[0],full_2D_spectrum.shape[1],3))
+                counter1=0
+                while counter1<num_points_2D:
+                        counter2=0
+                        omega1=E_min1+counter1*step_length
+                        while counter2<num_points_2D:
+                                        omega2=E_min2+counter2*step_length
+                                        full_2D_integrant=twoD_spectrum_integrant_Eopt_av_cumulant(exp_rfunc_av,q_func_list[i],omega1-mean_fluct[i],omega2-mean_fluct[i],delay_time)
+                                        temp_spec[counter1,counter2,0]=omega1
+                                        temp_spec[counter1,counter2,1]=omega2
+                                        temp_spec[counter1,counter2,2]=cumul.simpson_integral_2D(full_2D_integrant).real
+                                        counter2=counter2+1
+                        counter1=counter1+1
+                full_2D_spectrum[:,:,0]=temp_spec[:,:,0]
+                full_2D_spectrum[:,:,1]=temp_spec[:,:,1]
+                # write temp spec to file:
+                full_2D_spectrum[:,:,2]=full_2D_spectrum[:,:,2]+temp_spec[:,:,2]
+        full_2D_spectrum[:,:,2]=full_2D_spectrum[:,:,2]/(1.0*len(q_func_list))
+
+        return full_2D_spectrum
 
 # Calculation routine for the full spectrum in the 3rd order cumulant approximation 
 @jit

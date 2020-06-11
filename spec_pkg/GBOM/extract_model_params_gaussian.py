@@ -170,7 +170,7 @@ def extract_duschinsky_mat(filename,num_modes):
 				freq=float(convert_string_format(current_line[1+missing_row_count]))
 				duschinsky_mat[mode_counter,row_counter*5+missing_row_count]=freq
 				missing_row_count=missing_row_count+1
-				mode_counter=mode_counter+1
+			mode_counter=mode_counter+1
 
 		return duschinsky_mat
 

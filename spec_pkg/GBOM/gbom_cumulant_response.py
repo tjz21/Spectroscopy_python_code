@@ -346,7 +346,7 @@ def compute_spectral_dens(
     )  # 2pi is the missing normalization factor. double check
     freqs = np.fft.fftfreq(corr_func_freq.shape[0], max_t / max_steps) * 2.0 * math.pi
 
-    spectral_dens = np.zeros((corr_func_freq.shape[0] / 2 - 1, 2))
+    spectral_dens = np.zeros((int(corr_func_freq.shape[0]/2) - 1, 2))
     counter = 0
     while counter < spectral_dens.shape[0]:
         spectral_dens[counter, 0] = freqs[counter]
@@ -380,7 +380,7 @@ def full_2nd_order_corr_qm(
     while counter < corr_func.shape[0]:
         corr_func[counter, 0] = -max_t + step_length * counter
         corr_func[counter, 1] = second_order_corr_t_qm(
-            freqs_gs, Omega_sq_sq, gamma, n_i, n_i_p, corr_func[counter, 0]
+            freqs_gs, Omega_sq_sq.astype(np.complex_), gamma.astype(np.complex_), n_i.astype(np.complex), n_i_p.astype(np.complex), corr_func[counter, 0]
         )
         corr_func[counter, 1] = corr_func[counter, 1] * math.exp(
             -abs(corr_func[counter, 0].real) / decay_length
@@ -435,15 +435,14 @@ def full_2nd_order_corr_cl(
         corr_func[counter, 0] = -max_t + step_length * counter
         corr_func[counter, 1] = second_order_corr_t_cl(
             freqs_gs,
-            Omega_sq_sq,
-            gamma,
-            n_i,
-            n_i_p,
-            n_ij_p,
-            n_ij_m,
+            Omega_sq_sq.astype(np.complex_),
+            gamma.astype(np.complex_),
+            n_i.astype(np.complex_),
+            n_i_p.astype(np.complex_),
+            n_ij_p.astype(np.complex_),
+            n_ij_m.astype(np.complex_),
             kbT,
-            corr_func[counter, 0],
-        )
+            corr_func[counter, 0])
         corr_func[counter, 1] = corr_func[counter, 1] * math.exp(
             -abs(corr_func[counter, 0].real) / decay_length
         )
@@ -458,8 +457,8 @@ def second_order_corr_t_cl(
     freqs_gs, Omega_sq, gamma, n_i, n_i_p, n_ij_p, n_ij_m, kbT, t
 ):
     # vectorized version:
-    exp_wt = np.zeros(freqs_gs.shape[0], dtype=complex)
-    inv_w = np.zeros(freqs_gs.shape[0])
+    exp_wt = np.zeros(freqs_gs.shape[0], dtype=np.complex_)
+    inv_w = np.zeros(freqs_gs.shape[0], dtype=np.complex_)
 
     # fill exp_wt vectors
     icount = 0
@@ -514,15 +513,13 @@ def second_order_corr_t_cl(
 @jit
 def second_order_corr_t_qm(freqs_gs, Omega_sq, gamma, n_i, n_i_p, t):
     # vectorized version:
-    exp_wt = np.zeros(freqs_gs.shape[0], dtype=complex)
-    inv_w = np.zeros(freqs_gs.shape[0])
+    exp_wt = np.zeros(freqs_gs.shape[0], dtype=np.complex_)
+    inv_w = np.zeros(freqs_gs.shape[0], dtype=np.complex_)
 
     # fill exp_wt vectors
-    icount = 0
-    while icount < freqs_gs.shape[0]:
+    for icount in range(freqs_gs.shape[0]):
         inv_w[icount] = 1.0 / freqs_gs[icount]
         exp_wt[icount] = cmath.exp(1j * freqs_gs[icount] * t)
-        icount = icount + 1
 
     # compact representation of single phonon term
     term1 = 0.5 * np.dot(
@@ -553,7 +550,7 @@ def second_order_corr_t_qm(freqs_gs, Omega_sq, gamma, n_i, n_i_p, t):
     return term1 + term2
 
 
-@njit(fastmath=True, parallel=True)
+@njit(fastmath=True)
 def bose_einstein(freq, kbT):
     n = math.exp(freq / kbT) - 1.0
     return 1.0 / n
@@ -2016,7 +2013,7 @@ def h1_func_cl_t(freqs_gs, Omega_sq, gamma, kbT, t1, t2, four_phonon_term):
     return corr_val
 
 
-@njit(fastmath=True, parallel=True)
+@jit(fastmath=True)
 def third_order_lineshape_cl_t(freqs_gs, Omega_sq, gamma, kbT, t, four_phonon_term):
     corr_val = 0.0 + 0.0j
     gamma_term = 0.0 + 0.0j
@@ -3940,7 +3937,7 @@ def h1_func_qm_t(freqs_gs, Omega_sq, n_i_vec, gamma, kbT, t1, t2, four_phonon_te
     return corr_val
 
 
-@njit(fastmath=True, parallel=True)
+@jit(fastmath=True)
 def third_order_lineshape_qm_t(
     freqs_gs, Omega_sq, n_i_vec, gamma, kbT, t, four_phonon_term
 ):
@@ -4111,7 +4108,7 @@ def third_order_lineshape_qm_t(
     return corr_val
 
 
-@njit(fastmath=True, parallel=True)
+@njit(fastmath=True)
 def prefactor_3rd_order_lineshape_QM(const_fac, omega1, omega2, kbT, t):
     val = const_fac / (4.0 * math.pi ** 2.0)
     omega12 = omega1 + omega2
@@ -4473,7 +4470,7 @@ def prefactor_2DES_h5_cl(const_fac, omega1, omega2, kbT, t1, t2):
 
 
 # This is the Jung correction factor applied to the 3rd order lineshape function
-@njit(fastmath=True, parallel=True)
+@njit(fastmath=True)
 def prefactor_3rd_order_lineshape(const_fac, omega1, omega2, kbT, t):
     val = const_fac / (8.0 * math.pi ** 2.0 * kbT ** 2.0)
     omega12 = omega1 + omega2

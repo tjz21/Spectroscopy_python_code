@@ -8,7 +8,6 @@ from ..constants import constants as const
 
 # contains all routines to construct the classical ensemble spectrum for the GBOM
 @jit
-# Check if we have quantum nuclei or not
 def get_Bmat(full_Omega_sq,freqs_gs,kbT,t,is_QM):
 	Bmat=full_Omega_sq*1j*t
 	counter=0
@@ -37,7 +36,7 @@ def get_Bdash_mat(Jmat,freqs_gs,omega_e_sq,kbT,inv_omega_g_sq,t,is_QM):
 	temp_mat2=np.dot(Jmat,temp_mat)
 	if is_QM:
 		# create effective inv_omega_sq matrix which in this case is given by 1/2omega*coth(beta omega/2)
-		eff_inv_mat=np.zeros((freqs_gs.shape[0],freqs_gs.shape[0]),dtype=complex)
+		eff_inv_mat=np.zeros((freqs_gs.shape[0],freqs_gs.shape[0]),dtype=np.complex_)
 		counter=0
 		while counter<eff_inv_mat.shape[0]:
 			eff_inv_mat[counter,counter]=1j*t/(2.0*freqs_gs[counter]*math.tanh(freqs_gs[counter]/(2.0*kbT)))
@@ -62,8 +61,8 @@ def get_prefac(Bdash_mat):
 def calc_chi_for_given_time(freq_gs,freq_ex,Jmat,Kmat,lambda_0,gamma,Omega_sq,omega_e_sq,omega_g_sq,kBT,time,is_QM):
 	# calculate full value of chi(t) for the given value of t.
 	inv_omega_g_sq=get_inv_freqs_gs_sq(freq_gs)
-	Bmat=get_Bmat(Omega_sq,freq_gs,kBT,time,is_QM)
-	Bdash_mat=get_Bdash_mat(Jmat,freq_gs,omega_e_sq,kBT,inv_omega_g_sq,time,is_QM)
+	Bmat=get_Bmat(Omega_sq.astype(np.complex_),freq_gs,kBT,time,is_QM)
+	Bdash_mat=get_Bdash_mat(Jmat.astype(np.complex_),freq_gs,omega_e_sq.astype(np.complex_),kBT,inv_omega_g_sq.astype(np.complex_),time,is_QM)
 	# successfully gotten auxillary matrices. First construct prefactor 
 	# protect against small values of time, for which c and a diverge
 	if time<0.00000001:
@@ -72,8 +71,8 @@ def calc_chi_for_given_time(freq_gs,freq_ex,Jmat,Kmat,lambda_0,gamma,Omega_sq,om
 		prefac=get_prefac(Bdash_mat)
 
 	Binv=np.linalg.inv(Bmat)
-	gammatrans=np.transpose(gamma)
-	temp=np.dot(Binv,gamma)
+	gammatrans=np.transpose(gamma.astype(np.complex_))
+	temp=np.dot(Binv,gamma.astype(np.complex_))
 	total_val=-0.25*time**2.0*np.dot(gammatrans,temp)
 
 	chi_t=prefac*cmath.exp(total_val)

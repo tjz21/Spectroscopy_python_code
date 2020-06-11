@@ -99,6 +99,7 @@ def get_d_ex(freq_ex, time):
 
 
 # this matrix is related to the partition function of the harmonic oscillator
+@jit
 def get_Pmat(freq_gs, kBT):
     Pmat = np.zeros((freq_gs.shape[0], freq_gs.shape[0]), dtype=np.complex_)
     counter = 0
@@ -165,10 +166,10 @@ def calc_chi_for_given_time(freq_gs, freq_ex, Jmat, Kmat, kBT, time):
     b_ex = get_b_ex(freq_ex, time)
     d_gs = get_d_gs(freq_gs, kBT, time)
     d_ex = get_d_ex(freq_ex, time)
-    Amat = get_Amat(a_gs, a_ex, Jmat)
-    Bmat = get_Bmat(b_gs, b_ex, Jmat)
+    Amat = get_Amat(a_gs, a_ex, Jmat.astype(np.complex_))
+    Bmat = get_Bmat(b_gs, b_ex, Jmat.astype(np.complex_))
     Pmat = get_Pmat(freq_gs, kBT)
-    Dmat = get_Dmat(d_gs, d_ex, Jmat)
+    Dmat = get_Dmat(d_gs, d_ex, Jmat.astype(np.complex_))
 
     # successfully gotten auxillary matrices. First construct prefactor
     # protect against small values of time, for which c and a diverge
@@ -178,11 +179,11 @@ def calc_chi_for_given_time(freq_gs, freq_ex, Jmat, Kmat, kBT, time):
         prefac = get_prefac(a_gs, a_ex, Amat, Bmat, Pmat)
 
     Dinv = np.linalg.inv(Dmat)
-    Ktrans = np.transpose(Kmat)
-    temp = np.dot(d_gs, Jmat)
+    Ktrans = np.transpose(Kmat.astype(np.complex_))
+    temp = np.dot(d_gs, Jmat.astype(np.complex_))
     Vtrans = np.dot(Ktrans, temp)
     V = np.transpose(Vtrans)
-    temp = np.dot(d_gs, Kmat)
+    temp = np.dot(d_gs, Kmat.astype(np.complex_))
     temp1 = np.dot(Ktrans, temp)
     temp = np.dot(Dinv, V)
     temp2 = np.dot(Vtrans, temp)
@@ -202,10 +203,10 @@ def calc_lineshape_for_given_time(freq_gs, freq_ex, Jmat, Kmat, kBT, time):
     b_ex = get_b_ex(freq_ex, time)
     d_gs = get_d_gs(freq_gs, kBT, time)
     d_ex = get_d_ex(freq_ex, time)
-    Amat = get_Amat(a_gs, a_ex, Jmat)
-    Bmat = get_Bmat(b_gs, b_ex, Jmat)
+    Amat = get_Amat(a_gs, a_ex, Jmat.astype(np.complex_))
+    Bmat = get_Bmat(b_gs, b_ex, Jmat.astype(np.complex_))
     Pmat = get_Pmat(freq_gs, kBT)
-    Dmat = get_Dmat(d_gs, d_ex, Jmat)
+    Dmat = get_Dmat(d_gs, d_ex, Jmat.astype(np.complex_))
 
     # successfully gotten auxillary matrices. First construct prefactor
     # protect against small values of time, for which c and a diverge
@@ -215,11 +216,11 @@ def calc_lineshape_for_given_time(freq_gs, freq_ex, Jmat, Kmat, kBT, time):
         prefac = get_prefac(a_gs, a_ex, Amat, Bmat, Pmat)
 
     Dinv = np.linalg.inv(Dmat)
-    Ktrans = np.transpose(Kmat)
-    temp = np.dot(d_gs, Jmat)
+    Ktrans = np.transpose(Kmat.astype(np.complex_))
+    temp = np.dot(d_gs, Jmat.astype(np.complex_))
     Vtrans = np.dot(Ktrans, temp)
     V = np.transpose(Vtrans)
-    temp = np.dot(d_gs, Kmat)
+    temp = np.dot(d_gs, Kmat.astype(np.complex_))
     temp1 = np.dot(Ktrans, temp)
     temp = np.dot(Dinv, V)
     temp2 = np.dot(Vtrans, temp)
@@ -233,7 +234,7 @@ def compute_full_response_func(
 ):
     chi = np.zeros((steps, 3))
     lineshape = np.zeros((steps, 2))
-    response_func = np.zeros((steps, 2), dtype=complex)
+    response_func = np.zeros((steps, 2), dtype=np.complex_)
     step_length = max_time / steps
     start_val = 0.0000001
     counter = 0

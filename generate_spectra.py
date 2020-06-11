@@ -1,4 +1,4 @@
-#/usr/bin/env python
+#!/usr/bin/env python
 
 from scipy import integrate
 import sys
@@ -19,15 +19,15 @@ from spec_pkg.cumulant import md_traj
 from spec_pkg.params import params
 
 # TODO ##########################################################################
-# 2) Implement emission spectra calculations for the GBOM approach				#
+# 2) Implement emission spectra calculations for the GBOM approach		#
 # 3) Write simulation information to stdout (what calculation is done, how it	#
-#	 progresses etc.															#
+#	 progresses etc.							#
 # 4) Make sure we can input shapes of pulses for the ultrafast spectroscopy,	#
-#	 rather than just delta-function											#
-# 5) Implement GBOM batch absorption calculation								#
+#	 rather than just delta-function					#
+# 5) Implement GBOM batch absorption calculation				#
 # 6) Implement combined GBOM_MD model needed for E-ZTFC and similar appraoches	#
 # 7) Use Ajay's code to establish the functionality to read in Terachem files	#
-# 8) Implement a PIMD version of all the methods								#
+# 8) Implement a PIMD version of all the methods				#
 #################################################################################
 
 
@@ -127,7 +127,7 @@ def compute_GBOM_absorption(param_list,GBOM_chromophore,solvent,is_emission):
 		# quantum correlation functions for the cumulant approach
 		elif param_list.method=='ALL':
 				GBOM_chromophore.calc_ensemble_response(param_list.temperature,param_list.num_steps,param_list.max_t,param_list.qm_wigner_dist,is_emission)
-				spectrum=linear_spectrum.full_spectrum(GBOM_chromophore.ensemble_response,solvent.solvent_response,param_list.num_steps,E_start,E_end,True)
+				spectrum=linear_spectrum.full_spectrum(GBOM_chromophore.ensemble_response,solvent.solvent_response,param_list.dipole_mom,param_list.num_steps,E_start,E_end,True,is_emission)
 				if param_list.qm_wigner_dist:
 						np.savetxt(param_list.GBOM_root+'_ensemble_spectrum_qm_wigner_dist.dat', spectrum)
 				else:
@@ -239,8 +239,9 @@ def compute_GBOM_batch_absorption(param_list,GBOM_batch,solvent,is_emission):
 
 						GBOM_batch.gboms[icount].calc_cumulant_response(param_list.third_order,param_list.exact_corr,is_emission)
 						temp_spectrum=linear_spectrum.full_spectrum(GBOM_batch.gboms[icount].cumulant_response,solvent.solvent_response,param_list.dipole_mom,param_list.num_steps,E_start,E_end,True,is_emission)
+						print(E_start,E_end)
 						if icount==0:
-								spectrum=spectrum+temp_spectrum
+								spectrum=temp_spectrum
 						else:
 								spectrum[:,1]=spectrum[:,1]+temp_spectrum[:,1]
 						icount=icount+1
@@ -252,7 +253,7 @@ def compute_GBOM_batch_absorption(param_list,GBOM_batch,solvent,is_emission):
 		# equivalent of averaging the spectral density over different instances of the GBOM and then just
 		# computing a single, effective response function. 
 		elif param_list.method=='CUMULANT_AV':
-				print('Computing av_cumulant response')
+				print('Computing  response')
 				# get list of adiabatic energies and dipole moms. 
 				energy_dipole=np.zeros((1,1))
 				if os.path.exists(param_set.E_opt_path):
@@ -264,17 +265,26 @@ def compute_GBOM_batch_absorption(param_list,GBOM_batch,solvent,is_emission):
 				Eopt=energy_dipole[:,0]/const.Ha_to_eV
 				# compute average energy
 				Eopt_av=np.sum(Eopt)/(1.0*Eopt.shape[0])
+				Eopt_fluct=Eopt-Eopt_av # fluctuation of Eopt energies around common mean. 
+				print(Eopt_fluct)
 				print('EOPT_Av')
 				print(Eopt_av)
-
-				icount=0
-				average_Egap=0.0
 				average_Eadiab=0.0
-
+				average_E00=0.0    # E00 and Eadiab are not the same. 
+				for icount in range(GBOM_batch.num_gboms):
+					average_Eadiab=average_Eadiab+GBOM_batch.gboms[icount].E_adiabatic
+					average_E00=average_E00+GBOM_batch.gboms[icount].E_adiabatic+0.5*np.sum(GBOM_batch.gboms[icount].freqs_ex)-0.5*np.sum(GBOM_batch.gboms[icount].freqs_gs)
+				average_Eadiab=average_Eadiab/(1.0*GBOM_batch.num_gboms)
+				average_E00=average_E00/(1.0*GBOM_batch.num_gboms)
+				average_Egap=0.0
+				icount=0
 				while icount<GBOM_batch.num_gboms:
-						# figure out start and end value for the spectrum.
-						# then reset the energy gaps of the GBOMs to zero to have response functions without any energy gap contribution
-						average_Eadiab=average_Eadiab+GBOM_batch.gboms[icount].E_adiabatic
+						# Set E_00 to zero and calculate the lineshape function and energy gap. This 
+						# guarantees that all cumulant spectra start at the same 0-0 transition
+						# Then reset gboms.omega_av and recompute it for 0-0 transitions set to zero. 
+						# Then compute lineshape function for that setup. This will generate a cumulant
+						# spectrum with the 0-0 transition shifted to 0
+						GBOM_batch.gboms[icount].E_adiabatic=0.0
 						if param_set.exact_corr:
 								average_Egap=average_Egap+GBOM_batch.gboms[icount].omega_av_qm
 								GBOM_batch.gboms[icount].omega_av_qm=0.0
@@ -284,44 +294,42 @@ def compute_GBOM_batch_absorption(param_list,GBOM_batch,solvent,is_emission):
 
 						icount=icount+1
 
-				average_Egap=average_Egap/(1.0*GBOM_batch.num_gboms)  # this is the place the spectrum should be centered on
-				average_Eadiab=average_Eadiab/(1.0*GBOM_batch.num_gboms)
-				print('Average GBOM energy gap, average Eadiabatic, average Eopt energy gap:')
-				print(average_Egap,average_Eadiab,Eopt_av)
+				average_Egap=average_Egap/(1.0*GBOM_batch.num_gboms)
 
-				delta_E_opt00=average_Egap-average_Eadiab
+				
+				delta_E_opt_E_adiab=Eopt_av-average_Eadiab   # The average E_adiab value should be unchanged in Eopt_avFTFC
+				print('averageEgap, Eopt_av, average_Eadiab, Average E00')
+				print(average_Egap,Eopt_av,average_Eadiab, average_E00)
 
-				#HACK
 				E_start=average_Egap-param_set.spectral_window/2.0
 				E_end=average_Egap+param_set.spectral_window/2.0
 				print('Estart, Eend')
 				print(E_start,E_end)			
 
-				# NOW overwrite E_adiabatic and dipole moment for all GBOMS, then recompute the energy gap
+				# NOW overwrite E_adiabatic and dipole moment for all GBOMS. Make sure that all GBOM's have a consistent 0-0 transition equal to average_E00
 				icount=0
-				average_Egap=0.0
 				while icount<GBOM_batch.num_gboms:
-						GBOM_batch.gboms[icount].E_adiabatic=Eopt[icount]-delta_E_opt00
-						print(GBOM_batch.gboms[icount].E_adiabatic)
+						# convert from the constant E_00 to 
+						GBOM_batch.gboms[icount].E_adiabatic=average_E00-0.5*np.sum(GBOM_batch.gboms[icount].freqs_ex)+0.5*np.sum(GBOM_batch.gboms[icount].freqs_gs)
+						#GBOM_batch.gboms[icount].E_adiabatic=average_E00
 						GBOM_batch.gboms[icount].dipole_mom=energy_dipole[icount,1]
-						if param_set.exact_corr:
-								GBOM_batch.gboms[icount].calc_omega_av_qm(param_set.temperature,is_emission)
-								average_Egap=average_Egap+GBOM_batch.gboms[icount].omega_av_qm
+						
+						# recompute corrected average energy gap:
+						if param_list.exact_corr:
+							GBOM_batch.gboms[icount].calc_omega_av_qm(param_list.temperature,is_emission)
 						else:
-								GBOM_batch.gboms[icount].calc_omega_av_cl(param_list.temperature,is_emission)
-								average_Egap=average_Egap+GBOM_batch.gboms[icount].omega_av_cl
-						icount=icount+1
-				# new average_Egap constructed
-				average_Egap=average_Egap/(1.0*GBOM_batch.num_gboms)
-				print('Average adjusted GBOM energy gap:')
-				print(average_Egap)
+							GBOM_batch.gboms[icount].calc_omega_av_cl(param_list.temperature,is_emission)
 
-				# now compute average spectrum
-				spectrum=np.zeros((param_list.num_steps,2))
+						print('Adjusted GBOM energy and dipole mom and omega_av:', GBOM_batch.gboms[icount].E_adiabatic,GBOM_batch.gboms[icount].dipole_mom,GBOM_batch.gboms[icount].omega_av_qm)
+						icount=icount+1
+
+				# now compute average response function. Important: Average response function, NOT lineshape function
+				average_response=np.zeros((param_list.num_steps,2),dtype=complex)
 				icount=0
 				while icount<GBOM_batch.num_gboms:
 						if param_list.exact_corr:
 								# spectral density not needed for calculation purposes in the GBOM. just print it out anyway for analysis
+								print('OMEGA_AV_QM:',GBOM_batch.gboms[icount].omega_av_qm)
 								GBOM_batch.gboms[icount].calc_g2_qm(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission)
 
 								# only compute third order cumulant if needed
@@ -329,22 +337,60 @@ def compute_GBOM_batch_absorption(param_list,GBOM_batch,solvent,is_emission):
 										GBOM_batch.gboms[icount].calc_g3_qm(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.four_phonon_term)
 
 						else:
+
 								GBOM_batch.gboms[icount].calc_g2_cl(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission)
 
 								if param_list.third_order:
 										GBOM_batch.gboms[icount].calc_g3_cl(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.four_phonon_term)
+						# build average response function:
+						for j in range(average_response.shape[0]):
+							if param_list.exact_corr:
+								average_response[j,0]=GBOM_batch.gboms[icount].g2_exact[j,0]
+								if param_list.third_order:
+									average_response[j,1]=average_response[j,1]+GBOM_batch.gboms[icount].dipole_mom*cmath.exp(-GBOM_batch.gboms[icount].g2_exact[j,1]-GBOM_batch.gboms[icount].g3_exact[j,1])
+								else:
+									average_response[j,1]=average_response[j,1]+GBOM_batch.gboms[icount].dipole_mom*cmath.exp(-GBOM_batch.gboms[icount].g2_exact[j,1])
+							else:
+								average_response[j,0]=GBOM_batch.gboms[icount].g2_cl[j,0]
+								if param_list.third_order:
+									average_response[j,1]=average_response[j,1]+GBOM_batch.gboms[icount].dipole_mom*cmath.exp(-GBOM_batch.gboms[icount].g2_cl[j,1]-GBOM_batch.gboms[icount].g3_cl[j,1])
+								else:
+									average_response[j,1]=average_response[j,1]+GBOM_batch.gboms[icount].dipole_mom*cmath.exp(-GBOM_batch.gboms[icount].g2_cl[j,1])	
 
-
-						GBOM_batch.gboms[icount].calc_cumulant_response(param_list.third_order,param_list.exact_corr,is_emission)
-						temp_spectrum=linear_spectrum.full_spectrum(GBOM_batch.gboms[icount].cumulant_response,solvent.solvent_response,param_list.dipole_mom,param_list.num_steps,E_start,E_end,True,is_emission)
-						if icount==0:
-								spectrum=spectrum+temp_spectrum
-						else:
-								spectrum[:,1]=spectrum[:,1]+temp_spectrum[:,1]
 						icount=icount+1
+				# now average:
+				average_response[:,1]=average_response[:,1]/(1.0*GBOM_batch.num_gboms)
 
-				spectrum[:,1]=spectrum[:,1]/(1.0*GBOM_batch.num_gboms)
+
+				# now build spectrum.
+				spectrum=np.zeros((average_response.shape[0],2))
+
+
+				# TEST:
+				temp_spectrum=linear_spectrum.full_spectrum(average_response,solvent.solvent_response,1.0,param_list.num_steps,0.08,0.13,True,is_emission)
+				np.savetxt(param_list.GBOM_root+'_avcumulant_shape_func.dat', temp_spectrum)
+				np.savetxt(param_list.GBOM_root+'_avcumulant_response_func_real.dat', average_response.real)
+				# END test
+
+				for icount in range(GBOM_batch.num_gboms):
+					eff_response_func=average_response
+					for jcount in range(eff_response_func.shape[0]):
+							eff_response_func[jcount,1]=eff_response_func[jcount,1]*cmath.exp(1j*(Eopt_av-Eopt[icount])*eff_response_func[jcount,0]/math.pi)
+					temp_spectrum=linear_spectrum.full_spectrum(eff_response_func,solvent.solvent_response,GBOM_batch.gboms[icount].dipole_mom,param_list.num_steps,E_start,E_end,True,is_emission)
+
+					print(icount,(Eopt[icount]-Eopt_av),GBOM_batch.gboms[icount].dipole_mom)
+					np.savetxt('Eopt_spec_snapshot'+str(icount)+'.dat',temp_spectrum)
+
+					if icount==0:
+						spectrum=temp_spectrum
+					else:
+						spectrum[:,0]=temp_spectrum[:,0]
+						spectrum[:,1]=spectrum[:,1]+temp_spectrum[:,1]
+
+				spectrum[:,1]=spectrum[:,1]/(1.0*GBOM_batch.num_gboms)	
+
 				np.savetxt(param_list.GBOM_root+'_Eopt_avcumulant_spectrum.dat', spectrum)
+				print(min(Eopt_fluct),max(Eopt_fluct))
 
 		else:
 				sys.exit('Unknown method for GBOM_BATCH linear spectrum: '+param_list.method)
@@ -871,64 +917,77 @@ elif param_set.task=='2DES':
 
 						icount=0
 						average_Egap=0.0
+						average_E00=0.0
 						
 						while icount<GBOM_batch.num_gboms:
 						# figure out start and end value for the spectrum.
+								average_E00=average_E00+GBOM_batch.gboms[icount].E_adiabatic+0.5*np.sum(GBOM_batch.gboms[icount].freqs_ex)-0.5*np.sum(GBOM_batch.gboms[icount].freqs_gs)
 								if param_set.exact_corr:
+										# compute energy gap without 0-0 transition
 										GBOM_batch.gboms[icount].calc_omega_av_qm(param_set.temperature,False)
-										GBOM_batch.gboms[icount].calc_g2_qm(param_set.temperature,param_set.num_steps,param_set.max_t,False)
 										average_Egap=average_Egap+GBOM_batch.gboms[icount].omega_av_qm
+										GBOM_batch.gboms[icount].omega_av_qm=0.0
 								else:
-										GBOM_batch.gboms[icount].calc_g2_cl(param_set.temperature,param_set.num_steps,param_set.max_t,False)
 										GBOM_batch.gboms[icount].calc_omega_av_cl(param_list.temperature,is_emission)
 										average_Egap=average_Egap+GBOM_batch.gboms[icount].omega_av_cl
-
+										GBOM_batch.gboms[icount].omega_av_cl=0.0
 								icount=icount+1
 
+						# figure out average Egap and gap between Eopt_av and average_Egap for the GBOMS
 						average_Egap=average_Egap/(1.0*GBOM_batch.num_gboms)  # this is the place the spectrum should be centered on
+						delta_Eopt_Eav=average_Egap-Eopt_av
+						average_E00=average_E00/(1.0*GBOM_batch.num_gboms)
+						average_E_adiabatic=0.0
+						for i in range(len(GBOM_batch.gboms)):
+							average_E_adiabatic=average_E_adiabatic+GBOM_batch.gboms[i].E_adiabatic
+						print('AVERAGE E ADIABATIC')	
+						average_E_adiabatic=average_E_adiabatic/(1.0*Eopt.shape[0])		
+						print(average_E_adiabatic)
+						print('AVERAGE E00')
+						print(average_E00)
+						delta_Eadiab_Eopt_av=average_E_adiabatic-Eopt_av
+						Eopt_fluct=Eopt-Eopt_av
+
+						# now set all Eadiabatic to the average Eadiabatic and recompute the g2 function.
+						for icount in range(GBOM_batch.num_gboms):
+								if param_set.exact_corr:
+                                                                                # compute energy gap without 0-0 transition
+										GBOM_batch.gboms[icount].E_adiabatic=average_E_adiabatic
+										GBOM_batch.gboms[icount].calc_omega_av_qm(param_set.temperature,False)
+										GBOM_batch.gboms[icount].calc_g2_qm(param_set.temperature,param_set.num_steps,param_set.max_t,False)
+								else:
+										GBOM_batch.gboms[icount].E_adiabatic=average_E_adiabatic
+										GBOM_batch.gboms[icount].calc_omega_av_cl(param_list.temperature,is_emission)
+										GBOM_batch.gboms[icount].calc_g2_cl(param_set.temperature,param_set.num_steps,param_set.max_t,False)
 
 						#HACK
-						E_start=average_Egap+Eopt_av-param_set.spectral_window/2.0-0.0025
-						E_end=average_Egap+Eopt_av+param_set.spectral_window/2.0-0.0025
-
-						# now compute the average lineshape function g2:
-						icount=0
-						g2_av=np.zeros((param_set.num_steps,2))
-						while icount<GBOM_batch.num_gboms:
-								if param_set.exact_corr:
-										if icount==0:
-												g2_av=GBOM_batch.gboms[icount].g2_exact
-										else:
-												g2_av[:,1]=g2_av[:,1]+GBOM_batch.gboms[icount].g2_exact[:,1]
-								else:
-										if icount==0:
-												g2_av=GBOM_batch.gboms[icount].g2_cl
-										else:
-												g2_av[:,1]=g2_av[:,1]+GBOM_batch.gboms[icount].g2_cl[:,1]
-								
-								icount=icount+1 
-
-						# successfully constructed average effective set of GBOMs
-						g2_av[:,1]=g2_av[:,1]/(1.0*GBOM_batch.num_gboms)
-
+						E_start=Eopt_av+average_Egap-param_set.spectral_window/2.0
+						E_end=Eopt_av+average_Egap+param_set.spectral_window/2.0
+						print(E_start,E_end)
 						# now construct list of g functions with the corrected energy shift taken from Eopt
 						q_func_eff_batch = []
 						icount=0
 						while icount<Eopt.shape[0]:
-								g2_temp=g2_av
+								if param_set.exact_corr:
+									g2_temp=GBOM_batch.gboms[icount].g2_exact
+								else:
+									g2_temp=GBOM_batch.gboms[icount].g2_cl
 								tcount=0
+								print(Eopt[icount],average_Egap,Eopt_av)
 								while tcount<g2_temp.shape[0]:
-										g2_temp[tcount,1]=g2_temp[tcount,1]+1j*(Eopt[icount]-average_Egap)*g2_temp[tcount,0]
+										g2_temp[tcount,1]=g2_temp[tcount,1]
 										tcount=tcount+1
-
+								g2_temp[:,1]=g2_temp[:,1]+solvent_mod.g2_solvent[:,1]
 								q_func_eff_batch.append(g2_temp)
 								icount=icount+1
 
+						Eopt_const=np.zeros(Eopt.shape[0])
+						Eopt_const[:]=Eopt_const[:]+Eopt_av
+
 						# created batch of g functions that are all the same, apart from different Eopt shifts
 						# now construct 2DES spectra. 
-						twoDES.calc_2DES_time_series_batch(q_func_eff_batch,Eopt.shape[0],E_start,E_end,E_start,E_end,param_set.num_steps_2DES,filename_2DES,param_set.num_time_samples_2DES,param_set.t_step_2DES,0.0)
-
-
+						print(Eopt)
+						twoDES.calc_2DES_time_series_batch_Eopt_av(q_func_eff_batch,Eopt.shape[0],E_start,E_end,E_start,E_end,param_set.num_steps_2DES,filename_2DES,param_set.num_time_samples_2DES,param_set.t_step_2DES,Eopt)
 				else:
 
 						filename_2DES=param_set.GBOM_root+''
@@ -958,11 +1017,11 @@ elif param_set.task=='2DES':
 						E_start=average_Egap-param_set.spectral_window/2.0
 						E_end=average_Egap+param_set.spectral_window/2.0
 
+						print(average_Egap,E_start,E_end)
 						# create a list of effective q functions
 						q_func_eff_batch = []
 						icount=0
 						while icount<GBOM_batch.num_gboms:
-								q_func_eff=np.zeros((1,1))
 								if param_set.exact_corr:
 										q_func_eff=GBOM_batch.gboms[icount].g2_exact
 										q_func_eff[:,1]=q_func_eff[:,1]+solvent_mod.g2_solvent[:,1]
