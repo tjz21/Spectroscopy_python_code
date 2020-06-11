@@ -1,0 +1,13 @@
+In this example, a Generalized Brownian Oscillator Model (GBOM) is parameterized for 
+the Nile red molecule or the Methylene blue molecule, using the output from a ground 
+and excited state normal mode calculation in the Gaussian code. The .log files contain
+the Gaussian output files. 
+
+The default input file provided computes a Franck-Condon absorption spectrum. Other
+approximations to linear spectroscopy can be requested by changing the METHOD keyword
+to ENSEMBLE, CUMULANT or EZTFC. Alternatively, reuqesting METHOD ALL will compute the 
+linear spectrum in all approximations.
+
+By default, the cumulant spectra are computed in the 2nd order cumulant approximation.
+The 3rd order cumulant correction can be requested by setting the parameter THIRD_ORDER_CUMULANT
+to TRUE.  
