@@ -6,9 +6,6 @@ a generalized brownian oscillator model (GBOM) of the ground and excited state p
 or by inputting a list of electronic energy gaps calculated along a molecular dynamics (MD) trajectory. A 
 GBOM can be constructed by approximating the ground and excited state potential energy surface as harmonic around
 their respective minima and relating the ground and excited state normal modes through a Duschinsky rotation. 
-Currently, the package has an interface with the Gaussian and the TeraChem code implemented, such that a GBOM
-can be directly computed from output files of ground and excited state frequency calculations performed in the two
-electronic structure codes. 
 
 For the GBOM, a range of approximations to the linear absorption and emission spectra are implemented, ranging from
 Franck-Condon to second- and 3rd order cumulant approximation, as well as classical and quantum ensemble approaches 
