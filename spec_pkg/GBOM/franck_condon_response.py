@@ -243,10 +243,13 @@ def compute_full_response_func(
         chi[counter, 0] = current_t
         lineshape[counter, 0] = current_t
         # if it is an emission spectrum, switch definition of initial and final state around.
+	# This is already done outside of the routine. All we have to do is revert time. 
         if is_emission:
-            eff_K = -np.dot(np.transpose(Jmat), Kmat)
             chi_t = calc_chi_for_given_time(
-                freq_ex, freq_gs, np.transpose(Jmat), eff_K, kBT, -current_t
+                freq_gs, freq_ex, Jmat, Kmat, kBT, -current_t
+            )
+            g_inf = calc_lineshape_for_given_time(
+                freq_gs, freq_ex, Jmat, Kmat, kBT, -current_t
             )
         else:
             # calculate the effective lineshape function as well as chi_t
@@ -282,9 +285,14 @@ def compute_full_response_func(
     counter = 0
     while counter < steps:
         response_func[counter, 0] = chi[counter, 0]
-        response_func[counter, 1] = chi[counter, 1] * cmath.exp(
+        if is_emission:
+            response_func[counter, 1] = chi[counter, 1] * cmath.exp(
+            1j * chi[counter, 2] - 1j * (E_adiabatic-0.5*(np.sum(freq_ex)-np.sum(freq_gs))) * chi[counter, 0]
+            )
+        else:
+            response_func[counter, 1] = chi[counter, 1] * cmath.exp(
             1j * chi[counter, 2] - 1j * E_adiabatic * chi[counter, 0]
-        )
+            )
         counter = counter + 1
 
     return response_func
