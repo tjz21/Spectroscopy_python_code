@@ -12,7 +12,6 @@ from spec_pkg.GBOM import gbom_cumulant_response as cumul_gbom
 
 # basic analysis routines. Printing full 2DES, printing slices through the full 2DES along xaxis, yaxis and diagonal.
 
-@jit
 def print_2D_spectrum(filename,spectrum_2D,is_imag):
 		outfile=open(filename, 'w')
 		icount=0
@@ -30,7 +29,6 @@ def print_2D_spectrum(filename,spectrum_2D,is_imag):
 				outfile.write('\n')
 				icount=icount+1
 
-@jit
 def read_2D_spectrum(filename,num_points):
 		line_data=open(filename,"r")
 		lines=line_data.readlines()
@@ -52,18 +50,15 @@ def read_2D_spectrum(filename,num_points):
 
 # compute a transient absorption spectrum from 2DES data. This involves integrating over the omega1 axis of
 # the X(omega1,t_delay,omega2) plot
-@jit
 def transient_abs_from_2DES(spec):
 		num_points=spec.shape[0]
 		transient_data=np.zeros((num_points,2))
-		icount=0
-		while icount<num_points:
+		for icount in range(num_points):
 				integrant=np.zeros((num_points,2))
 				integrant[:,0]=spec[:,icount,0]
 				integrant[:,1]=spec[:,icount,2]
 				transient_data[icount,0]=spec[0,icount,1]
 				transient_data[icount,1]=integrate.simps(integrant[:,1],dx=integrant[1,0]-integrant[0,0])
-				icount=icount+1
 
 		return transient_data
 
@@ -282,23 +277,17 @@ def calc_pump_probe_time_series(q_func,E_min,E_max,num_points_2D,rootname,pump_e
 @jit
 def calc_2D_spectrum(q_func,delay_time,delay_index,E_min1,E_max1,E_min2,E_max2,num_points_2D,mean):
 	full_2D_spectrum=np.zeros((num_points_2D,num_points_2D,3))
-	counter1=0
-	counter2=0
 	step_length=((E_max1-E_min1)/num_points_2D)
 
-
 	rfunc=calc_Rfuncs_tdelay(q_func,delay_time,delay_index)
-	while counter1<num_points_2D:
-		counter2=0
+	for counter1 in range(num_points_2D):
 		omega1=E_min1+counter1*step_length
-		while counter2<num_points_2D:
+		for counter2 in range(num_points_2D):
 				omega2=E_min2+counter2*step_length
 				full_2D_integrant=twoD_spectrum_integrant(rfunc,q_func,omega1-mean,omega2-mean,delay_time)
 				full_2D_spectrum[counter1,counter2,0]=omega1
 				full_2D_spectrum[counter1,counter2,1]=omega2
 				full_2D_spectrum[counter1,counter2,2]=cumul.simpson_integral_2D(full_2D_integrant).real
-				counter2=counter2+1
-		counter1=counter1+1
 
 	return full_2D_spectrum
 
@@ -449,7 +438,7 @@ def calc_2D_spectrum_GBOM_3rd(q_func,g_func,h1_func,h2_func,h4_func,h5_func,corr
 
 # this function computes the R1,R2,R3 and R4 functions for a given delay time tdelay.
 # function works in the 2nd order cumulant approximation
-@njit(fastmath=True, parallel=True)
+@njit(fastmath=True)
 def calc_Rfuncs_tdelay(q_func,t_delay,steps_in_t_delay):
 	# first find the effective step_length
 	step_length=q_func[1,0].real-q_func[0,0].real
@@ -460,18 +449,15 @@ def calc_Rfuncs_tdelay(q_func,t_delay,steps_in_t_delay):
 	temp_max_index=q_func.shape[0]-steps_in_t_delay
 	if (temp_max_index%2) ==0:
 		# even.
-		max_index=temp_max_index/2
+		max_index=int(temp_max_index/2)
 	else:
 		# odd
-		max_index=(temp_max_index-1)/2
+		max_index=int((temp_max_index-1)/2)
 
 	#max_index=int((((q_func.shape[0]-steps_in_t_delay)/2.0)))
 	rfuncs=np.zeros((max_index,max_index,6),dtype=np.complex_) # first and 2nd number are the times, 3rd number is R1, 4th number is R2 etc.
-	count1=0
-	count2=0
-	while count1<max_index:
-		count2=0
-		while count2<max_index:
+	for count1 in range(max_index):
+		for count2 in range(max_index):
 				#print count1,count2
 				rfuncs[count1,count2,0]=q_func[count1,0]
 				rfuncs[count1,count2,1]=q_func[count2,0]
@@ -483,8 +469,6 @@ def calc_Rfuncs_tdelay(q_func,t_delay,steps_in_t_delay):
 				rfuncs[count1,count2,3]=R2_phase
 				rfuncs[count1,count2,4]=R3_phase
 				rfuncs[count1,count2,5]=R4_phase
-				count2=count2+1
-		count1=count1+1
 	return rfuncs
 
 #STUPID TEST: H4 H5 files
@@ -643,27 +627,21 @@ def calc_Rfuncs_3rd_tdelay(g_func,h1_func,h2_func,h4_func,h5_func, qm_corr_func_
 
 # integrant of the 3rd order response function in the 2nd order cumulant approximation. Need to include possibility to add pulse shape
 # omega_av is already incorporated in the function q. No need to account for the mean in the equation below
-@jit(fastmath=True, parallel=True)
+@jit(fastmath=True)
 def twoD_spectrum_integrant(rfuncs,q_func,omega1,omega2,t_delay):
-	step_length=rfuncs[1,0,0]-rfuncs[0,0,0]
+	step_length=(rfuncs[1,0,0]-rfuncs[0,0,0]).real
 	steps_in_t_delay=int(t_delay/step_length)  # NOTE: delay time is rounded to match with steps in the response function
 	# this means that by default, the resolution of delay time in the 2DES spectrum is 1 fs. 
 	max_index=int((q_func.shape[0]-steps_in_t_delay)/2.0)
-
 	integrant=np.zeros((max_index,max_index,3),dtype=np.complex_)
 
-	count1=0
-	count2=0
-	while count1<max_index:
-		count2=0
-		while count2<max_index:
+	for count1 in range(max_index):
+		for count2 in range(max_index):
 				integrant[count1,count2,0]=rfuncs[count1,0,0]
 				integrant[count1,count2,1]=rfuncs[count2,0,0]
 				# rephasing diagrams=2,3. Non-rephasing=1,4. Rephasing has a negative sign, non-rephasing a positive sign. 
 				integrant[count1,count2,2]=np.exp(1j*(rfuncs[count1,0,0]*(omega1)+rfuncs[count2,0,0]*(omega2)))*(np.exp(rfuncs[count1,count2,2])+np.exp(rfuncs[count1,count2,5]))+np.exp(1j*(-rfuncs[count1,0,0]*(omega1)+rfuncs[count2,0,0]*(omega2)))*(np.exp(rfuncs[count1,count2,3])+np.exp(rfuncs[count1,count2,4]))
 
-				count2=count2+1
-		count1=count1+1
 	return integrant
 
 
