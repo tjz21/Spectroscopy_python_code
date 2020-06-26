@@ -1,4 +1,5 @@
 import os.path
+import numpy as np
 from spec_pkg.constants import constants as const
 
 # Function definition
@@ -20,6 +21,26 @@ def get_param(filename,keyword):
 		return keyword[1]
 	else:
 		return ''
+
+
+def get_param_list(filename,keyword):
+        searchfile = open(filename,"r")
+
+        line_count=0
+        keyword_line=9999999
+        for line in searchfile:
+                if keyword in line and keyword_line==9999999:
+                        keyword_line=line_count
+                line_count=line_count+1
+        searchfile.close()
+        if keyword_line < 9999999:
+                linefile=open(filename,"r")
+                lines=linefile.readlines()
+                keyword=lines[keyword_line].split()
+                del keyword[0]
+                return keyword
+        else:
+                return ''
 
 #----------------------------------------------------------------------
 # class definition
@@ -95,9 +116,22 @@ class params:
 		par=get_param(filepath,'NUM_MODES')
 		if par != '':
 			self.num_modes=int(par)
-		par=get_param(filepath,'NUM_FROZEN_ATOMS')
+		par=get_param(filepath,'NUM_GBOMS')
 		if par != '':
-			self.num_frozen_atoms=int(par)
+			self.num_gboms=int(par)
+		# check if we have multiple GBOMs or not. if we do, num frozen atoms is a list
+		if self.num_gboms==1:
+			par=get_param(filepath,'NUM_FROZEN_ATOMS')
+			if par != '':
+				self.num_frozen_atoms=int(par)
+		else:
+			par=get_param_list(filepath,'NUM_FROZEN_ATOMS')
+			if par !='' and len(par)==self.num_gboms:
+				self.num_frozen_atoms=np.zeros(self.num_gboms)
+				counter=0
+				for elem in par:
+					self.num_frozen_atoms[counter]=int(elem)
+					counter=counter+1
 		par=get_param(filepath,'NUM_ATOMS')
 		if par != '':
 			self.num_atoms=int(par)
@@ -152,9 +186,6 @@ class params:
 		par=get_param(filepath,'CORRELATION_LENGTH_3RD')
 		if par != '':
 			self.corr_length_3rd=int(par)
-		par=get_param(filepath,'NUM_GBOMS')
-		if par != '':
-			self.num_gboms=int(par)
 		par=get_param(filepath,'DIPOLE_MOM')
 		if par != '':
 			self.dipole_mom=float(par)
