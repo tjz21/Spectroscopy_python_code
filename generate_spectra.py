@@ -19,14 +19,22 @@ from spec_pkg.cumulant import md_traj
 from spec_pkg.params import params
 
 # TODO ##########################################################################
-# 2) Implement emission spectra calculations for the GBOM approach		#
-# 3) Write simulation information to stdout (what calculation is done, how it	#
+# 1) Write simulation information to stdout (what calculation is done, how it	#
 #	 progresses etc.							#
-# 4) Make sure we can input shapes of pulses for the ultrafast spectroscopy,	#
-#	 rather than just delta-function					#
-# 5) Implement GBOM batch absorption calculation				#
-# 6) Implement combined GBOM_MD model needed for E-ZTFC and similar appraoches	#
-# 7) Implement a PIMD version of all the methods				#
+# 2) Expand the GBOM_MD type approaches. E-ZTFC fits in that framework, as do   #
+#        a variety of other approaches.                                         #
+# 3) Make sure the input file format works smoothly with the GBOM batch format  #
+#        ie the case where we have multiple GBOMs to average over (this could   #
+#        be the E-FTFC type approach or other approaches). Make sure that we    #
+#        can specify different amounts of frozen solvent environment per GBOM   #
+# 4) Interface with more electronic structure codes                             #
+# 5) PIMD version of GBOM approaches?                                           #
+# 6) PIMD-bead version of MDtraj data type                                      #
+# 7) Expand nonlinear spectroscopy. Speed up 3rd order cumulant 2DES. Laser     #
+#        pulse shapes as user defined input                                     #
+# 8) Curvilinear coordinates instead of normal mode coordinates for the GBOM    #
+#        which will help with large amplitude motion for low frequency modes    #
+#        that tend to break the Condon approximation                            #
 #################################################################################
 
 
