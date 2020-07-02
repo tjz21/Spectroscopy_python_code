@@ -17,6 +17,7 @@ from spec_pkg.nonlinear_spectrum import twoDES
 from spec_pkg.solvent_model import solvent_model
 from spec_pkg.cumulant import md_traj
 from spec_pkg.params import params
+from spec_pkg.Morse import morse
 
 # TODO ##########################################################################
 # 1) Write simulation information to stdout (what calculation is done, how it	#
@@ -37,6 +38,36 @@ from spec_pkg.params import params
 #        that tend to break the Condon approximation                            #
 #################################################################################
 
+
+# currently the is_emission option does not work 
+def compute_morse_absorption(param_list,morse_oscs,solvent,is_emission):
+		# first compute solvent response. This is NOT optional for the Morse oscillator, same
+		# as in the GBOM
+		solvent.calc_spectral_dens(param_list.num_steps)
+		solvent.calc_g2_solvent(param_list.temperature,param_list.num_steps,param_list.max_t)
+		solvent.calc_solvent_response(is_emission)
+
+		# figure out start and end values over which we compute the spectrum
+		# at the moment this is a Hack because we have no expression to analytically 
+		# evaluate the average energy gap of the Morse oscillator. 
+		E_start=param_list.E_adiabatic-param_list.spectral_window/2.0
+		E_end=param_list.E_adiabatic+param_list.spectral_window/2.0
+
+		# exact solution to the morse oscillator
+		if param_list.method=='EXACT':
+			morse_oscs.compute_total_exact_response(param_list.temperature,param_list.max_t,param_list.num_steps)
+			spectrum=linear_spectrum.full_spectrum(morse_oscs.total_exact_response_func,solvent.solvent_response,param_list.dipole_mom,param_list.num_steps,E_start,E_end,True,is_emission)
+			np.savetxt('Morse_exact_spectrum.dat', spectrum)
+		# The effective FC spectrum for this oscillator
+		elif param_list.method=='FC':
+			sys.exit('Error: Unknown method '+param_list.method)
+
+		# nothing else implemented yet. However, in the future, we could have
+		# a 2nd order cumulant approach by analytically evaluating classical or
+		# quantum correlation functions. 
+		else:
+			sys.exit('Error: Unknown method '+param_list.method)
+		
 
 # specific routines:
 # compute absorption spectra and print them if chromophore model is defined purely a single GBOM
@@ -243,16 +274,21 @@ def compute_GBOM_batch_absorption(param_list,GBOM_batch,solvent,is_emission):
 								if param_list.third_order:
 										GBOM_batch.gboms[icount].calc_g3_cl(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.four_phonon_term)
 
+						GBOM_batch.gboms[icount].calc_spectral_dens(param_list.temperature,param_list.max_t,param_list.num_steps,param_list.decay_length,param_list.exact_corr,is_emission)
 
 						GBOM_batch.gboms[icount].calc_cumulant_response(param_list.third_order,param_list.exact_corr,is_emission)
 						temp_spectrum=linear_spectrum.full_spectrum(GBOM_batch.gboms[icount].cumulant_response,solvent.solvent_response,param_list.dipole_mom,param_list.num_steps,E_start,E_end,True,is_emission)
 						print(E_start,E_end)
 						if icount==0:
+								sd=GBOM_batch.gboms[icount].spectral_dens
 								spectrum=temp_spectrum
 						else:
+								sd[:,1]=sd[:,1]+GBOM_batch.gboms[icount].spectral_dens[:,1]
 								spectrum[:,1]=spectrum[:,1]+temp_spectrum[:,1]
 						icount=icount+1
 
+				sd[:,1]=sd[:,1]/(1.0*GBOM_batch.num_gboms)
+				np.savetxt(param_list.GBOM_root+'_av_spectral_dens.dat',sd)
 				spectrum[:,1]=spectrum[:,1]/(1.0*GBOM_batch.num_gboms)
 				np.savetxt(param_list.GBOM_root+'_E_cumulant_spectrum.dat', spectrum)
 
@@ -404,7 +440,13 @@ def compute_GBOM_batch_absorption(param_list,GBOM_batch,solvent,is_emission):
 
 
 # same as GBOM_MD absorption, but this time we have a batch of GBOMs
-def compute_hybrid_GBOM_batch_MD_absorption(param_list,MDtraj,GBOM_batch,is_emission):
+def compute_hybrid_GBOM_batch_MD_absorption(param_list,MDtraj,GBOM_batch,solvent,is_emission):
+                # first check if we need a solvent model:
+                if param_list.is_solvent:
+                                solvent.calc_spectral_dens(param_list.num_steps)
+                                solvent.calc_g2_solvent(param_list.temperature,param_list.num_steps,param_list.max_t)
+                                solvent.calc_solvent_response(is_emission)
+
                 # now fix energy range
                 E_start=MDtraj.mean-param_list.spectral_window/2.0
                 E_end=MDtraj.mean+param_list.spectral_window/2.0
@@ -434,8 +476,19 @@ def compute_hybrid_GBOM_batch_MD_absorption(param_list,MDtraj,GBOM_batch,is_emis
                                 MDtraj.calc_spectral_dens(param_list.temperature_MD)
                                 np.savetxt(param_list.MD_root+'MD_spectral_density.dat', MDtraj.spectral_dens)
                                 MDtraj.calc_g2(param_list.temperature,param_list.max_t,param_list.num_steps)
-                                MDtraj.calc_cumulant_response(False,is_emission)
+                                print('g2 FUNC MD')
+                                print(MDtraj.g2)
+                                if param_list.third_order:
+                                                MDtraj.calc_3rd_order_corr(param_list.corr_length_3rd)
+                                                # technically, in 3rd order cumulant, can have 2 different temperatures again. one at
+                                                # which the MD was performed and one at wich the spectrum is simulated. Fix this...
+                                                MDtraj.calc_g3(param_list.temperature,param_list.max_t,param_list.num_steps,param_list.low_freq_cutoff)
+                                                MDtraj.calc_cumulant_response(True,is_emission)
+                                else:
+                                                MDtraj.calc_cumulant_response(False,is_emission)
 
+                                # calculate 2nd order divergence for MD trajectory:
+                                MDtraj.calc_2nd_order_divergence()
 
                                 # Now compute 2nd order cumulant g2 for GBOM
                                 if param_list.exact_corr:
@@ -444,18 +497,25 @@ def compute_hybrid_GBOM_batch_MD_absorption(param_list,MDtraj,GBOM_batch,is_emis
                                                         GBOM_batch.gboms[i].calc_spectral_dens(param_list.temperature,param_list.max_t,param_list.num_steps,param_list.decay_length,False,is_emission)
                                                         #np.savetxt(param_list.GBOM_root+'_spectral_density_exact_corr.dat', GBOM_chromophore.spectral_dens)
                                                         GBOM_batch.gboms[i].calc_g2_qm(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission)
-
+                                                        # check if this is a 3rd order cumulant calculation
+                                                        if param_list.third_order:
+                                                                GBOM_batch.gboms[i].calc_g3_qm(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.four_phonon_term)
 
                                 else:
                                                 for i in range(param_list.num_gboms):
                                                         GBOM_batch.gboms[i].calc_spectral_dens(param_list.temperature,param_list.max_t,param_list.num_steps,param_list.decay_length,True,is_emission)
                                                         #np.savetxt(param_list.GBOM_root+'_spectral_density_exact_corr.dat', GBOM_chromophore.spectral_dens)
                                                         GBOM_batch.gboms[i].calc_g2_cl(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission)
+                                                        if param_list.third_order:
+                                                                GBOM_batch.gboms[i].calc_g3_cl(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.four_phonon_term)
 
                                 # calculate FC and 2nd order cumulant response functions for GBOM
                                 for i in range(param_list.num_gboms):
-                                                GBOM_batch.gboms[i].calc_cumulant_response(False,param_list.exact_corr,is_emission)
+                                                GBOM_batch.gboms[i].calc_cumulant_response(param_list.third_order,param_list.exact_corr,is_emission)
                                                 GBOM_batch.gboms[i].calc_fc_response(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission)
+                                                # compute 2nd order cumulant divergence:
+                                                print('COMPUTING GBOM DIVERGENCE FOR GBOM NUMBER:   ',i)	
+                                                GBOM_batch.gboms[i].calc_2nd_order_divergence(param_list.temperature,param_list.exact_corr)
                                                 #print('GBOM number '+str(i))
 						#print(GBOM_batch.gboms[i].cumulant_response)
 
@@ -463,18 +523,27 @@ def compute_hybrid_GBOM_batch_MD_absorption(param_list,MDtraj,GBOM_batch,is_emis
                                 # it doesnt matter
                                 eff_response=np.zeros((MDtraj.cumulant_response.shape[0],2),dtype=complex)
                                 eff_response[:,0]=MDtraj.cumulant_response[:,0]
+                                num_gboms_averaged=0
                                 for j in range(param_list.num_gboms):
-                                        for icount in range(eff_response.shape[0]):
-                                                # protect against divide by 0
-                                                if abs(GBOM_batch.gboms[j].cumulant_response[icount,1].real)>10e-10:
-                                                        eff_response[icount,1]=eff_response[icount,1]+MDtraj.cumulant_response[icount,1]*GBOM_batch.gboms[j].fc_response[icount,1]/GBOM_batch.gboms[j].cumulant_response[icount,1]
-                                                else: 
-                                                        eff_response[icount,1]=eff_response[icount,1]+MDtraj.cumulant_response[icount,1]
-                                eff_response[:,1]=eff_response[:,1]/(1.0*param_list.num_gboms)	
+                                        # can i average over this GBOM? Check
+                                        print('Divergences GBOM, MD   ',GBOM_batch.gboms[j].second_order_divergence,MDtraj.second_order_divergence)
+                                        if GBOM_batch.gboms[j].second_order_divergence<MDtraj.second_order_divergence:
+                                                num_gboms_averaged=num_gboms_averaged+1
+                                                for icount in range(eff_response.shape[0]):
+                                                        # protect against divide by 0
+                                                        if abs(GBOM_batch.gboms[j].cumulant_response[icount,1].real)>10e-30:
+                                                                eff_response[icount,1]=eff_response[icount,1]+MDtraj.cumulant_response[icount,1]*GBOM_batch.gboms[j].fc_response[icount,1]/GBOM_batch.gboms[j].cumulant_response[icount,1]
+                                                        else: 
+                                                                eff_response[icount,1]=eff_response[icount,1]+MDtraj.cumulant_response[icount,1]
+                                eff_response[:,1]=eff_response[:,1]/(1.0*num_gboms_averaged)	
 
                                 # now we can compute the linear spectrum based on eff_response
                                 # no need for solvent model. This is taken care of in the MD trajectory
-                                spectrum=linear_spectrum.full_spectrum(eff_response,np.zeros((1,1)),MDtraj.dipole_mom_av,param_list.num_steps,E_start,E_end,False,is_emission)
+                                if param_list.is_solvent:
+                                                spectrum=linear_spectrum.full_spectrum(eff_response,solvent.solvent_response,MDtraj.dipole_mom_av,param_list.num_steps,E_start,E_end,True,is_emission)
+                                else:
+                                                spectrum=linear_spectrum.full_spectrum(eff_response,np.zeros((1,1)),MDtraj.dipole_mom_av,param_list.num_steps,E_start,E_end,False,is_emission)
+
                                 np.savetxt(param_list.GBOM_root+'_cumul_FC_separable_spectrum.dat', spectrum)
 
                 else:
@@ -483,7 +552,14 @@ def compute_hybrid_GBOM_batch_MD_absorption(param_list,MDtraj,GBOM_batch,is_emis
 
 #  compute absorption spectra when chromophore model is given by both GBOM batch and MD batch
 # this is mainly relevant for E-ZTFC and related methods defined by ANDRES
-def compute_hybrid_GBOM_MD_absorption(param_list,MDtraj,GBOM_chromophore,is_emission):
+def compute_hybrid_GBOM_MD_absorption(param_list,MDtraj,GBOM_chromophore,solvent,is_emission):
+                # first check if we need a solvent model:
+                if param_list.is_solvent:
+                                solvent.calc_spectral_dens(param_list.num_steps)
+                                solvent.calc_g2_solvent(param_list.temperature,param_list.num_steps,param_list.max_t)
+                                solvent.calc_solvent_response(is_emission)
+                print('Solvent response:')
+                print(solvent.solvent_response) 
                 # now fix energy range
                 E_start=MDtraj.mean-param_list.spectral_window/2.0
                 E_end=MDtraj.mean+param_list.spectral_window/2.0
@@ -511,7 +587,14 @@ def compute_hybrid_GBOM_MD_absorption(param_list,MDtraj,GBOM_chromophore,is_emis
                                 MDtraj.calc_spectral_dens(param_list.temperature_MD)
                                 np.savetxt(param_list.MD_root+'MD_spectral_density.dat', MDtraj.spectral_dens)
                                 MDtraj.calc_g2(param_list.temperature,param_list.max_t,param_list.num_steps)
-                                MDtraj.calc_cumulant_response(False,is_emission)
+                                if param_list.third_order:
+                                                MDtraj.calc_3rd_order_corr(param_list.corr_length_3rd)
+                                                # technically, in 3rd order cumulant, can have 2 different temperatures again. one at
+                                                # which the MD was performed and one at wich the spectrum is simulated. Fix this...
+                                                MDtraj.calc_g3(param_list.temperature,param_list.max_t,param_list.num_steps,param_list.low_freq_cutoff)
+                                                MDtraj.calc_cumulant_response(True,is_emission)
+                                else:
+                                                MDtraj.calc_cumulant_response(False,is_emission)
 
 
 				# Now compute 2nd order cumulant g2 for GBOM
@@ -520,15 +603,18 @@ def compute_hybrid_GBOM_MD_absorption(param_list,MDtraj,GBOM_chromophore,is_emis
                                                 GBOM_chromophore.calc_spectral_dens(param_list.temperature,param_list.max_t,param_list.num_steps,param_list.decay_length,False,is_emission)
                                                 np.savetxt(param_list.GBOM_root+'_spectral_density_exact_corr.dat', GBOM_chromophore.spectral_dens)
                                                 GBOM_chromophore.calc_g2_qm(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission)
-					
+                                                if param_list.third_order:
+                                                                GBOM_chromophore.calc_g3_qm(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.four_phonon_term)
 	
                                 else:
                                                 GBOM_chromophore.calc_spectral_dens(param_list.temperature,param_list.max_t,param_list.num_steps,param_list.decay_length,True,is_emission)
                                                 np.savetxt(param_list.GBOM_root+'_spectral_density_exact_corr.dat', GBOM_chromophore.spectral_dens)
                                                 GBOM_chromophore.calc_g2_cl(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission)
+                                                if param_list.third_order:
+                                                                GBOM_chromophore.calc_g3_qm(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.four_phonon_term)
 
 				# calculate FC and 2nd order cumulant response functions for GBOM
-                                GBOM_chromophore.calc_cumulant_response(False,param_list.exact_corr,is_emission)
+                                GBOM_chromophore.calc_cumulant_response(param_list.third_order,param_list.exact_corr,is_emission)
                                 GBOM_chromophore.calc_fc_response(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission)	
 				
 				# now build effective response function
@@ -537,8 +623,11 @@ def compute_hybrid_GBOM_MD_absorption(param_list,MDtraj,GBOM_chromophore,is_emis
                                                 eff_response[icount,1]=eff_response[icount,1]*MDtraj.cumulant_response[icount,1]/GBOM_chromophore.cumulant_response[icount,1]
 
 				# now we can compute the linear spectrum based on eff_response
-				# no need for solvent model. This is taken care of in the MD trajectory
-                                spectrum=linear_spectrum.full_spectrum(eff_response,np.zeros((1,1)),MDtraj.dipole_mom_av,param_list.num_steps,E_start,E_end,False,is_emission)
+                                if param_list.is_solvent:
+                                                print('ADDING SOLVENT RESPONSE')
+                                                spectrum=linear_spectrum.full_spectrum(eff_response,solvent.solvent_response,MDtraj.dipole_mom_av,param_list.num_steps,E_start,E_end,True,is_emission)
+                                else:
+                                                spectrum=linear_spectrum.full_spectrum(eff_response,np.zeros((1,1)),MDtraj.dipole_mom_av,param_list.num_steps,E_start,E_end,False,is_emission)
                                 np.savetxt(param_list.GBOM_root+'_cumul_FC_separable_spectrum.dat', spectrum)
 
                 else:
@@ -704,8 +793,11 @@ if param_set.model=='GBOM' or param_set.model=='MD_GBOM':
 								K=np.genfromtxt(param_set.Kpath)
 								freqs_ex=np.genfromtxt(param_set.freq_ex_path)
 								# created appropriate matrices: now create GBOM.
- 
-								GBOM=gbom.gbom(freqs_gs,freqs_ex,J,K,param_set.E_adiabatic,param_set.dipole_mom)
+
+								# GBOM assumes E_0_0 as input rather than E_adiabatic. 
+								E_0_0=param_set.E_adiabatic+0.5*(np.sum(freqs_ex)-np.sum(freqs_gs))
+								print(E_0_0) 
+								GBOM=gbom.gbom(freqs_gs,freqs_ex,J,K,E_0_0,param_set.dipole_mom)
 				else:
 						sys.exit('Error: GBOM calculation requested but no path to model system parameters given!')
 
@@ -826,6 +918,31 @@ if param_set.model=='GBOM' or param_set.model=='MD_GBOM':
 				GBOM_batch=gbom.gbom_list(freqs_gs_batch,freqs_ex_batch,Jbatch,Kbatch,E_batch,dipole_batch,param_set.num_gboms)
 		param_set.stdout.write('Successfully set up a GBOM model!'+'\n')
 
+# Morse oscillator model
+elif param_set.model=='MORSE':
+                if param_set.morse_gs_path!='' and param_set.morse_ex_path!='':
+                                                if param_set.dipole_mom==0.0 and param_set.E_adiabatic==0.0:
+                                                                sys.exit('Error: Did not provide dipole moment or adiabatic energy gap for Morse oscillator!')
+                                                # create effective morse oscillator from input values
+                                                else:
+                                                        gs_params=np.genfromtxt(param_set.morse_gs_path)
+                                                        ex_params=np.genfromtxt(param_set.morse_ex_path)
+
+                                                        D_gs=gs_params[:,0]
+                                                        alpha_gs=gs_params[:,1]
+                                                        D_ex=ex_params[:,0]
+                                                        alpha_ex=ex_params[:,1]
+                                                        mu=gs_params[:,2]
+                                                        shift=ex_params[:,2]
+				
+                                                        # sanity check
+                                                        num_morse=gs_params.shape[0]
+                                                        if gs_params.shape[0] != ex_params.shape[0]:
+                                                                 sys.exit('Error: Inconsistent number of parameters in ground and excited state morse oscillator files!')
+                                                        morse_oscs=morse.morse_list(D_gs,D_ex,alpha_gs,alpha_ex,mu,shift,param_set.E_adiabatic,param_set.dipole_mom,param_set.max_states_morse,param_set.integration_points_morse,num_morse)
+                else:
+                                                sys.exit('Error: Did not provide ground and excited state Morse oscillator parameters!')
+
 # pure MD model
 elif param_set.model=='MD':
 		traj_count=1
@@ -888,6 +1005,9 @@ if param_set.task=='ABSORPTION':
 						else:
 								sys.exit('Error: Pure GBOM calculations require some form of additional solvent broadening provided by a solvent model')
 
+		elif param_set.model=='MORSE':
+				compute_morse_absorption(param_set,morse_oscs,solvent_mod,False)
+
 		elif param_set.model=='MD':
 				if param_set.is_solvent:
 						compute_MD_absorption(param_set,MDtraj,solvent_mod,False)
@@ -896,11 +1016,18 @@ if param_set.task=='ABSORPTION':
 
 						compute_MD_absorption(param_set,MDtraj,0.0,False)
 		elif param_set.model=='MD_GBOM':
+				print('MD_GBOM approach. Solvent model:')
+				print(param_set.is_solvent)
 				if param_set.num_gboms==1:
-						compute_hybrid_GBOM_MD_absorption(param_set,MDtraj,GBOM,False)
+						if param_set.is_solvent:
+							compute_hybrid_GBOM_MD_absorption(param_set,MDtraj,GBOM,solvent_mod,False)
+						else:
+							compute_hybrid_GBOM_MD_absorption(param_set,MDtraj,GBOM,0.0,False)
 				else:
-						compute_hybrid_GBOM_batch_MD_absorption(param_set,MDtraj,GBOM_batch,False)	
-
+						if param_set.is_solvent:
+							compute_hybrid_GBOM_batch_MD_absorption(param_set,MDtraj,GBOM_batch,solvent_mod,False)	
+						else:
+							compute_hybrid_GBOM_batch_MD_absorption(param_set,MDtraj,GBOM_batch,0.0,False)
 		else:
 				sys.exit('Error: Only pure GBOM model or pure MD model or MD_GBOM model implemented so far.')
 

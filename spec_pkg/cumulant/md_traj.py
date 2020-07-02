@@ -126,6 +126,8 @@ class MDtrajs:
 		# for cumulant approach. In the ensemble approach it is assumed that snapshots are completely decorrelated
 		self.tau=tau    # Artificial decay length applied to correlation funcs
 
+		self.second_order_divergence=0.0 # compute divergence term of 2nd order cumulant
+
 		# funtions needed to compute the cumulant response
 		self.corr_func_cl=np.zeros((1,1))
 		self.spectral_dens=np.zeros((1,1))
@@ -145,6 +147,10 @@ class MDtrajs:
 		# response functions
 		self.ensemble_response=np.zeros((1,1))
 		self.cumulant_response=np.zeros((1,1))
+
+	def calc_2nd_order_divergence(self):
+		omega_step=self.spectral_dens[1,0]-self.spectral_dens[0,0]
+		self.second_order_divergence=cumulant.calc_2nd_order_cumulant_divergence(self.corr_func_cl,omega_step,self.time_step)
 
 	def calc_2nd_order_corr(self):
 		self.corr_func_cl=cumulant.construct_corr_func(self.fluct,self.num_trajs,self.tau,self.time_step)

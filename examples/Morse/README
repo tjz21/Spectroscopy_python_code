@@ -1,0 +1,11 @@
+This is a simple example input files for parameterizing a set of displaced Morse oscillators
+
+Ground state parameters are contained in the params_gs.dat file. Each row corresponds to an
+independent Morse oscillator. The first value is the well depth D in Ha. The second value is
+the width alpha in Bohr. The third value is the reduced mass mu in atomic units. It is assumed
+to be identical in the ground and excited state Morse oscillator
+
+Excited state parameters are contained in the params_ex.dat file. Again each row corresponds to
+an independent morse oscillator. The first two values are again D and alpha respectively. The 
+third value is the shift in bohr of the excited state minimum with respect to the ground state
+minimum.

@@ -56,6 +56,8 @@ class params:
 		self.max_t=1000.0/const.fs_to_Ha # by default, start with 1000 fs worth of max_t
 		self.num_steps=1000
 		self.num_steps_2DES=100
+		self.integration_points_morse=2000
+		self.max_states_morse=50 # maximum number of states considered in each morse oscillator
 		self.t_step_2DES=2.0/const.fs_to_Ha
 		self.num_time_samples_2DES=50
 		self.temperature=300.0   # temperature in kelvin at which the spectrum was simulated
@@ -83,6 +85,9 @@ class params:
 		self.E_opt_path=''
 		self.MD_root=''
 		self.GBOM_root=''
+
+		self.morse_gs_path='' # ground state potential parameters D and alpha, mu
+		self.morse_ex_path='' # excited state potential parameters D and alpha, and shift (relative to gs minimum. Reduced mass is assumed to be identical to GS) 
 		self.num_atoms=0   # needed for terachem calculation
 		self.frozen_atom_path=''  # path to file list detailing the frozen atoms. 
 		self.dipole_mom=1.0
@@ -97,12 +102,15 @@ class params:
 		# now start filling keyword list by parsing input file.
 		self.task=get_param(filepath,'TASK')  # absorption, emission, 2DES, other spectroscopy techniqes
 		self.model=get_param(filepath,'CHROMOPHORE_MODEL') # model for the chromophore degrees of freedom
+								   # Current options: MD, GBOM, MORSE
 		self.method=get_param(filepath,'METHOD') # ensemble, EZTFC, cumulant, FC etc, EOPT_AV  # EOPT_AV only works for GBOMs
 		self.method_2DES=get_param(filepath,'NONLINEAR_EXP')  # 2DES, PUMP_PROBE
 		self.Jpath=get_param(filepath,'JMAT')
 		self.Kpath=get_param(filepath,'KVEC')
 		self.freq_gs_path=get_param(filepath,'GS_FREQ') 
 		self.freq_ex_path=get_param(filepath,'EX_FREQ')
+		self.morse_gs_path=get_param(filepath,'GS_PARAM_MORSE')
+		self.morse_ex_path=get_param(filepath,'EX_PARAM_MORSE')
 		self.E_adiabatic_path=get_param(filepath, 'LIST_E_ADIAB')
 		self.E_opt_path=get_param(filepath, 'EOPT_PATH')   # path to optimized excitation energies and oscillator strengths. 
 		self.dipole_mom_path=get_param(filepath,'LIST_DIP_MOM')
@@ -116,6 +124,12 @@ class params:
 		par=get_param(filepath,'NUM_MODES')
 		if par != '':
 			self.num_modes=int(par)
+		par=get_param(filepath,'INTEGRATION_POINTS_MORSE')
+		if par != '':
+			self.integration_points_morse=int(par)
+		par=get_param(filepath,'MAX_STATES_MORSE')
+		if par != '':
+			self.max_states_morse=int(par)
 		par=get_param(filepath,'NUM_GBOMS')
 		if par != '':
 			self.num_gboms=int(par)

@@ -145,6 +145,23 @@ class gbom:
 		self.corr_func_3rd_qm=np.zeros((1,1),dtype=complex)
 		self.corr_func_3rd_qm_freq=np.zeros((1,1),dtype=complex)
 
+		# second order divergence factor for the cumulant approach
+		self.second_order_divergence=0.0
+
+	def calc_2nd_order_divergence(self,temp,is_qm): 
+		kbT=const.kb_in_Ha*temp
+		divergence_sum=0.0
+		print('DIVERGENCE SUM COMPUTED FOR GBOM')
+		for i in range(self.Omega_sq.shape[0]):
+			if is_qm:
+				omega_kbT=self.freqs_gs[i]/kbT
+				divergence_sum=divergence_sum+(self.Omega_sq[i,i])**2.0/(2.0*self.freqs_gs[i]**2.0)*math.exp(omega_kbT)/(math.exp(omega_kbT)-1.0)**2.0
+			else:
+				divergence_sum=divergence_sum+(self.Omega_sq[i,i])**2.0/(2.0*self.freqs_gs[i]**4.0)*kbT**2.0
+				print(i,divergence_sum)
+		self.second_order_divergence=divergence_sum
+
+
 	# need an emission equivalent for this, ie where the propagation happens on the excited state PES
 	def compute_corr_func_3rd(self,kbT,num_points,max_t,is_qm,four_phonon_term):
 		if is_qm:

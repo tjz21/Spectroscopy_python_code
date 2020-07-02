@@ -552,6 +552,11 @@ def construct_corr_func(fluctuations,num_trajs,tau,time_step):
 		counter=counter+1
 	return corr_func
 
+def calc_2nd_order_cumulant_divergence(corr_func,omega_step,time_step):
+	integral=integrate.simps(corr_func,dx=time_step)
+	print('MD_TRAJ_DIVERGENCE',integral)
+	return 	(1.0/(2.0*math.pi))*integral*omega_step
+
 def compute_spectral_dens(corr_func,kbT, sample_rate,time_step):
 	# fourier transform correlation func and apply the harmonic prefactor. Watch for normalization factors in
 	# the FFT and the prefactor. The FFT is only a sum over components. Does not account for the time step 
