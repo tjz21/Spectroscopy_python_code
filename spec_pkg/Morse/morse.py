@@ -8,6 +8,7 @@ from scipy import integrate
 from scipy import special
 from numba import jit
 from spec_pkg.constants import constants as const
+from spec_pkg.GBOM import gbom
 
 #---------------------------------------------------------------------------------------------
 # Class definition of a single discplaced Morse oscillator, where ground and excited state PES 
@@ -231,8 +232,28 @@ class morse_list:
 			self.morse_oscs.append(morse(D_gs[i],D_ex[i],alpha_gs[i],alpha_ex[i],mu[i],K[i],E_adiabatic,dipole_mom,max_states,num_points))
 		self.num_morse_oscillators=num_morse_oscillators
 
+		# GBOM parameters obtained from doing a harmonic expansion of the ground and excited state
+		# PES. These are temporary variables that get filled and an effective GBOM is created 
+		gs_freqs=np.zeros(self.num_morse_oscillators)
+		ex_freqs=np.zeros(self.num_morse_oscillators)
+		# Jmat is always taken to be the identity matrix for the time being
+		Jmat=np.zeros((self.num_morse_oscillators,self.num_morse_oscillators))
+		eff_shift_vec_GBOM=np.zeros(self.num_morse_oscillators)
+
+		# fill effective GBOM parameters:
+		for i in range(self.num_morse_oscillators):
+			Jmat[i,i]=1.0
+			gs_freqs[i]=self.morse_oscs[i].freq_gs
+			ex_freqs[i]=self.morse_oscs[i].freq_ex
+			eff_shift_vec_GBOM[i]=self.morse_oscs[i].K/self.morse_oscs[i].freq_gs # need to convert this to a dimensionless shift vec
+
+		eff_0_0=E_adiabatic-0.5*np.sum(gs_freqs)+0.5*np.sum(ex_freqs)
+		self.eff_gbom=gbom.gbom(gs_freqs,ex_freqs,Jmat,eff_shift_vec_GBOM,eff_0_0,dipole_mom)
+
 		self.total_exact_response_func=np.zeros((1,1),dtype=np.complex_)
+		self.harmonic_fc_response_func=np.zeros((1,1),dtype=np.complex_)
 		self.E_adiabatic=E_adiabatic
+
 		
 	def compute_total_exact_response(self,temp,max_t,num_steps):
 		for i in range(self.num_morse_oscillators):
@@ -249,4 +270,7 @@ class morse_list:
 		# shift final response function by the adiabatic energy gap
 		for j in range(self.total_exact_response_func.shape[0]):
 			self.total_exact_response_func[j,1]=self.total_exact_response_func[j,1]*cmath.exp(-1j*self.E_adiabatic*self.total_exact_response_func[j,0])
-	
+
+	def compute_harmonic_FC_response_func(self,temp,max_t,num_steps,is_emission):
+		self.eff_gbom.calc_fc_response(temp,num_steps,max_t,is_emission)
+		self.harmonic_fc_response_func=self.eff_gbom.fc_response

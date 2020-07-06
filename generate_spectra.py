@@ -59,8 +59,10 @@ def compute_morse_absorption(param_list,morse_oscs,solvent,is_emission):
 			spectrum=linear_spectrum.full_spectrum(morse_oscs.total_exact_response_func,solvent.solvent_response,param_list.dipole_mom,param_list.num_steps,E_start,E_end,True,is_emission)
 			np.savetxt('Morse_exact_spectrum.dat', spectrum)
 		# The effective FC spectrum for this oscillator
-		elif param_list.method=='FC':
-			sys.exit('Error: Unknown method '+param_list.method)
+		elif param_list.method=='FC_HARMONIC':
+			morse_oscs.compute_harmonic_FC_response_func(param_list.temperature,param_list.max_t,param_list.num_steps,False)
+			spectrum=linear_spectrum.full_spectrum(morse_oscs.harmonic_fc_response_func,solvent.solvent_response,param_list.dipole_mom,param_list.num_steps,E_start,E_end,True,is_emission)
+                        np.savetxt('Morse_harmonic_fc_spectrum.dat', spectrum)
 
 		# nothing else implemented yet. However, in the future, we could have
 		# a 2nd order cumulant approach by analytically evaluating classical or
