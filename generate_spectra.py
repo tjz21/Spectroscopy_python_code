@@ -62,7 +62,30 @@ def compute_morse_absorption(param_list,morse_oscs,solvent,is_emission):
 		elif param_list.method=='FC_HARMONIC':
 			morse_oscs.compute_harmonic_FC_response_func(param_list.temperature,param_list.max_t,param_list.num_steps,False)
 			spectrum=linear_spectrum.full_spectrum(morse_oscs.harmonic_fc_response_func,solvent.solvent_response,param_list.dipole_mom,param_list.num_steps,E_start,E_end,True,is_emission)
-                        np.savetxt('Morse_harmonic_fc_spectrum.dat', spectrum)
+			np.savetxt('Morse_harmonic_fc_spectrum.dat', spectrum)
+
+		# cumulant based approach:
+		elif param_list.method=='CUMULANT':
+			morse_oscs.compute_total_corr_func_exact(param_list.temperature,param_list.decay_length,param_list.max_t*10.0,param_list.num_steps*10)
+			np.savetxt('Morse_oscs_2nd_order_corr_real.dat',np.real(morse_oscs.exact_2nd_order_corr))
+			temp_func=np.real(morse_oscs.exact_2nd_order_corr)
+			temp_func[:,1]=np.imag(morse_oscs.exact_2nd_order_corr[:,1])
+			np.savetxt('Morse_oscs_2nd_order_corr_imag.dat',temp_func)
+			print('Average energy gap:  '+str(morse_oscs.omega_av_qm))
+			morse_oscs.compute_spectral_dens()
+			np.savetxt('Morse_oscs_spectral_dens.dat',morse_oscs.spectral_dens)
+			morse_oscs.compute_2nd_order_cumulant_response(param_list.temperature,param_list.max_t,param_list.num_steps)
+			spectrum=linear_spectrum.full_spectrum(morse_oscs.cumulant_response_func,solvent.solvent_response,param_list.dipole_mom,param_list.num_steps,E_start,E_end,True,is_emission)
+			np.savetxt('Morse_second_order_cumulant_spectrum.dat', spectrum)
+
+		# Andres Hybrid approach
+		elif param_list.method=='CUMUL_FC_SEPARABLE':
+			# Set average energy gap for GBOM
+			morse_oscs.eff_gbom.calc_omega_av_qm(param_list.temperature,is_emission)
+			morse_oscs.compute_cumul_fc_hybrid_response_func(param_list.temperature,param_list.decay_length,param_list.max_t,param_list.num_steps,is_emission)
+			spectrum=linear_spectrum.full_spectrum(morse_oscs.hybrid_cumul_fc_response_func,solvent.solvent_response,param_list.dipole_mom,param_list.num_steps,E_start,E_end,True,is_emission)	
+
+			np.savetxt('Morse_hybrid_cumul_harmonic_FC_spectrum.dat', spectrum)
 
 		# nothing else implemented yet. However, in the future, we could have
 		# a 2nd order cumulant approach by analytically evaluating classical or
