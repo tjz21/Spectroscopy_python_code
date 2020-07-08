@@ -38,6 +38,29 @@ from spec_pkg.Morse import morse
 #        that tend to break the Condon approximation                            #
 #################################################################################
 
+# Compute the absorption spectrum for a Morse oscillator with 2 frequencies coupled by 
+# a Duschinsky rotation 
+def compute_coupled_morse_absorption(param_list,coupled_morse,solvent,is_emission):
+		# first compute solvent response. This is NOT optional for the Morse oscillator, same
+                # as in the GBOM
+                solvent.calc_spectral_dens(param_list.num_steps)
+                solvent.calc_g2_solvent(param_list.temperature,param_list.num_steps,param_list.max_t)
+                solvent.calc_solvent_response(is_emission)
+
+                # figure out start and end values over which we compute the spectrum
+                # at the moment this is a Hack because we have no expression to analytically 
+                # evaluate the average energy gap of the Morse oscillator. 
+                E_start=param_list.E_adiabatic-param_list.spectral_window/2.0
+                E_end=param_list.E_adiabatic+param_list.spectral_window/2.0
+
+                # exact solution to the morse oscillator
+                if param_list.method=='EXACT':
+                        coupled_morse.compute_exact_response(param_list.temperature,param_list.max_t,param_list.num_steps)
+                        spectrum=linear_spectrum.full_spectrum(coupled_morse.exact_response_func,solvent.solvent_response,param_list.dipole_mom,param_list.num_steps,E_start,E_end,True,is_emission)
+			np.savetxt('Morse_Duschinsky_coupled_exact_spectrum.dat', spectrum)
+                else:
+                        sys.exit('Error: Unknown method '+param_list.method)
+
 
 # currently the is_emission option does not work 
 def compute_morse_absorption(param_list,morse_oscs,solvent,is_emission):
@@ -964,9 +987,38 @@ elif param_set.model=='MORSE':
                                                         num_morse=gs_params.shape[0]
                                                         if gs_params.shape[0] != ex_params.shape[0]:
                                                                  sys.exit('Error: Inconsistent number of parameters in ground and excited state morse oscillator files!')
-                                                        morse_oscs=morse.morse_list(D_gs,D_ex,alpha_gs,alpha_ex,mu,shift,param_set.E_adiabatic,param_set.dipole_mom,param_set.max_states_morse,param_set.integration_points_morse,num_morse)
+                                                        morse_oscs=morse.morse_list(D_gs,D_ex,alpha_gs,alpha_ex,mu,shift,param_set.E_adiabatic,param_set.dipole_mom,param_set.max_states_morse_gs,param_set.max_states_morse_ex,param_set.integration_points_morse,num_morse)
                 else:
                                                 sys.exit('Error: Did not provide ground and excited state Morse oscillator parameters!')
+
+# Morse oscillator model
+elif param_set.model=='COUPLED_MORSE':
+                if param_set.morse_gs_path!='' and param_set.morse_ex_path!='' and param_set.Jpath!='':
+                                                if param_set.dipole_mom==0.0 and param_set.E_adiabatic==0.0:
+                                                                sys.exit('Error: Did not provide dipole moment or adiabatic energy gap for Morse oscillator!')
+                                                # create effective morse oscillator from input values
+                                                else:
+                                                        gs_params=np.genfromtxt(param_set.morse_gs_path)
+                                                        ex_params=np.genfromtxt(param_set.morse_ex_path)
+
+                                                        D_gs=gs_params[:,0]
+                                                        alpha_gs=gs_params[:,1]
+                                                        D_ex=ex_params[:,0]
+                                                        alpha_ex=ex_params[:,1]
+                                                        mu=gs_params[:,2]
+                                                        shift=ex_params[:,2]
+							J=np.genfromtxt(param_set.Jpath)
+
+                                                        # sanity check
+                                                        num_morse=gs_params.shape[0]
+                                                        if gs_params.shape[0] != ex_params.shape[0]:
+                                                                 sys.exit('Error: Inconsistent number of parameters in ground and excited state morse oscillator files!')
+                                                        coupled_morse=morse.morse_coupled(D_gs,D_ex,alpha_gs,alpha_ex,mu,J,shift,param_set.E_adiabatic,param_set.dipole_mom,param_set.max_states_morse_gs,param_set.max_states_morse_ex,param_set.integration_points_morse,num_morse)
+                else:
+                                                sys.exit('Error: Did not provide ground and excited state Morse oscillator parameters!')
+
+
+
 
 # pure MD model
 elif param_set.model=='MD':
@@ -1032,6 +1084,9 @@ if param_set.task=='ABSORPTION':
 
 		elif param_set.model=='MORSE':
 				compute_morse_absorption(param_set,morse_oscs,solvent_mod,False)
+
+		elif param_set.model=='COUPLED_MORSE':
+				compute_coupled_morse_absorption(param_set,coupled_morse,solvent_mod,False)
 
 		elif param_set.model=='MD':
 				if param_set.is_solvent:

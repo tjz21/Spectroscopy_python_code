@@ -57,7 +57,8 @@ class params:
 		self.num_steps=1000
 		self.num_steps_2DES=100
 		self.integration_points_morse=2000
-		self.max_states_morse=50 # maximum number of states considered in each morse oscillator
+		self.max_states_morse_gs=50 # maximum number of states considered in each morse oscillator
+		self.max_states_morse_ex=50
 		self.t_step_2DES=2.0/const.fs_to_Ha
 		self.num_time_samples_2DES=50
 		self.temperature=300.0   # temperature in kelvin at which the spectrum was simulated
@@ -127,9 +128,12 @@ class params:
 		par=get_param(filepath,'INTEGRATION_POINTS_MORSE')
 		if par != '':
 			self.integration_points_morse=int(par)
-		par=get_param(filepath,'MAX_STATES_MORSE')
+		par=get_param(filepath,'MAX_STATES_MORSE_GS')
 		if par != '':
-			self.max_states_morse=int(par)
+			self.max_states_morse_gs=int(par)
+		par=get_param(filepath,'MAX_STATES_MORSE_EX')
+                if par != '':
+                        self.max_states_morse_ex=int(par)
 		par=get_param(filepath,'NUM_GBOMS')
 		if par != '':
 			self.num_gboms=int(par)
