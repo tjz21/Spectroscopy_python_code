@@ -58,6 +58,25 @@ def compute_coupled_morse_absorption(param_list,coupled_morse,solvent,is_emissio
                         coupled_morse.compute_exact_response(param_list.temperature,param_list.max_t,param_list.num_steps)
                         spectrum=linear_spectrum.full_spectrum(coupled_morse.exact_response_func,solvent.solvent_response,param_list.dipole_mom,param_list.num_steps,E_start,E_end,True,is_emission)
 			np.savetxt('Morse_Duschinsky_coupled_exact_spectrum.dat', spectrum)
+		elif param_list.method=='FC_HARMONIC':
+                        coupled_morse.compute_harmonic_FC_response_func(param_list.temperature,param_list.max_t,param_list.num_steps,False)
+                        spectrum=linear_spectrum.full_spectrum(morse_oscs.harmonic_fc_response_func,solvent.solvent_response,param_list.dipole_mom,param_list.num_steps,E_start,E_end,True,is_emission)
+                        np.savetxt('Morse_Duschinsky_harmonic_fc_spectrum.dat', spectrum)
+
+                # cumulant based approach:
+                elif param_list.method=='CUMULANT':
+                        coupled_morse.compute_exact_corr(param_list.temperature,param_list.decay_length,param_list.num_steps*10,param_list.max_t*10.0)
+                        np.savetxt('Morse_duschinsky_2nd_order_corr_real.dat',np.real(coupled_morse.exact_2nd_order_corr))
+                        temp_func=np.real(coupled_morse.exact_2nd_order_corr)
+                        temp_func[:,1]=np.imag(coupled_morse.exact_2nd_order_corr[:,1])
+                        np.savetxt('Morse_duschinsky_2nd_order_corr_imag.dat',temp_func)
+                        print('Average energy gap:  '+str(coupled_morse.omega_av_qm))
+                        coupled_morse.compute_spectral_dens()
+                        np.savetxt('Morse_duschinsky_spectral_dens.dat',coupled_morse.spectral_dens)
+                        coupled_morse.compute_2nd_order_cumulant_response(param_list.temperature,param_list.max_t,param_list.num_steps)
+                        spectrum=linear_spectrum.full_spectrum(coupled_morse.cumulant_response_func,solvent.solvent_response,param_list.dipole_mom,param_list.num_steps,E_start,E_end,True,is_emission)
+                        np.savetxt('Morse_Duschinsky_second_order_cumulant_spectrum.dat', spectrum)
+
                 else:
                         sys.exit('Error: Unknown method '+param_list.method)
 
