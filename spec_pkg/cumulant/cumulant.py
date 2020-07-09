@@ -111,16 +111,8 @@ def compute_lineshape_func_3rd(corr_func,kbT,sampling_rate_in_fs,max_t,steps,low
 	extended_func=np.zeros((new_dim,new_dim),dtype=np.complex)
 
 	# pad with zeros:
-	# 1001 and 2003 in both python3 and python
-	print(corr_func.shape[0],new_dim)
-
 	start_index=int((new_dim-corr_func.shape[0])/2)
 	end_index=start_index+corr_func.shape[0]
-	print(start_index,end_index)
-	# (501, 1502) in python2
-	# 501.0 1502.0 in python 3
-	# meaning: 0-500 is padded with 0s, 501-1501 is function values, 1502-2002 is zeros:
-	#          501 values zero; 1001 values function values; 501 values=0
 
 	icount=0
 	while icount<new_dim:
@@ -476,7 +468,6 @@ def construct_corr_func_3rd(fluctuations,num_trajs,correlation_length,tau,time_s
 
 	return classical_corr
 
-# OLD ROUTINE: THIS PRODUCES A SEGFAULT WITH NUMBA PARALLEL=TRUE BUT NOT WITHOUT...
 @jit(fastmath=True)
 def get_correlation_integrant_3rd(fluctuations,current_corr_i,current_corr_j,correlation_length,MD_steplength):
 	relative_start_i=current_corr_i-correlation_length   # these can be negative or positive and define a range

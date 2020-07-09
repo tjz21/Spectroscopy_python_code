@@ -113,15 +113,18 @@ def get_all_trajs(num_trajs,name_list):
 # Class definitions
 
 class MDtrajs:
-	def __init__(self,trajs,oscillators,tau,num_trajs,time_step):
+	def __init__(self,trajs,oscillators,tau,num_trajs,time_step,stdout):
 		self.num_trajs=num_trajs
-		print(trajs)
+		stdout.write('Building an MD trajectory model:'+'\n')
+		stdout.write('Number of independent trajectories:   '+str(num_trajs)+'\n')
 		self.mean=mean_of_func_batch(trajs)
-		print(trajs)
+		stdout.write('Mean thermal energy gap:    '+str(self.mean)+'  Ha'+'\n')
+
 		self.fluct=get_fluctuations(trajs,self.mean)
-		print(trajs)
 		self.dipole_mom=get_dipole_mom(oscillators,trajs)
 		self.dipole_mom_av=np.sum(self.dipole_mom)/(1.0*self.dipole_mom.shape[0]*self.dipole_mom.shape[1]) # average dipole mom
+		stdout.write('Mean dipole moment: '+str(self.dipole_mom_av)+'  Ha'+'\n')
+		
 		self.time_step=time_step # time between individual snapshots. Only relevant
 		# for cumulant approach. In the ensemble approach it is assumed that snapshots are completely decorrelated
 		self.tau=tau    # Artificial decay length applied to correlation funcs

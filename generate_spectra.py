@@ -1041,7 +1041,7 @@ elif param_set.model=='MD':
 		traj_count=1
 		while traj_count<param_set.num_trajs+1:
 				if os.path.exists(param_set.MD_root+'traj'+str(traj_count)+'.dat'):
-						param_set.stdout.write('Reading in MD trajectory '+str(traj_count)+'!'+'\n')
+						param_set.stdout.write('Reading in MD trajectory '+str(traj_count)+'  from file '+param_set.MD_root+'traj'+str(traj_count)+'.dat'+'\n')
 						traj_dipole=np.genfromtxt(param_set.MD_root+'traj'+str(traj_count)+'.dat')
 						if traj_count==1:
 								traj_batch=np.zeros((traj_dipole.shape[0],param_set.num_trajs))
@@ -1051,10 +1051,11 @@ elif param_set.model=='MD':
 						osc_batch[:,traj_count-1]=traj_dipole[:,1]
 				
 				else:
+						param_set.stdout.write('Error: Trajectory file name necessary for MD-based model does not exist!')
 						sys.exit('Error: Trajectory file name necessary for MD-based model does not exist!')
 
 				traj_count=traj_count+1
-		MDtraj=md_traj.MDtrajs(traj_batch,osc_batch,param_set.decay_length,param_set.num_trajs,param_set.md_step)		
+		MDtraj=md_traj.MDtrajs(traj_batch,osc_batch,param_set.decay_length,param_set.num_trajs,param_set.md_step,param_set.stdout)		
 		param_set.stdout.write('Successfully read in MD trajectory data of energy gap fluctuations!'+'\n')		
 
 else:
@@ -1067,7 +1068,7 @@ if param_set.model=='MD_GBOM':
                 traj_count=1
                 while traj_count<param_set.num_trajs+1:
                                 if os.path.exists(param_set.MD_root+'traj'+str(traj_count)+'.dat'):
-                                                param_set.stdout.write('Reading in MD trajectory '+str(traj_count)+'!'+'\n')
+                                                param_set.stdout.write('Reading in MD trajectory '+str(traj_count)+'  from file '+param_set.MD_root+'traj'+str(traj_count)+'.dat'+'\n')
                                                 traj_dipole=np.genfromtxt(param_set.MD_root+'traj'+str(traj_count)+'.dat')
                                                 if traj_count==1:
                                                                 traj_batch=np.zeros((traj_dipole.shape[0],param_set.num_trajs))
@@ -1077,15 +1078,16 @@ if param_set.model=='MD_GBOM':
                                                 osc_batch[:,traj_count-1]=traj_dipole[:,1]
 
                                 else:
+                                                param_set.stdout.write('Error: Trajectory file name necessary for MD-based model does not exist!')
                                                 sys.exit('Error: Trajectory file name necessary for MD-based model does not exist!')
 
                                 traj_count=traj_count+1
-                MDtraj=md_traj.MDtrajs(traj_batch,osc_batch,param_set.decay_length,param_set.num_trajs,param_set.md_step)
+                MDtraj=md_traj.MDtrajs(traj_batch,osc_batch,param_set.decay_length,param_set.num_trajs,param_set.md_step,param_set.stdout)
                 param_set.stdout.write('Successfully read in MD trajectory data of energy gap fluctuations!'+'\n')
 
 # first check whether this is an absorption or a 2DES calculation
 if param_set.task=='ABSORPTION':
-		print('Setting up linear absorption spectrum calculation:')
+		param_set.stdout.write('\n'+'Setting up linear absorption spectrum calculation:'+'\n')
 		if param_set.model=='GBOM':
 				if param_set.num_gboms==1:
 						if param_set.is_solvent:		
@@ -1112,8 +1114,6 @@ if param_set.task=='ABSORPTION':
 
 						compute_MD_absorption(param_set,MDtraj,0.0,False)
 		elif param_set.model=='MD_GBOM':
-				print('MD_GBOM approach. Solvent model:')
-				print(param_set.is_solvent)
 				if param_set.num_gboms==1:
 						if param_set.is_solvent:
 							compute_hybrid_GBOM_MD_absorption(param_set,MDtraj,GBOM,solvent_mod,False)
@@ -1128,7 +1128,7 @@ if param_set.task=='ABSORPTION':
 				sys.exit('Error: Only pure GBOM model or pure MD model or MD_GBOM model implemented so far.')
 
 elif param_set.task=='EMISSION':
-		print('Setting up linear emission spectrum calculation:')
+		param_set.stdout.write('\n'+'Setting up linear emission spectrum calculation:'+'\n')
 		if param_set.model=='GBOM':
 				if param_set.is_solvent:
 						compute_GBOM_absorption(param_set,GBOM,solvent_mod,True)
@@ -1144,7 +1144,7 @@ elif param_set.task=='EMISSION':
 				sys.exit('Error: Only pure GBOM model or pure MD model implemented so far.')
 
 elif param_set.task=='2DES':
-		print('Setting up 2DES calculation:')
+		param_set.stdout.write('\n'+'Setting up 2DES calculation:'+'\n')
 		if param_set.model=='GBOM' and param_set.num_gboms==1:
 				if not param_set.is_solvent:
 						sys.exit('Error: Pure GBOM calculations require some form of additional solvent broadening provided by a solvent model')
@@ -1172,9 +1172,6 @@ elif param_set.task=='2DES':
 						q_func_eff=GBOM.g2_exact
 						q_func_eff[:,1]=q_func_eff[:,1]+solvent_mod.g2_solvent[:,1]
 
-
-						print('Omega_Sq parameter')
-						print(GBOM.Omega_sq)
 
 						# if it is a 3rd order cumulant calculation, compute g3 and auxilliary functions h1 and h2
 						if param_set.third_order:
@@ -1220,8 +1217,6 @@ elif param_set.task=='2DES':
 								#GBOM.compute_corr_func_3rd(param_set.temperature*const.kb_in_Ha,param_set.num_steps,param_set.max_t,True)
 								#twoDES.print_2D_spectrum('corr_func_3rd_real.dat',GBOM.corr_func_3rd_qm,False)
 								#twoDES.print_2D_spectrum('corr_func_3rd_imag.dat',GBOM.corr_func_3rd_qm,True)
-						print('NUMBA environment variable:')
-						print(config.NUMBA_NUM_THREADS)
 
 						if param_set.method_2DES=='2DES':
 								if param_set.third_order:
@@ -1337,11 +1332,7 @@ elif param_set.task=='2DES':
 						average_E_adiabatic=0.0
 						for i in range(len(GBOM_batch.gboms)):
 							average_E_adiabatic=average_E_adiabatic+GBOM_batch.gboms[i].E_adiabatic
-						print('AVERAGE E ADIABATIC')	
 						average_E_adiabatic=average_E_adiabatic/(1.0*Eopt.shape[0])		
-						print(average_E_adiabatic)
-						print('AVERAGE E00')
-						print(average_E00)
 						delta_Eadiab_Eopt_av=average_E_adiabatic-Eopt_av
 						Eopt_fluct=Eopt-Eopt_av
 
@@ -1360,7 +1351,6 @@ elif param_set.task=='2DES':
 						#HACK
 						E_start=Eopt_av+average_Egap-param_set.spectral_window/2.0
 						E_end=Eopt_av+average_Egap+param_set.spectral_window/2.0
-						print(E_start,E_end)
 						# now construct list of g functions with the corrected energy shift taken from Eopt
 						q_func_eff_batch = []
 						icount=0
@@ -1383,7 +1373,6 @@ elif param_set.task=='2DES':
 
 						# created batch of g functions that are all the same, apart from different Eopt shifts
 						# now construct 2DES spectra. 
-						print(Eopt)
 						twoDES.calc_2DES_time_series_batch_Eopt_av(q_func_eff_batch,Eopt.shape[0],E_start,E_end,E_start,E_end,param_set.num_steps_2DES,filename_2DES,param_set.num_time_samples_2DES,param_set.t_step_2DES,Eopt)
 				else:
 
@@ -1414,7 +1403,6 @@ elif param_set.task=='2DES':
 						E_start=average_Egap-param_set.spectral_window/2.0
 						E_end=average_Egap+param_set.spectral_window/2.0
 
-						print(average_Egap,E_start,E_end)
 						# create a list of effective q functions
 						q_func_eff_batch = []
 						icount=0
@@ -1489,21 +1477,18 @@ elif param_set.task=='2DES':
 						eff_shift1=param_set.omega1-MDtraj.mean
 				if abs(param_set.omega3)>0.000001:
 						eff_shift2=param_set.omega3-MDtraj.mean
-				print(param_set.omega1,param_set.omega3)
 
 				E_start1=MDtraj.mean-param_set.spectral_window/2.0+eff_shift1
 				E_end1=MDtraj.mean+param_set.spectral_window/2.0+eff_shift1		
 				E_start2=MDtraj.mean-param_set.spectral_window/2.0+eff_shift2
 				E_end2=MDtraj.mean+param_set.spectral_window/2.0+eff_shift2
 				
-				print(E_start1*27.2114, E_end1*27.2114, E_start2*27.2114, E_end2*27.2114)
 
 				q_func_eff=MDtraj.g2
 				if param_set.is_solvent:
 						q_func_eff[:,1]=q_func_eff[:,1]+solvent_mod.g2_solvent[:,1]
 				# now compute 2DES in 2nd order cumulant approach
 				if param_set.method_2DES=='2DES':
-						print('Starting 2DES time series calc:')
 						# Check if this is a 3rd order cumulant calculation
 						if param_set.third_order:
 								twoDES.calc_2DES_time_series_3rd(q_func_eff,MDtraj.g3,MDtraj.h1,MDtraj.h2,MDtraj.h4,MDtraj.h5,MDtraj.corr_func_3rd_qm_freq,E_start1,E_end1,E_start2,E_end2,param_set.num_steps_2DES,filename_2DES,param_set.num_time_samples_2DES,param_set.t_step_2DES,MDtraj.mean)
