@@ -584,7 +584,7 @@ class morse:
 # Now define a class for a batch of independent Morse oscillators. This only works if the Morse oscillators are
 # NOT coupled through a Duschinsky type rotation. 
 class morse_list:
-	def __init__(self,D_gs,D_ex,alpha_gs,alpha_ex,mu,K,E_adiabatic,dipole_mom,max_states_gs,max_states_ex,num_points,num_morse_oscillators):
+	def __init__(self,D_gs,D_ex,alpha_gs,alpha_ex,mu,K,E_adiabatic,dipole_mom,max_states_gs,max_states_ex,num_points,num_morse_oscillators,stdout):
 		self.morse_oscs = []
 		for i in range(num_morse_oscillators):
 			self.morse_oscs.append(morse(D_gs[i],D_ex[i],alpha_gs[i],alpha_ex[i],mu[i],K[i],E_adiabatic,dipole_mom,max_states_gs,max_states_ex,num_points))
@@ -606,7 +606,7 @@ class morse_list:
 			eff_shift_vec_GBOM[i]=self.morse_oscs[i].K/self.morse_oscs[i].freq_gs # need to convert this to a dimensionless shift vec
 
 		eff_0_0=E_adiabatic-0.5*np.sum(gs_freqs)+0.5*np.sum(ex_freqs)
-		self.eff_gbom=gbom.gbom(gs_freqs,ex_freqs,Jmat,eff_shift_vec_GBOM,eff_0_0,dipole_mom)
+		self.eff_gbom=gbom.gbom(gs_freqs,ex_freqs,Jmat,eff_shift_vec_GBOM,eff_0_0,dipole_mom,stdout)
 
 		self.total_exact_response_func=np.zeros((1,1),dtype=np.complex_)
 		self.harmonic_fc_response_func=np.zeros((1,1),dtype=np.complex_)
@@ -726,7 +726,7 @@ class morse_list:
 # describe a system with a large number of anharmonic modes, only a few of which are coupled by a Duschinsky rotation. For now, limit
 # the discussion to only two modes 
 class morse_coupled:
-        def __init__(self,D_gs,D_ex,alpha_gs,alpha_ex,mu,J,K,E_adiabatic,dipole_mom,max_states_gs,max_states_ex,num_points,num_morse_oscillators):
+        def __init__(self,D_gs,D_ex,alpha_gs,alpha_ex,mu,J,K,E_adiabatic,dipole_mom,max_states_gs,max_states_ex,num_points,num_morse_oscillators,stdout):
                 if num_morse_oscillators!=2:	
                         sys.exit('Error: Coupled Morse oscillator code currently only implemented for exactly 2 coupled oscillators.')
                 self.morse_oscs = []
@@ -768,7 +768,7 @@ class morse_coupled:
 
 
                 eff_0_0=E_adiabatic-0.5*np.sum(self.gs_freqs)+0.5*np.sum(self.ex_freqs)
-                self.eff_gbom=gbom.gbom(self.gs_freqs,self.ex_freqs,self.J,eff_shift_vec_GBOM,eff_0_0,dipole_mom)
+                self.eff_gbom=gbom.gbom(self.gs_freqs,self.ex_freqs,self.J,eff_shift_vec_GBOM,eff_0_0,dipole_mom,stdout)
 
 		# all possible wf overlaps for a combination of Morse wavefunctions on the ground and excited state PES saved in a N*N matrix
                 self.wf_overlaps=np.zeros((int(self.n_max_gs[0]*self.n_max_gs[1]),int(self.n_max_ex[0]*self.n_max_ex[1])))

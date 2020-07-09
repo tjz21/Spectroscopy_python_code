@@ -80,7 +80,7 @@ def av_energy_gap_exact_qm(Omega_sq,lambda_0,E_adiabatic,kbT,freqs_gs,is_emissio
 # standard way to initialize the GBOM works 
 
 class gbom:
-	def __init__(self,freqs_gs,freqs_ex,J,K,E_adiabatic,dipole_mom):
+	def __init__(self,freqs_gs,freqs_ex,J,K,E_adiabatic,dipole_mom,stdout):
 		# Ground state, excited state and Duschinsky rotations,
 		# adiabatic energy gap. 
 		self.num_modes=freqs_gs.shape[0]
@@ -97,17 +97,20 @@ class gbom:
 		# the E_adiabatic passed into this routine is actually E0_0. To go from E00 to Eadiabatic we have to 
 		# subtract the zero point energy on the excited state PES and add the zero point energy on the ground- 
 		# state PES.
-		print(E_adiabatic) 
+		stdout.write('\n'+'Initializing a GBOM object.'+'\n')
 		self.E_adiabatic=E_adiabatic+0.5*(-np.sum(self.freqs_ex)+np.sum(self.freqs_gs)) # the energy gap passed in this routine is the energy gap between 0-0 transitions. 
 		# correct for zero-point energy of ground and excited state
-		print(self.E_adiabatic)
-		print(0.5*(-np.sum(self.freqs_ex)+np.sum(self.freqs_gs)))
+		stdout.write('Adiabatic energy gap: '+str(self.E_adiabatic)+'  Ha'+'\n')
 		self.dipole_mom=dipole_mom 
-		print(self.dipole_mom)	
+		stdout.write('Dipole moment  '+str(self.dipole_mom)+'  Ha'+'\n')	
 	
 		# by default, initialize temporary variables for an absorption calculation.
 		self.set_absorption_variables()
-	
+
+		# print ground and excited state frequencies
+		stdout.write('   MODE'+'\t'+'GS FREQUENCY (cm-1)'+'\t'+'EX FREQUENCY (cm-1)'+'\n')
+		for i in range(self.num_modes):
+			stdout.write("%5d      %10.4f          %10.4f" % (i+1, self.freqs_gs[i]*const.Ha_to_cm,self.freqs_ex[i]*const.Ha_to_cm)+ '\n')
 		# Derived terms beyond the model system parameters
 		self.omega_av_cl=0.0
 		self.omega_av_qm=0.0
@@ -197,8 +200,6 @@ class gbom:
 		self.lambda_0=-get_lambda_0(self.K_emission,self.J_emission,omega_e_sq) 
 		# adjust E_adiabatic:
 		#self.E_adiabatic=self.E_adiabatic+0.5*(-np.sum(self.freqs_ex_emission)+np.sum(self.freqs_gs_emission))
-
-		print(self.E_adiabatic,self.lambda_0,0.5*(-np.sum(self.freqs_ex_emission)+np.sum(self.freqs_gs_emission)))
 		
 	def calc_cumulant_response(self,is_3rd_order_cumulant,is_qm,is_emission):
 		if is_qm:
@@ -357,11 +358,12 @@ class gbom:
 # approaches like E-avFTFC and E-FTFC.  
 # FIX emission approach for GBOM list, similar to the correction done in GBOM
 class gbom_list:
-	def __init__(self,freqs_gs_batch,freqs_ex_batch,J_batch,K_batch,E_adiabatic_batch,dipole_mom_batch,num_gboms):
+	def __init__(self,freqs_gs_batch,freqs_ex_batch,J_batch,K_batch,E_adiabatic_batch,dipole_mom_batch,num_gboms,stdout):
 		self.gboms = []	
 		# gboms is a list of GBOM objects
 		for i in range(num_gboms):
-			self.gboms.append(gbom(freqs_gs_batch[i,:],freqs_ex_batch[i,:],J_batch[i,:,:],K_batch[i,:],E_adiabatic_batch[i],dipole_mom_batch[i]))
+			stdout.write('\n'+'\n'+'ADDING GBOM '+str(i+1)+' OUT OF '+str(num_gboms)+' TO BATCH.'+'\n')
+			self.gboms.append(gbom(freqs_gs_batch[i,:],freqs_ex_batch[i,:],J_batch[i,:,:],K_batch[i,:],E_adiabatic_batch[i],dipole_mom_batch[i],stdout))
 			
 		self.num_gboms=num_gboms
 

@@ -475,13 +475,6 @@ def compute_GBOM_batch_absorption(param_list,GBOM_batch,solvent,is_emission):
 				# now build spectrum.
 				spectrum=np.zeros((average_response.shape[0],2))
 
-
-				# TEST:
-				temp_spectrum=linear_spectrum.full_spectrum(average_response,solvent.solvent_response,1.0,param_list.num_steps,0.08,0.13,True,is_emission)
-				np.savetxt(param_list.GBOM_root+'_avcumulant_shape_func.dat', temp_spectrum)
-				np.savetxt(param_list.GBOM_root+'_avcumulant_response_func_real.dat', average_response.real)
-				# END test
-
 				for icount in range(GBOM_batch.num_gboms):
 					eff_response_func=average_response
 					for jcount in range(eff_response_func.shape[0]):
@@ -777,16 +770,20 @@ if param_set.is_solvent:
 # set up chromophore model
 # pure GBOM model. 
 if param_set.model=='GBOM' or param_set.model=='MD_GBOM':
+		param_set.stdout.write('\n'+'Requested a GBOM model calculation with parameter: MODEL   '+param_set.model+'\n'+'Constructing a GBOM model.'+'\n')
 		# sanity check:
 		if param_set.num_modes==0:
+				param_set.stdout.write('Error: Model GBOM requested but number of normal modes in the system is not set!')
 				sys.exit('Error: Model GBOM requested but number of normal modes in the system is not set!')
-
 		# single GBOM
 		if param_set.num_gboms==1:
+				param_set.stdout.write('This is a calculation involving only a single GBOM model with '+str(param_set.num_modes)+' normal modes.'+'\n')
 				# GBOM root is given. This means user requests reading params from Gaussian or Terachem
 				if param_set.GBOM_root!='':				
 						if param_set.GBOM_input_code=='GAUSSIAN':
 								# build list of frozen atoms:
+								param_set.stdout.write('Attempting to compute GBOM model from the following Gaussian output files: '+'\n')
+								param_set.stdout.write(param_set.GBOM_root+'_gs.log'+'\t'+param_set.GBOM_root+'_ex.log'+'\t'+param_set.GBOM_root+'_vibronic.log'+'\t'+'\n')
 								freqs_gs=gaussian_params.extract_normal_mode_freqs(param_set.GBOM_root+'_gs.log',param_set.num_modes,param_set.num_frozen_atoms)
 								freqs_ex=gaussian_params.extract_normal_mode_freqs(param_set.GBOM_root+'_ex.log',param_set.num_modes,param_set.num_frozen_atoms)
 								K=gaussian_params.extract_Kmat(param_set.GBOM_root+'_vibronic.log',param_set.num_modes)
@@ -801,18 +798,22 @@ if param_set.model=='GBOM' or param_set.model=='MD_GBOM':
 
 								param_set.E_adiabatic=gaussian_params.extract_adiabatic_freq(param_set.GBOM_root+'_vibronic.log')
 
-								GBOM=gbom.gbom(freqs_gs,freqs_ex,J,K,param_set.E_adiabatic,param_set.dipole_mom)
+								GBOM=gbom.gbom(freqs_gs,freqs_ex,J,K,param_set.E_adiabatic,param_set.dipole_mom,param_set.stdout)
 
 						elif param_set.GBOM_input_code=='TERACHEM':
 								# first obtain coordinates and Hessian. Check if we have frozen atoms.
 								# sanity check:
+								param_set.stdout.write('Attempting to compute GBOM model from the following TeraChem output files: '+'\n')
+								param_set.stdout.write(param_set.GBOM_root+'_gs.log'+'\t'+param_set.GBOM_root+'_ex.log'+'\n')
 								if param_set.num_atoms<1:
+										param_set.stdout.write('Error: Trying to read from Terachem input but number of atoms is not set!'+'\n')
 										sys.exit('Error: Trying to read from Terachem input but number of atoms is not set!') 
 								frozen_atom_list=np.zeros(param_set.num_atoms)
 								if param_set.num_frozen_atoms>0: 
 										if os.path.exists(param_set.frozen_atom_path):
 												frozen_atom_list=np.genfromtxt(param_set.frozen_atom_path)
 										else:
+												param_set.stdout.write('Error: Trying to perform Terachem calculation with frozen atoms but frozen atom list does not exist!')
 												sys.exit('Error: Trying to perform Terachem calculation with frozen atoms but frozen atom list does not exist!')
 								
 								# now obtain Hessians and other params.
@@ -837,7 +838,7 @@ if param_set.model=='GBOM' or param_set.model=='MD_GBOM':
 								E_0_0=(E_adiabatic+0.5*(np.sum(freqs_ex)-np.sum(freqs_gs)))
 
 								# construct GBOM
-								GBOM=gbom.gbom(freqs_gs,freqs_ex,J,K,E_0_0,dipole_mom)
+								GBOM=gbom.gbom(freqs_gs,freqs_ex,J,K,E_0_0,dipole_mom,param_set.stdout)
 
 						# unsupported input code
 						else:
@@ -863,8 +864,7 @@ if param_set.model=='GBOM' or param_set.model=='MD_GBOM':
 
 								# GBOM assumes E_0_0 as input rather than E_adiabatic. 
 								E_0_0=param_set.E_adiabatic+0.5*(np.sum(freqs_ex)-np.sum(freqs_gs))
-								print(E_0_0) 
-								GBOM=gbom.gbom(freqs_gs,freqs_ex,J,K,E_0_0,param_set.dipole_mom)
+								GBOM=gbom.gbom(freqs_gs,freqs_ex,J,K,E_0_0,param_set.dipole_mom,param_set.stdout)
 				else:
 						sys.exit('Error: GBOM calculation requested but no path to model system parameters given!')
 
@@ -881,9 +881,6 @@ if param_set.model=='GBOM' or param_set.model=='MD_GBOM':
 				while batch_count<param_set.num_gboms+1:
 						if param_set.GBOM_root!='':
 								if param_set.GBOM_input_code=='GAUSSIAN':
-										print('SANITY CHECK: NUM FROZEN ATOMS:')
-										print(param_set.num_frozen_atoms.shape[0])
-										print(param_set.num_frozen_atoms)
 										freqs_gs=gaussian_params.extract_normal_mode_freqs(param_set.GBOM_root+str(batch_count)+'_gs.log',param_set.num_modes,param_set.num_frozen_atoms[batch_count-1])
 										freqs_ex=gaussian_params.extract_normal_mode_freqs(param_set.GBOM_root+str(batch_count)+'_ex.log',param_set.num_modes,param_set.num_frozen_atoms[batch_count-1])
 										K=gaussian_params.extract_Kmat(param_set.GBOM_root+str(batch_count)+'_vibronic.log',param_set.num_modes)
@@ -982,7 +979,7 @@ if param_set.model=='GBOM' or param_set.model=='MD_GBOM':
 
 						batch_count=batch_count+1
 				# now construct the model
-				GBOM_batch=gbom.gbom_list(freqs_gs_batch,freqs_ex_batch,Jbatch,Kbatch,E_batch,dipole_batch,param_set.num_gboms)
+				GBOM_batch=gbom.gbom_list(freqs_gs_batch,freqs_ex_batch,Jbatch,Kbatch,E_batch,dipole_batch,param_set.num_gboms,param_set.stdout)
 		param_set.stdout.write('Successfully set up a GBOM model!'+'\n')
 
 # Morse oscillator model
@@ -1006,7 +1003,7 @@ elif param_set.model=='MORSE':
                                                         num_morse=gs_params.shape[0]
                                                         if gs_params.shape[0] != ex_params.shape[0]:
                                                                  sys.exit('Error: Inconsistent number of parameters in ground and excited state morse oscillator files!')
-                                                        morse_oscs=morse.morse_list(D_gs,D_ex,alpha_gs,alpha_ex,mu,shift,param_set.E_adiabatic,param_set.dipole_mom,param_set.max_states_morse_gs,param_set.max_states_morse_ex,param_set.integration_points_morse,num_morse)
+                                                        morse_oscs=morse.morse_list(D_gs,D_ex,alpha_gs,alpha_ex,mu,shift,param_set.E_adiabatic,param_set.dipole_mom,param_set.max_states_morse_gs,param_set.max_states_morse_ex,param_set.integration_points_morse,num_morse,param_set.stdout)
                 else:
                                                 sys.exit('Error: Did not provide ground and excited state Morse oscillator parameters!')
 
@@ -1032,7 +1029,7 @@ elif param_set.model=='COUPLED_MORSE':
                                                         num_morse=gs_params.shape[0]
                                                         if gs_params.shape[0] != ex_params.shape[0]:
                                                                  sys.exit('Error: Inconsistent number of parameters in ground and excited state morse oscillator files!')
-                                                        coupled_morse=morse.morse_coupled(D_gs,D_ex,alpha_gs,alpha_ex,mu,J,shift,param_set.E_adiabatic,param_set.dipole_mom,param_set.max_states_morse_gs,param_set.max_states_morse_ex,param_set.integration_points_morse,num_morse)
+                                                        coupled_morse=morse.morse_coupled(D_gs,D_ex,alpha_gs,alpha_ex,mu,J,shift,param_set.E_adiabatic,param_set.dipole_mom,param_set.max_states_morse_gs,param_set.max_states_morse_ex,param_set.integration_points_morse,num_morse,param_set.stdout)
                 else:
                                                 sys.exit('Error: Did not provide ground and excited state Morse oscillator parameters!')
 
