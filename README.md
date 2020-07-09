@@ -18,20 +18,26 @@ order cumulant approach.
 
 # References
 The module computing Franck-Condon spectra for a GBOM is based on the algorithm outlined in 
+
 B. de Souza, F. Neese, and R. Izsak, J. Chem. Phys. 148, 034104 (2018).
 
 The cumulant solutions of the GBOM, as well as the third order cumulant approximation as applied to systems sampled
 from MD trajectories are detailed in
+
 T. J. Zuehlsdorff, A. Montoya-Castillo, J. A. Napoli, T. E. Markland, and C. M. Isborn, J. Chem. Phys. 151, 074111 (2019)
 for linear spectroscopy and
+
 T. J. Zuehlsdorff, H. Hong, L. Shi, and C. M. Isborn, "Nonlinear spectroscopy in the condensed phase: The role of Duschinsky 
 rotations and third order cumulant contributions" https://doi.org/10.26434/chemrxiv.12302018.v1 (2020)
 for nonlinear spectroscopy. 
 
 The theoretical underpinnings of hybrid approaches such as the E-ZTFC method are described in the following 
 references:
+
 T. J. Zuehlsdorff, and C. M. Isborn, J. Chem. Phys. 148, 024110 (2018),
+
 T. J. Zuehlsdorff, J. A. Napoli, J. M. Milanese, T. E. Markland, and C. M. Isborn, J. Chem. Phys. 149, 024107 (2018),
+
 T. J. Zuehlsdorff, A. Montoya-Castillo, J. A. Napoli, T. E. Markland, and C. M. Isborn, J. Chem. Phys. 151, 074111 (2019).
 
 Parts of the interface allowing for the construction of the GBOM from TeraChem (http://www.petachem.com/products.html) 
