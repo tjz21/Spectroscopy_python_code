@@ -57,8 +57,8 @@ def compute_coupled_morse_absorption(param_list,coupled_morse,solvent,is_emissio
                 if param_list.method=='EXACT':
                         coupled_morse.compute_exact_response(param_list.temperature,param_list.max_t,param_list.num_steps)
                         spectrum=linear_spectrum.full_spectrum(coupled_morse.exact_response_func,solvent.solvent_response,param_list.dipole_mom,param_list.num_steps,E_start,E_end,True,is_emission)
-			np.savetxt('Morse_Duschinsky_coupled_exact_spectrum.dat', spectrum)
-		elif param_list.method=='FC_HARMONIC':
+                        np.savetxt('Morse_Duschinsky_coupled_exact_spectrum.dat', spectrum)
+                elif param_list.method=='FC_HARMONIC':
                         coupled_morse.compute_harmonic_FC_response_func(param_list.temperature,param_list.max_t,param_list.num_steps,False)
                         spectrum=linear_spectrum.full_spectrum(morse_oscs.harmonic_fc_response_func,solvent.solvent_response,param_list.dipole_mom,param_list.num_steps,E_start,E_end,True,is_emission)
                         np.savetxt('Morse_Duschinsky_harmonic_fc_spectrum.dat', spectrum)
@@ -1026,7 +1026,7 @@ elif param_set.model=='COUPLED_MORSE':
                                                         alpha_ex=ex_params[:,1]
                                                         mu=gs_params[:,2]
                                                         shift=ex_params[:,2]
-							J=np.genfromtxt(param_set.Jpath)
+                                                        J=np.genfromtxt(param_set.Jpath)
 
                                                         # sanity check
                                                         num_morse=gs_params.shape[0]

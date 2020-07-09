@@ -132,8 +132,8 @@ class params:
 		if par != '':
 			self.max_states_morse_gs=int(par)
 		par=get_param(filepath,'MAX_STATES_MORSE_EX')
-                if par != '':
-                        self.max_states_morse_ex=int(par)
+		if par != '':
+			self.max_states_morse_ex=int(par)
 		par=get_param(filepath,'NUM_GBOMS')
 		if par != '':
 			self.num_gboms=int(par)
