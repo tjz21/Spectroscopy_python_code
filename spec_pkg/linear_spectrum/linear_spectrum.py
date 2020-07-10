@@ -14,20 +14,28 @@ def compute_mean_sd_skew(spectrum):
 		if spectrum[counter,1]<0.0:
 			spectrum[counter,1]=0.0
 		counter=counter+1
+	step=spectrum[1,0]-spectrum[0,0]
+
+	# now compute normlization factor
+	norm=0.0
+	for x in spectrum:
+                norm=norm+x[1]*step
+
 	mean=0.0
 	for x in spectrum:
-		mean=mean+x[1]
-	mean=mean/(1.0*spectrum.shape[0])
+		mean=mean+x[0]*x[1]*step
+	mean=mean/norm
 
 	sd=0.0
 	for x in spectrum:
-		sd=sd+(x[1]-mean)**2.0
-	sd=math.sqrt(sd/(1.0*spectrum.shape[0]))
+		sd=sd+(x[0]-mean)**2.0*x[1]*step
+	sd=math.sqrt(sd)/norm
 
 	skew=0.0
 	for x in spectrum:
-		skew=skew+(x[1]-mean)**3.0
+		skew=skew+(x[0]-mean)**3.0*x[1]*step
 	skew=skew/(sd**3.0)
+	skew=skew/norm
 
 	return mean,sd,skew
 
@@ -48,9 +56,17 @@ def spectrum_prefactor(Eval,dipole_mom,is_emission):
 
 	return prefac
 
-def full_spectrum(response_func,solvent_response_func,dipole_mom,steps_spectrum,start_val,end_val,is_solvent,is_emission):
+def full_spectrum(response_func,solvent_response_func,dipole_mom,steps_spectrum,start_val,end_val,is_solvent,is_emission,stdout):
 	spectrum=np.zeros((steps_spectrum,2))
 	counter=0
+	# print total response function
+	stdout.write('\n'+'Total Chromophore linear response function of the system:'+'\n')
+	stdout.write('\n'+'  Step       Time (fs)          Re[Chi]         Im[Chi]'+'\n')
+	for i in range(response_func.shape[0]):
+		stdout.write("%5d      %10.4f          %10.4e       %10.4e" % (i+1,np.real(response_func[i,0])*const.fs_to_Ha, np.real(response_func[i,1]), np.imag(response_func[i,1]))+'\n')
+
+	stdout.write('\n'+'Total linear spectrum of the system:'+'\n')
+	stdout.write('\n'+'Energy (Ha)         Absorbance (Ha)'+'\n')	
 	step_length=((end_val-start_val)/steps_spectrum)
 	while counter<spectrum.shape[0]:
 		E_val=start_val+counter*step_length
@@ -58,8 +74,13 @@ def full_spectrum(response_func,solvent_response_func,dipole_mom,steps_spectrum,
 		integrant=full_spectrum_integrant(response_func,solvent_response_func,E_val,is_solvent)
 		spectrum[counter,0]=E_val
 		spectrum[counter,1]=prefac*(integrate.simps(integrant,dx=response_func[1,0].real-response_func[0,0].real))
+		stdout.write("%2.5f          %10.4e" % (spectrum[counter,0], spectrum[counter,1])+'\n') 
 		counter=counter+1
-
+	
+	# compute mean, skew and SD of spectrum
+	mean,sd,skew=compute_mean_sd_skew(spectrum)
+	stdout.write('\n'+'Mean of spectrum: '+str(mean)+' Ha, SD: '+str(sd)+' Ha, Skew: '+str(skew)+'\n')
+	
 	return spectrum
 
 def full_spectrum_integrant(response_func,solvent_response_func,E_val,is_solvent):

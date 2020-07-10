@@ -289,16 +289,16 @@ class gbom:
 		else:
 			self.omega_av_qm=av_energy_gap_exact_qm(self.Omega_sq,self.lambda_0,self.E_adiabatic,kbT,self.freqs_gs,is_emission)
 
-	def calc_ensemble_response(self,temp,num_points,max_time,is_qm,is_emission):
+	def calc_ensemble_response(self,temp,num_points,max_time,is_qm,is_emission,stdout):
 		kbT=const.kb_in_Ha*temp
 		if is_emission:
 			omega_e_sq=get_omega_sq(self.freqs_ex_emission)
 			omega_g_sq=get_omega_sq(self.freqs_gs_emission)
-			self.ensemble_response=gbom_ensemble_response.compute_ensemble_response(self.freqs_gs_emission,self.freqs_ex_emission,self.J_emission,self.K_emission,self.E_adiabatic,self.lambda_0,self.gamma,self.Omega_sq,omega_e_sq,omega_g_sq,kbT,num_points,max_time,is_qm,is_emission)
+			self.ensemble_response=gbom_ensemble_response.compute_ensemble_response(self.freqs_gs_emission,self.freqs_ex_emission,self.J_emission,self.K_emission,self.E_adiabatic,self.lambda_0,self.gamma,self.Omega_sq,omega_e_sq,omega_g_sq,kbT,num_points,max_time,is_qm,is_emission,stdout)
 		else:
 			omega_e_sq=get_omega_sq(self.freqs_ex)
 			omega_g_sq=get_omega_sq(self.freqs_gs)
-			self.ensemble_response=gbom_ensemble_response.compute_ensemble_response(self.freqs_gs,self.freqs_ex,self.J,self.K,self.E_adiabatic,self.lambda_0,self.gamma,self.Omega_sq,omega_e_sq,omega_g_sq,kbT,num_points,max_time,is_qm,is_emission)
+			self.ensemble_response=gbom_ensemble_response.compute_ensemble_response(self.freqs_gs,self.freqs_ex,self.J,self.K,self.E_adiabatic,self.lambda_0,self.gamma,self.Omega_sq,omega_e_sq,omega_g_sq,kbT,num_points,max_time,is_qm,is_emission,stdout)
 
 	def calc_fc_response(self,temp,num_points,max_time,is_emission,stdout):
 		kbT=const.kb_in_Ha*temp
@@ -322,19 +322,19 @@ class gbom:
 			omega_g_sq=get_omega_sq(self.freqs_gs_emission)
 			if is_qm:
 				# compute 'zero temperature' ensemble spectrum
-				ensemble_resp_zero_t=gbom_ensemble_response.compute_ensemble_response(self.freqs_gs_emission,self.freqs_ex_emission,self.J_emission,self.K_emission,self.E_adiabatic,self.lambda_0,self.gamma,self.Omega_sq,omega_e_sq,omega_g_sq,low_temp_kbT,num_points,max_time,True,is_emission)
+				ensemble_resp_zero_t=gbom_ensemble_response.compute_ensemble_response(self.freqs_gs_emission,self.freqs_ex_emission,self.J_emission,self.K_emission,self.E_adiabatic,self.lambda_0,self.gamma,self.Omega_sq,omega_e_sq,omega_g_sq,low_temp_kbT,num_points,max_time,True,is_emission,stdout)
 				ensemble_resp=gbom_ensemble_response.compute_ensemble_response(self.freqs_gs_emission,self.freqs_ex_emission,self.J_emission,self.K_emission,self.E_adiabatic,self.lambda_0,self.gamma,self.Omega_sq,omega_e_sq,omega_g_sq,kbT,num_points,max_time,True,is_emission)
 			else:
-				ensemble_resp=gbom_ensemble_response.compute_ensemble_response(self.freqs_gs_emission,self.freqs_ex_emission,self.J_emission,self.K_emission,self.E_adiabatic,self.lambda_0,self.gamma,self.Omega_sq,omega_e_sq,omega_g_sq,kbT,num_points,max_time,False,is_emission)
+				ensemble_resp=gbom_ensemble_response.compute_ensemble_response(self.freqs_gs_emission,self.freqs_ex_emission,self.J_emission,self.K_emission,self.E_adiabatic,self.lambda_0,self.gamma,self.Omega_sq,omega_e_sq,omega_g_sq,kbT,num_points,max_time,False,is_emission,stdout)
 		else:
 			omega_e_sq=get_omega_sq(self.freqs_ex)
 			omega_g_sq=get_omega_sq(self.freqs_gs)
 			if is_qm:
 				# compute 'zero temperature' ensemble spectrum
-				ensemble_resp_zero_t=gbom_ensemble_response.compute_ensemble_response(self.freqs_gs,self.freqs_ex,self.J,self.K,self.E_adiabatic,self.lambda_0,self.gamma,self.Omega_sq,omega_e_sq,omega_g_sq,low_temp_kbT,num_points,max_time,True,is_emission)
-				ensemble_resp=gbom_ensemble_response.compute_ensemble_response(self.freqs_gs,self.freqs_ex,self.J,self.K,self.E_adiabatic,self.lambda_0,self.gamma,self.Omega_sq,omega_e_sq,omega_g_sq,kbT,num_points,max_time,True,is_emission)
+				ensemble_resp_zero_t=gbom_ensemble_response.compute_ensemble_response(self.freqs_gs,self.freqs_ex,self.J,self.K,self.E_adiabatic,self.lambda_0,self.gamma,self.Omega_sq,omega_e_sq,omega_g_sq,low_temp_kbT,num_points,max_time,True,is_emission,stdout)
+				ensemble_resp=gbom_ensemble_response.compute_ensemble_response(self.freqs_gs,self.freqs_ex,self.J,self.K,self.E_adiabatic,self.lambda_0,self.gamma,self.Omega_sq,omega_e_sq,omega_g_sq,kbT,num_points,max_time,True,is_emission,stdout)
 			else:
-				ensemble_resp=gbom_ensemble_response.compute_ensemble_response(self.freqs_gs,self.freqs_ex,self.J,self.K,self.E_adiabatic,self.lambda_0,self.gamma,self.Omega_sq,omega_e_sq,omega_g_sq,kbT,num_points,max_time,False,is_emission)
+				ensemble_resp=gbom_ensemble_response.compute_ensemble_response(self.freqs_gs,self.freqs_ex,self.J,self.K,self.E_adiabatic,self.lambda_0,self.gamma,self.Omega_sq,omega_e_sq,omega_g_sq,kbT,num_points,max_time,False,is_emission,stdout)
 
 		total_response=np.zeros((ztfc_resp.shape[0],2),dtype=complex)
 		counter=0
@@ -376,7 +376,7 @@ class gbom_list:
 
 	
 	# Routines for calculating the response functions
-	def calc_avEnsemble_response(self,temp,num_points,max_time,is_qm,is_emission):
+	def calc_avEnsemble_response(self,temp,num_points,max_time,is_qm,is_emission,stdout):
 		kbT=const.kb_in_Ha*temp
 		counter=0
 		while counter<self.num_gboms:
@@ -385,9 +385,9 @@ class gbom_list:
 
 			if is_emission:
 				eff_K=-np.dot(np.transpose(self[counter].J),self[counter].K)
-				ensemble_resp=gbom_ensemble_response.compute_ensemble_response(self[counter].freqs_ex,self[counter].freqs_gs,np.transpose(self[counter].J),eff_K,self[counter].E_adiabatic,self[counter].lambda_0,self[counter].gamma,self[counter].Omega_sq,omega_e_sq,omega_g_sq,kbT,num_points,max_time,is_qm)
+				ensemble_resp=gbom_ensemble_response.compute_ensemble_response(self[counter].freqs_ex,self[counter].freqs_gs,np.transpose(self[counter].J),eff_K,self[counter].E_adiabatic,self[counter].lambda_0,self[counter].gamma,self[counter].Omega_sq,omega_e_sq,omega_g_sq,kbT,num_points,max_time,is_qm,is_emission,stdout)
 			else:
-				ensemble_resp=gbom_ensemble_response.compute_ensemble_response(self[counter].freqs_gs,self[counter].freqs_ex,self[counter].J,self[counter].K,self[counter].E_adiabatic,self[counter].lambda_0,self[counter].gamma,self[counter].Omega_sq,omega_e_sq,omega_g_sq,kbT,num_points,max_time,is_qm)
+				ensemble_resp=gbom_ensemble_response.compute_ensemble_response(self[counter].freqs_gs,self[counter].freqs_ex,self[counter].J,self[counter].K,self[counter].E_adiabatic,self[counter].lambda_0,self[counter].gamma,self[counter].Omega_sq,omega_e_sq,omega_g_sq,kbT,num_points,max_time,is_qm,is_emission,stdout)
 			if counter==0:
 				self.avEnsemble_response=ensemble_resp
 			else:

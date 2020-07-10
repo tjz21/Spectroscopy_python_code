@@ -606,7 +606,7 @@ stdout):
                 )
 
         count1 = count1 + 1
-        stdout.write("%5d      %10.4f          %10.4f       %10.4f" % (count1,t*const.fs_to_Ha, np.real(lineshape_func[count1-1,1]), np.imag(lineshape_func[count1-1,1]))+'\n')
+        stdout.write("%5d      %10.4f          %10.4e		%10.4e" % (count1,t*const.fs_to_Ha, np.real(lineshape_func[count1-1,1]), np.imag(lineshape_func[count1-1,1]))+'\n')
         t = t + step_length
 
     return lineshape_func
@@ -640,7 +640,7 @@ def full_third_order_lineshape(
                 freqs_gs, Omega_sq, n_i_vec, gamma, kbT, t, four_phonon_term
             )
         count1 = count1 + 1
-        stdout.write("%5d      %10.4f          %10.4f       %10.4f" % (count1,t*const.fs_to_Ha, np.real(lineshape_func[count1-1,1]), np.imag(lineshape_func[count1-1,1]))+'\n')
+        stdout.write("%5d      %10.4f          %10.4e       %10.4e" % (count1,t*const.fs_to_Ha, np.real(lineshape_func[count1-1,1]), np.imag(lineshape_func[count1-1,1]))+'\n')
         t = t + step_length
 
     return lineshape_func
@@ -1303,7 +1303,7 @@ def h4_func_cl_t_no_dusch(freqs_gs, Omega_sq, gamma, kbT, t1, t2):
     return omega_term + gamma_term
 
 
-@jit(fastmath=True, parallel=True, nopython=True)
+@jit(fastmath=True, parallel=True)
 def h3_func_cl_t_no_dusch(freqs_gs, Omega_sq, gamma, kbT, t1, t2, t3):
     gamma_term = 0.0 + 0.0j
     omega_term = 0.0 + 0.0j
@@ -2592,7 +2592,7 @@ def h4_func_qm_t_no_dusch(freqs_gs, Omega_sq, n_i_vec, gamma, kbT, t1, t2):
     return omega_term + gamma_term
 
 
-@njit(fastmath=True, parallel=True, nopython=True)
+@njit(fastmath=True, parallel=True)
 def h3_func_qm_t_no_dusch(freqs_gs, Omega_sq, n_i_vec, gamma, kbT, t1, t2, t3):
     gamma_term = 0.0 + 0.0j
     omega_term = 0.0 + 0.0j

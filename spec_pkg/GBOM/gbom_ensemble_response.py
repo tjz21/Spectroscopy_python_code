@@ -79,13 +79,16 @@ def calc_chi_for_given_time(freq_gs,freq_ex,Jmat,Kmat,lambda_0,gamma,Omega_sq,om
     
 	return cmath.polar(chi_t)
 
-def compute_ensemble_response(freq_gs,freq_ex,Jmat,Kmat,E_adiabatic,lambda_0,gamma,Omega_sq,omega_e_sq,omega_g_sq,kBT,steps,max_time,is_QM,is_emission):
+def compute_ensemble_response(freq_gs,freq_ex,Jmat,Kmat,E_adiabatic,lambda_0,gamma,Omega_sq,omega_e_sq,omega_g_sq,kBT,steps,max_time,is_QM,is_emission,stdout):
+	stdout.write('Constructing the ensemble response function for a GBOM: '+'\n')
+	stdout.write('Calculating the response function for '+str(steps)+' time steps and a maximum time of '+str(max_time*const.fs_to_Ha)+'  fs'+'\n')
 	chi=np.zeros((steps,3))
 	response_func=np.zeros((steps,2),dtype=complex)
 	step_length=max_time/steps
 	eV_to_Ha=1.0/const.Ha_to_eV
 	start_val=0.0000001
 	counter=0
+	stdout.write('\n'+'  Step       Time (fs)          Re[Chi]         Im[Chi]'+'\n')
 	while counter<steps:
 		current_t=start_val+step_length*counter
 		chi[counter,0]=current_t
@@ -120,6 +123,8 @@ def compute_ensemble_response(freq_gs,freq_ex,Jmat,Kmat,E_adiabatic,lambda_0,gam
 			response_func[counter,1]=chi[counter,1]*cmath.exp(1j*chi[counter,2]-1j*chi[counter,0]*(E_adiabatic+lambda_0-0.5*(np.sum(freq_ex)-np.sum(freq_gs))))
 		else:
 			response_func[counter,1]=chi[counter,1]*cmath.exp(1j*chi[counter,2]-1j*chi[counter,0]*(E_adiabatic+lambda_0))
+
+		stdout.write("%5d      %10.4f          %10.4e       %10.4e" % (counter+1,current_t*const.fs_to_Ha, np.real(response_func[counter,1]), np.imag(response_func[counter,1]))+'\n')
 		counter=counter+1
 
 	return response_func

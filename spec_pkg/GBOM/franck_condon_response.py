@@ -263,7 +263,7 @@ def compute_full_response_func(
                 freq_gs, freq_ex, Jmat, Kmat, kBT, current_t
             )
 	
-        stdout.write("%5d      %10.4f          %10.4f       %10.4f" % (counter+1,current_t*const.fs_to_Ha, np.real(g_inf), np.imag(g_inf))+'\n')
+        stdout.write("%5d      %10.4f          %10.4e       %10.4e" % (counter+1,current_t*const.fs_to_Ha, np.real(g_inf), np.imag(g_inf))+'\n')
         lineshape[counter, 1] = g_inf.real
         chi[counter, 1] = chi_t[0]
         chi[counter, 2] = chi_t[1]
