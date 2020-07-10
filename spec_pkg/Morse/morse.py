@@ -695,18 +695,18 @@ class morse_list:
 		for i in range(self.cumulant_response_func.shape[0]):
 			self.cumulant_response_func[i,1]=self.cumulant_response_func[i,1]*cmath.exp(-1j*self.cumulant_response_func[i,0]*self.omega_av_qm)
 
-	def compute_harmonic_FC_response_func(self,temp,max_t,num_steps,is_emission):
-		self.eff_gbom.calc_fc_response(temp,num_steps,max_t,is_emission)
+	def compute_harmonic_FC_response_func(self,temp,max_t,num_steps,is_emission,stdout):
+		self.eff_gbom.calc_fc_response(temp,num_steps,max_t,is_emission,stdout)
 		self.harmonic_fc_response_func=self.eff_gbom.fc_response
 
-	def compute_harmonic_exact_cumulant_response_func(self,temp,max_t,num_steps,is_emission):
-		self.eff_gbom.calc_g2_qm(temp,num_steps,max_t,is_emission)
+	def compute_harmonic_exact_cumulant_response_func(self,temp,max_t,num_steps,is_emission,stdout):
+		self.eff_gbom.calc_g2_qm(temp,num_steps,max_t,is_emission,stdout)
 		self.eff_gbom.calc_cumulant_response(False,True,is_emission)
 		self.harmonic_cumulant_response_func=self.eff_gbom.cumulant_response
 
-	def compute_cumul_fc_hybrid_response_func(self,temp,decay_length,max_t,num_steps,is_emission):
+	def compute_cumul_fc_hybrid_response_func(self,temp,decay_length,max_t,num_steps,is_emission,stdout):
 		# first compute effective response functions for the GBOM under the harmonic approximation of the PES
-		self.compute_harmonic_FC_response_func(temp,max_t,num_steps,is_emission)
+		self.compute_harmonic_FC_response_func(temp,max_t,num_steps,is_emission,stdout)
 		self.compute_harmonic_exact_cumulant_response_func(temp,max_t,num_steps,is_emission)
 	
 		# now compute the 2nd order cumulant response function for the morse oscillator
@@ -810,12 +810,12 @@ class morse_coupled:
 
                 return E_ex-E_gs+self.E_adiabatic
 
-        def compute_harmonic_FC_response_func(self,temp,max_t,num_steps,is_emission):
-                self.eff_gbom.calc_fc_response(temp,num_steps,max_t,is_emission)
+        def compute_harmonic_FC_response_func(self,temp,max_t,num_steps,is_emission,stdout):
+                self.eff_gbom.calc_fc_response(temp,num_steps,max_t,is_emission,stdout)
                 self.harmonic_fc_response_func=self.eff_gbom.fc_response
 
-        def compute_harmonic_exact_cumulant_response_func(self,temp,max_t,num_steps,is_emission):
-                self.eff_gbom.calc_g2_qm(temp,num_steps,max_t,is_emission)
+        def compute_harmonic_exact_cumulant_response_func(self,temp,max_t,num_steps,is_emission,stdout):
+                self.eff_gbom.calc_g2_qm(temp,num_steps,max_t,is_emission,stdout)
                 self.eff_gbom.calc_cumulant_response(False,True,is_emission)
                 self.harmonic_cumulant_response_func=self.eff_gbom.cumulant_response
 

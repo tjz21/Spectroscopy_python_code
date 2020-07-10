@@ -4,6 +4,7 @@ import numpy as np
 import math
 from numba import jit, njit, prange
 import cmath
+from spec_pkg.constants import constants as const
 
 # check whether this is an absorption or an emission calculation
 def compute_cumulant_response(g2, g3, is_3rd_order_cumulant, is_emission):
@@ -571,17 +572,12 @@ def full_2nd_order_lineshape(
     is_cl,
     is_emission,
     E_adiabatic,
-):
+stdout):
     lineshape_func = np.zeros((num_points, 2), dtype=complex)
-    print("Computing lineshape function")
-    print("av energy gap:")
-    print(av_energy_gap)
-    print("gamma:")
-    print(gamma)
-    print(Omega_sq)
-    print("kbT:")
-    print(kbT)
+    stdout.write('\n'+"Computing second order cumulant lineshape function."+'\n')
+    stdout.write("Av energy gap:  "+str(av_energy_gap)+'  Ha          kBT:  '+str(kbT)+ '  Ha'+'\n')
     step_length = max_t / num_points
+    stdout.write('\n'+'  Step       Time (fs)          Re[g_2]         Im[g_2]'+'\n')
     t = 0.0
     count1 = 0
     while count1 < num_points:
@@ -610,8 +606,8 @@ def full_2nd_order_lineshape(
                 )
 
         count1 = count1 + 1
+        stdout.write("%5d      %10.4f          %10.4f       %10.4f" % (count1,t*const.fs_to_Ha, np.real(lineshape_func[count1-1,1]), np.imag(lineshape_func[count1-1,1]))+'\n')
         t = t + step_length
-        print(lineshape_func[count1 - 1, 0], lineshape_func[count1 - 1, 1])
 
     return lineshape_func
 
@@ -619,7 +615,9 @@ def full_2nd_order_lineshape(
 # third order cumulant lineshape
 def full_third_order_lineshape(
     freqs_gs, Omega_sq, gamma, kbT, max_t, num_points, is_cl, four_phonon_term
-):
+,stdout):
+    stdout.write('\n'+"Computing third order cumulant lineshape function."+'\n')
+    stdout.write('\n'+'  Step       Time (fs)          Re[g_3]         Im[g_3]'+'\n')
     lineshape_func = np.zeros((num_points, 2), dtype=complex)
     step_length = max_t / num_points
     # only compute n_i_vec if this is a QM lineshape calculation:
@@ -642,8 +640,9 @@ def full_third_order_lineshape(
                 freqs_gs, Omega_sq, n_i_vec, gamma, kbT, t, four_phonon_term
             )
         count1 = count1 + 1
+        stdout.write("%5d      %10.4f          %10.4f       %10.4f" % (count1,t*const.fs_to_Ha, np.real(lineshape_func[count1-1,1]), np.imag(lineshape_func[count1-1,1]))+'\n')
         t = t + step_length
-        print(lineshape_func[count1 - 1, 0], lineshape_func[count1 - 1, 1])
+
     return lineshape_func
 
 

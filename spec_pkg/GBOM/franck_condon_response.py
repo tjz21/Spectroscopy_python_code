@@ -226,16 +226,19 @@ def calc_lineshape_for_given_time(freq_gs, freq_ex, Jmat, Kmat, kBT, time):
     temp2 = np.dot(Vtrans, temp)
     total_val = -temp1 + temp2
 
-    return (-np.log(prefac) - total_val).real
+    return (-np.log(prefac) - total_val)
 
 
 def compute_full_response_func(
     freq_gs, freq_ex, Jmat, Kmat, E_adiabatic, kBT, steps, max_time, is_emission
-):
+,stdout):
+    stdout.write('Constructing the full Franck-Condon response function for a GBOM: '+'\n')
+    stdout.write('Calculating the lineshape function for '+str(steps)+' time steps and a maximum time of '+str(max_time*const.fs_to_Ha)+'  fs'+'\n')
     chi = np.zeros((steps, 3))
     lineshape = np.zeros((steps, 2))
     response_func = np.zeros((steps, 2), dtype=np.complex_)
     step_length = max_time / steps
+    stdout.write('\n'+'  Step       Time (fs)          Re[g_inf]         Im[g_inf]'+'\n')
     start_val = 0.0000001
     counter = 0
     while counter < steps:
@@ -259,7 +262,9 @@ def compute_full_response_func(
             g_inf = calc_lineshape_for_given_time(
                 freq_gs, freq_ex, Jmat, Kmat, kBT, current_t
             )
-        lineshape[counter, 1] = g_inf
+	
+        stdout.write("%5d      %10.4f          %10.4f       %10.4f" % (counter+1,current_t*const.fs_to_Ha, np.real(g_inf), np.imag(g_inf))+'\n')
+        lineshape[counter, 1] = g_inf.real
         chi[counter, 1] = chi_t[0]
         chi[counter, 2] = chi_t[1]
         counter = counter + 1

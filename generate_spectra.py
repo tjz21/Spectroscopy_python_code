@@ -59,8 +59,8 @@ def compute_coupled_morse_absorption(param_list,coupled_morse,solvent,is_emissio
                         spectrum=linear_spectrum.full_spectrum(coupled_morse.exact_response_func,solvent.solvent_response,param_list.dipole_mom,param_list.num_steps,E_start,E_end,True,is_emission)
                         np.savetxt('Morse_Duschinsky_coupled_exact_spectrum.dat', spectrum)
                 elif param_list.method=='FC_HARMONIC':
-                        coupled_morse.compute_harmonic_FC_response_func(param_list.temperature,param_list.max_t,param_list.num_steps,False)
-                        spectrum=linear_spectrum.full_spectrum(morse_oscs.harmonic_fc_response_func,solvent.solvent_response,param_list.dipole_mom,param_list.num_steps,E_start,E_end,True,is_emission)
+                        coupled_morse.compute_harmonic_FC_response_func(param_list.temperature,param_list.max_t,param_list.num_steps,False,param_list.stdout)
+                        spectrum=linear_spectrum.full_spectrum(coupled_morse.harmonic_fc_response_func,solvent.solvent_response,param_list.dipole_mom,param_list.num_steps,E_start,E_end,True,is_emission)
                         np.savetxt('Morse_Duschinsky_harmonic_fc_spectrum.dat', spectrum)
 
                 # cumulant based approach:
@@ -102,7 +102,7 @@ def compute_morse_absorption(param_list,morse_oscs,solvent,is_emission):
 			np.savetxt('Morse_exact_spectrum.dat', spectrum)
 		# The effective FC spectrum for this oscillator
 		elif param_list.method=='FC_HARMONIC':
-			morse_oscs.compute_harmonic_FC_response_func(param_list.temperature,param_list.max_t,param_list.num_steps,False)
+			morse_oscs.compute_harmonic_FC_response_func(param_list.temperature,param_list.max_t,param_list.num_steps,False,param_list.stdout)
 			spectrum=linear_spectrum.full_spectrum(morse_oscs.harmonic_fc_response_func,solvent.solvent_response,param_list.dipole_mom,param_list.num_steps,E_start,E_end,True,is_emission)
 			np.savetxt('Morse_harmonic_fc_spectrum.dat', spectrum)
 
@@ -123,8 +123,8 @@ def compute_morse_absorption(param_list,morse_oscs,solvent,is_emission):
 		# Andres Hybrid approach
 		elif param_list.method=='CUMUL_FC_SEPARABLE':
 			# Set average energy gap for GBOM
-			morse_oscs.eff_gbom.calc_omega_av_qm(param_list.temperature,is_emission)
-			morse_oscs.compute_cumul_fc_hybrid_response_func(param_list.temperature,param_list.decay_length,param_list.max_t,param_list.num_steps,is_emission)
+			morse_oscs.eff_gbom.calc_omega_av_qm(param_list.temperature,is_emission,param_list.stdout)
+			morse_oscs.compute_cumul_fc_hybrid_response_func(param_list.temperature,param_list.decay_length,param_list.max_t,param_list.num_steps,is_emission,param_list.stdout)
 			spectrum=linear_spectrum.full_spectrum(morse_oscs.hybrid_cumul_fc_response_func,solvent.solvent_response,param_list.dipole_mom,param_list.num_steps,E_start,E_end,True,is_emission)	
 
 			np.savetxt('Morse_hybrid_cumul_harmonic_FC_spectrum.dat', spectrum)
@@ -171,12 +171,12 @@ def compute_GBOM_absorption(param_list,GBOM_chromophore,solvent,is_emission):
 				else:
 						np.savetxt(param_list.GBOM_root+'_ensemble_spectrum_boltzmann_dist.dat', spectrum)
 		elif param_list.method=='FC':
-				GBOM_chromophore.calc_fc_response(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission)
+				GBOM_chromophore.calc_fc_response(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.stdout)
 
 				spectrum=linear_spectrum.full_spectrum(GBOM_chromophore.fc_response,solvent.solvent_response,param_list.dipole_mom,param_list.num_steps,E_start,E_end,True,is_emission)
 				np.savetxt(param_list.GBOM_root+'_FC_spectrum.dat', spectrum)
 		elif param_list.method=='EZTFC':
-				GBOM_chromophore.calc_eztfc_response(param_list.temperature,param_list.num_steps,param_list.max_t,param_list.qm_wigner_dist,is_emission)
+				GBOM_chromophore.calc_eztfc_response(param_list.temperature,param_list.num_steps,param_list.max_t,param_list.qm_wigner_dist,is_emission,param_list.stdout)
 				spectrum=linear_spectrum.full_spectrum(GBOM_chromophore.eztfc_response,solvent.solvent_response,param_list.dipole_mom,param_list.num_steps,E_start,E_end,True,is_emission)
 				if param_list.qm_wigner_dist:
 						np.savetxt(param_list.GBOM_root+'_EZTFC_spectrum_qm_wigner_dist.dat', spectrum)
@@ -187,38 +187,19 @@ def compute_GBOM_absorption(param_list,GBOM_chromophore,solvent,is_emission):
 						# spectral density not needed for calculation purposes in the GBOM. just print it out anyway for analysis
 						GBOM_chromophore.calc_spectral_dens(param_list.temperature,param_list.max_t,param_list.num_steps,param_list.decay_length,False,is_emission)
 						np.savetxt(param_list.GBOM_root+'_spectral_density_exact_corr.dat', GBOM_chromophore.spectral_dens)
-						GBOM_chromophore.calc_g2_qm(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission)
-						#save lineshape function:
-						#np.savetxt(param_list.GBOM_root+'_lineshape_func_2nd_order_exact_corr.dat',(GBOM_chromophore.g2_exact).real)
+						GBOM_chromophore.calc_g2_qm(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.stdout)
 
 						# only compute third order cumulant if needed
 						if param_list.third_order:
-								GBOM_chromophore.calc_g3_qm(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.four_phonon_term)
-								# sace lineshape function
-								#temp_lineshape2=(GBOM_chromophore.g2_exact).real
-								#temp_lineshape2[:,1]=(GBOM_chromophore.g2_exact[:,1]).real+(GBOM_chromophore.g3_exact[:,1]).real
-								#np.savetxt(param_list.GBOM_root+'_lineshape_func_3rd_order_exact_corr.dat',temp_lineshape2)
-
-								# also print only g:
-								#temp_lineshape2=(GBOM_chromophore.g3_exact).real
-								#np.savetxt(param_list.GBOM_root+'_g3_exact_corr_real.dat',temp_lineshape2)
-								#temp_lineshape2=(GBOM_chromophore.g3_exact).real
-								#temp_lineshape2[:,1]=(GBOM_chromophore.g3_exact[:,1]).imag
-								#np.savetxt(param_list.GBOM_root+'_g3_exact_corr_imag.dat',temp_lineshape2)
+								GBOM_chromophore.calc_g3_qm(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.four_phonon_term,param_list.stdout)
 
 				else:
 						GBOM_chromophore.calc_spectral_dens(param_list.temperature,param_list.max_t,param_list.num_steps,param_list.decay_length,True,is_emission)
 						np.savetxt(param_list.GBOM_root+'_spectral_density_harmonic_qcf.dat', GBOM_chromophore.spectral_dens)
-						GBOM_chromophore.calc_g2_cl(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission)
-						#save lineshape function:
-						#np.savetxt(param_list.GBOM_root+'_lineshape_func_2nd_order_harmonic_qcf.dat',(GBOM_chromophore.g2_cl).real)
+						GBOM_chromophore.calc_g2_cl(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.stdout)
 
 						if param_list.third_order:
-								GBOM_chromophore.calc_g3_cl(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.four_phonon_term)
-								# sace lineshape function
-								#temp_lineshape=(GBOM_chromophore.g2_cl).real
-								#temp_lineshape[:,1]=temp_lineshape[:,1]+(GBOM_chromophore.g3_cl[:,1]).real
-								#np.savetxt(param_list.GBOM_root+'_lineshape_func_3rd_order_harmonic_qcf.dat',temp_lineshape)
+								GBOM_chromophore.calc_g3_cl(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.four_phonon_term,param_list.stdout)
 
 
 				GBOM_chromophore.calc_cumulant_response(param_list.third_order,param_list.exact_corr,is_emission)		
@@ -226,7 +207,7 @@ def compute_GBOM_absorption(param_list,GBOM_chromophore,solvent,is_emission):
 				if param_list.exact_corr:
 						np.savetxt(param_list.GBOM_root+'_cumulant_spectrum_exact_corr.dat', spectrum)
 				else:
-						np.savetxt(param_list.GBOM_root+'_cumulant_spectrum_harmonic_qfc.dat', spectrum)
+						np.savetxt(param_list.GBOM_root+'_cumulant_spectrum_harmonic_qcf.dat', spectrum)
 				
 		# do all approaches, including qm wigner sampling and exact and approximate 
 		# quantum correlation functions for the cumulant approach
@@ -238,10 +219,10 @@ def compute_GBOM_absorption(param_list,GBOM_chromophore,solvent,is_emission):
 				else:
 						np.savetxt(param_list.GBOM_root+'_ensemble_spectrum_boltzmann_dist.dat', spectrum)
 
-				GBOM_chromophore.calc_fc_response(param_list.temperature,param_list.num_steps,param_list.max_t, is_emission)
+				GBOM_chromophore.calc_fc_response(param_list.temperature,param_list.num_steps,param_list.max_t, is_emission,param_list.stdout)
 				spectrum=linear_spectrum.full_spectrum(GBOM_chromophore.fc_response,solvent.solvent_response,param_list.dipole_mom,param_list.num_steps,E_start,E_end,True,is_emission)
 				np.savetxt(param_list.GBOM_root+'_FC_spectrum.dat', spectrum)
-				GBOM_chromophore.calc_eztfc_response(param_list.temperature,param_list.num_steps,param_list.max_t,param_list.qm_wigner_dist,is_emission)
+				GBOM_chromophore.calc_eztfc_response(param_list.temperature,param_list.num_steps,param_list.max_t,param_list.qm_wigner_dist,is_emission,param_list.stdout)
 				spectrum=linear_spectrum.full_spectrum(GBOM_chromophore.eztfc_response,solvent.solvent_response,param_list.dipole_mom,param_list.num_steps,E_start,E_end,True,is_emission)
 
 				if param_list.qm_wigner_dist:
@@ -253,16 +234,16 @@ def compute_GBOM_absorption(param_list,GBOM_chromophore,solvent,is_emission):
 						# spectral density not needed for calculation purposes in the GBOM. just print it out anyway for analysis
 						GBOM_chromophore.calc_spectral_dens(param_list.temperature,param_list.max_t,param_list.num_steps,param_list.decay_length,False,is_emission)
 						np.savetxt(param_list.GBOM_root+'_spectral_density_exact_corr.dat', GBOM_chromophore.spectral_dens)
-						GBOM_chromophore.calc_g2_qm(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission)
+						GBOM_chromophore.calc_g2_qm(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.stdout)
 						# only compute third order cumulant if needed
 						if param_list.third_order:
-								GBOM_chromophore.calc_g3_qm(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.four_phonon_term)
+								GBOM_chromophore.calc_g3_qm(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.four_phonon_term,param_list.stdout)
 				else:
 						GBOM_chromophore.calc_spectral_dens(param_list.temperature,param_list.max_t,param_list.num_steps,param_list.decay_length,True,is_emission)
-						np.savetxt(param_list.GBOM_root+'_spectral_density_harmonic_qfc.dat', GBOM_chromophore.spectral_dens)
-						GBOM_chromophore.calc_g2_cl(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission)
+						np.savetxt(param_list.GBOM_root+'_spectral_density_harmonic_qcf.dat', GBOM_chromophore.spectral_dens)
+						GBOM_chromophore.calc_g2_cl(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.stdout)
 						if param_list.third_order:
-								GBOM_chromophore.calc_g3_cl(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.four_phonon_term)
+								GBOM_chromophore.calc_g3_cl(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.four_phonon_term,param_list.stdout)
 				GBOM_chromophore.calc_cumulant_response(param_list.third_order,param_list.exact_corr, is_emission)		
 				spectrum=linear_spectrum.full_spectrum(GBOM_chromophore.cumulant_response,solvent.solvent_response,param_list.dipole_mom,param_list.num_steps,E_start,E_end,True,is_emission)
 
@@ -304,12 +285,10 @@ def compute_GBOM_batch_absorption(param_list,GBOM_batch,solvent,is_emission):
 
 		if param_list.method=='FC':
 				# Compute FC response for all elements in the GBOM batch
-				print('Computing FC response')
 				icount=0 
 				spectrum=np.zeros((param_list.num_steps,2))
 				while icount<GBOM_batch.num_gboms:
-						print('Processing GBOM batch '+str(icount))
-						GBOM_batch.gboms[icount].calc_fc_response(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission)
+						GBOM_batch.gboms[icount].calc_fc_response(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.stdout)
 
 						temp_spectrum=linear_spectrum.full_spectrum(GBOM_batch.gboms[icount].fc_response,solvent.solvent_response,param_list.dipole_mom,param_list.num_steps,E_start,E_end,True,is_emission)
 						if icount==0:
@@ -329,23 +308,22 @@ def compute_GBOM_batch_absorption(param_list,GBOM_batch,solvent,is_emission):
 				while icount<GBOM_batch.num_gboms:
 						if param_list.exact_corr:
 								# spectral density not needed for calculation purposes in the GBOM. just print it out anyway for analysis
-								GBOM_batch.gboms[icount].calc_g2_qm(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission)
+								GBOM_batch.gboms[icount].calc_g2_qm(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.stdout)
 
 								# only compute third order cumulant if needed
 								if param_list.third_order:
-										GBOM_batch.gboms[icount].calc_g3_qm(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.four_phonon_term)
+										GBOM_batch.gboms[icount].calc_g3_qm(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.four_phonon_term,param_list.stdout)
 
 						else:
-								GBOM_batch.gboms[icount].calc_g2_cl(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission)
+								GBOM_batch.gboms[icount].calc_g2_cl(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.stdout)
 
 								if param_list.third_order:
-										GBOM_batch.gboms[icount].calc_g3_cl(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.four_phonon_term)
+										GBOM_batch.gboms[icount].calc_g3_cl(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.four_phonon_term,param_list.stdout)
 
 						GBOM_batch.gboms[icount].calc_spectral_dens(param_list.temperature,param_list.max_t,param_list.num_steps,param_list.decay_length,param_list.exact_corr,is_emission)
 
 						GBOM_batch.gboms[icount].calc_cumulant_response(param_list.third_order,param_list.exact_corr,is_emission)
 						temp_spectrum=linear_spectrum.full_spectrum(GBOM_batch.gboms[icount].cumulant_response,solvent.solvent_response,param_list.dipole_mom,param_list.num_steps,E_start,E_end,True,is_emission)
-						print(E_start,E_end)
 						if icount==0:
 								sd=GBOM_batch.gboms[icount].spectral_dens
 								spectrum=temp_spectrum
@@ -363,7 +341,6 @@ def compute_GBOM_batch_absorption(param_list,GBOM_batch,solvent,is_emission):
 		# equivalent of averaging the spectral density over different instances of the GBOM and then just
 		# computing a single, effective response function. 
 		elif param_list.method=='CUMULANT_AV':
-				print('Computing  response')
 				# get list of adiabatic energies and dipole moms. 
 				energy_dipole=np.zeros((1,1))
 				if os.path.exists(param_set.E_opt_path):
@@ -376,9 +353,6 @@ def compute_GBOM_batch_absorption(param_list,GBOM_batch,solvent,is_emission):
 				# compute average energy
 				Eopt_av=np.sum(Eopt)/(1.0*Eopt.shape[0])
 				Eopt_fluct=Eopt-Eopt_av # fluctuation of Eopt energies around common mean. 
-				print(Eopt_fluct)
-				print('EOPT_Av')
-				print(Eopt_av)
 				average_Eadiab=0.0
 				average_E00=0.0    # E00 and Eadiab are not the same. 
 				for icount in range(GBOM_batch.num_gboms):
@@ -408,13 +382,9 @@ def compute_GBOM_batch_absorption(param_list,GBOM_batch,solvent,is_emission):
 
 				
 				delta_E_opt_E_adiab=Eopt_av-average_Eadiab   # The average E_adiab value should be unchanged in Eopt_avFTFC
-				print('averageEgap, Eopt_av, average_Eadiab, Average E00')
-				print(average_Egap,Eopt_av,average_Eadiab, average_E00)
 
 				E_start=average_Egap-param_set.spectral_window/2.0
 				E_end=average_Egap+param_set.spectral_window/2.0
-				print('Estart, Eend')
-				print(E_start,E_end)			
 
 				# NOW overwrite E_adiabatic and dipole moment for all GBOMS. Make sure that all GBOM's have a consistent 0-0 transition equal to average_E00
 				icount=0
@@ -440,18 +410,18 @@ def compute_GBOM_batch_absorption(param_list,GBOM_batch,solvent,is_emission):
 						if param_list.exact_corr:
 								# spectral density not needed for calculation purposes in the GBOM. just print it out anyway for analysis
 								print('OMEGA_AV_QM:',GBOM_batch.gboms[icount].omega_av_qm)
-								GBOM_batch.gboms[icount].calc_g2_qm(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission)
+								GBOM_batch.gboms[icount].calc_g2_qm(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.stdout)
 
 								# only compute third order cumulant if needed
 								if param_list.third_order:
-										GBOM_batch.gboms[icount].calc_g3_qm(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.four_phonon_term)
+										GBOM_batch.gboms[icount].calc_g3_qm(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.four_phonon_term,param_list.stdout)
 
 						else:
 
-								GBOM_batch.gboms[icount].calc_g2_cl(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission)
+								GBOM_batch.gboms[icount].calc_g2_cl(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.stdout)
 
 								if param_list.third_order:
-										GBOM_batch.gboms[icount].calc_g3_cl(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.four_phonon_term)
+										GBOM_batch.gboms[icount].calc_g3_cl(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.four_phonon_term,param_list.stdout)
 						# build average response function:
 						for j in range(average_response.shape[0]):
 							if param_list.exact_corr:
@@ -556,23 +526,23 @@ def compute_hybrid_GBOM_batch_MD_absorption(param_list,MDtraj,GBOM_batch,solvent
                                                         # spectral density not needed for calculation purposes in the GBOM. just print it out anyway for analysis
                                                         GBOM_batch.gboms[i].calc_spectral_dens(param_list.temperature,param_list.max_t,param_list.num_steps,param_list.decay_length,False,is_emission)
                                                         #np.savetxt(param_list.GBOM_root+'_spectral_density_exact_corr.dat', GBOM_chromophore.spectral_dens)
-                                                        GBOM_batch.gboms[i].calc_g2_qm(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission)
+                                                        GBOM_batch.gboms[i].calc_g2_qm(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.stdout)
                                                         # check if this is a 3rd order cumulant calculation
                                                         if param_list.third_order:
-                                                                GBOM_batch.gboms[i].calc_g3_qm(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.four_phonon_term)
+                                                                GBOM_batch.gboms[i].calc_g3_qm(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.four_phonon_term,param_list.stdout)
 
                                 else:
                                                 for i in range(param_list.num_gboms):
-                                                        GBOM_batch.gboms[i].calc_spectral_dens(param_list.temperature,param_list.max_t,param_list.num_steps,param_list.decay_length,True,is_emission)
+                                                        GBOM_batch.gboms[i].calc_spectral_dens(param_list.temperature,param_list.max_t,param_list.num_steps,param_list.decay_length,True,is_emission,param_list.stdout)
                                                         #np.savetxt(param_list.GBOM_root+'_spectral_density_exact_corr.dat', GBOM_chromophore.spectral_dens)
                                                         GBOM_batch.gboms[i].calc_g2_cl(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission)
                                                         if param_list.third_order:
-                                                                GBOM_batch.gboms[i].calc_g3_cl(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.four_phonon_term)
+                                                                GBOM_batch.gboms[i].calc_g3_cl(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.four_phonon_term,param_list.stdout)
 
                                 # calculate FC and 2nd order cumulant response functions for GBOM
                                 for i in range(param_list.num_gboms):
                                                 GBOM_batch.gboms[i].calc_cumulant_response(param_list.third_order,param_list.exact_corr,is_emission)
-                                                GBOM_batch.gboms[i].calc_fc_response(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission)
+                                                GBOM_batch.gboms[i].calc_fc_response(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.stdout)
                                                 # compute 2nd order cumulant divergence:
                                                 print('COMPUTING GBOM DIVERGENCE FOR GBOM NUMBER:   ',i)	
                                                 GBOM_batch.gboms[i].calc_2nd_order_divergence(param_list.temperature,param_list.exact_corr)
@@ -662,20 +632,20 @@ def compute_hybrid_GBOM_MD_absorption(param_list,MDtraj,GBOM_chromophore,solvent
                                                 # spectral density not needed for calculation purposes in the GBOM. just print it out anyway for analysis
                                                 GBOM_chromophore.calc_spectral_dens(param_list.temperature,param_list.max_t,param_list.num_steps,param_list.decay_length,False,is_emission)
                                                 np.savetxt(param_list.GBOM_root+'_spectral_density_exact_corr.dat', GBOM_chromophore.spectral_dens)
-                                                GBOM_chromophore.calc_g2_qm(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission)
+                                                GBOM_chromophore.calc_g2_qm(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.stdout)
                                                 if param_list.third_order:
-                                                                GBOM_chromophore.calc_g3_qm(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.four_phonon_term)
+                                                                GBOM_chromophore.calc_g3_qm(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.four_phonon_term,param_list.stdout)
 	
                                 else:
                                                 GBOM_chromophore.calc_spectral_dens(param_list.temperature,param_list.max_t,param_list.num_steps,param_list.decay_length,True,is_emission)
                                                 np.savetxt(param_list.GBOM_root+'_spectral_density_exact_corr.dat', GBOM_chromophore.spectral_dens)
-                                                GBOM_chromophore.calc_g2_cl(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission)
+                                                GBOM_chromophore.calc_g2_cl(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.stdout)
                                                 if param_list.third_order:
-                                                                GBOM_chromophore.calc_g3_qm(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.four_phonon_term)
+                                                                GBOM_chromophore.calc_g3_qm(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.four_phonon_term,param_list.stdout)
 
 				# calculate FC and 2nd order cumulant response functions for GBOM
                                 GBOM_chromophore.calc_cumulant_response(param_list.third_order,param_list.exact_corr,is_emission)
-                                GBOM_chromophore.calc_fc_response(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission)	
+                                GBOM_chromophore.calc_fc_response(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.stdout)	
 				
 				# now build effective response function
                                 eff_response=GBOM_chromophore.fc_response
@@ -1154,7 +1124,7 @@ elif param_set.task=='2DES':
 				filename_2DES=param_set.GBOM_root+''
 				if param_set.exact_corr:
 						GBOM.calc_omega_av_qm(param_set.temperature,False)
-						GBOM.calc_g2_qm(param_set.temperature,param_set.num_steps,param_set.max_t,False)
+						GBOM.calc_g2_qm(param_set.temperature,param_set.num_steps,param_set.max_t,False,param_set.stdout)
 						# set the start and end values for both the x and the y axis of the
 						# 2DES spectrum
 						eff_shift1=0.0
@@ -1175,7 +1145,7 @@ elif param_set.task=='2DES':
 
 						# if it is a 3rd order cumulant calculation, compute g3 and auxilliary functions h1 and h2
 						if param_set.third_order:
-								GBOM.calc_g3_qm(param_set.temperature,param_set.num_steps,param_set.max_t,False,param_set.four_phonon_term)
+								GBOM.calc_g3_qm(param_set.temperature,param_set.num_steps,param_set.max_t,False,param_set.four_phonon_term,param_set.stdout)
 
 								if os.path.exists('h1_real.dat') and os.path.exists('h1_imag.dat') and os.path.exists('h2_real.dat') and os.path.exists('h2_imag.dat') and os.path.exists('h4_real.dat') and os.path.exists('h4_imag.dat') and os.path.exists('h5_real.dat') and os.path.exists('h5_imag.dat'):
 										# read in all files:
@@ -1227,7 +1197,7 @@ elif param_set.task=='2DES':
 								twoDES.calc_pump_probe_time_series(q_func_eff,E_start,E_end,param_set.num_steps_2DES,filename_2DES,param_set.pump_energy,param_set.num_time_samples_2DES,param_set.t_step_2DES,0.0)
 				else:
 						GBOM.calc_omega_av_cl(param_set.temperature,False)
-						GBOM.calc_g2_cl(param_set.temperature,param_set.num_steps,param_set.max_t,False)
+						GBOM.calc_g2_cl(param_set.temperature,param_set.num_steps,param_set.max_t,False,param_set.stdout)
 						# set the start and end values for both the x and the y axis of the
 						# 2DES spectrum
 						eff_shift1=0.0
@@ -1246,7 +1216,7 @@ elif param_set.task=='2DES':
 
 						# if it is a 3rd order cumulant calculation, compute g3 and auxilliary functions h1 and h2
 						if param_set.third_order:
-								GBOM.calc_g3_cl(param_set.temperature,param_set.num_steps,param_set.max_t,False,param_set.four_phonon_term)
+								GBOM.calc_g3_cl(param_set.temperature,param_set.num_steps,param_set.max_t,False,param_set.four_phonon_term,param_set.stdout)
 								if os.path.exists('h1_real.dat') and os.path.exists('h1_imag.dat') and os.path.exists('h2_real.dat') and os.path.exists('h2_imag.dat') and os.path.exists('h4_real.dat') and os.path.exists('h4_imag.dat') and os.path.exists('h5_real.dat') and os.path.exists('h5_imag.dat'):
 										# read in all files:
 										GBOM.h1_cl=twoDES.read_2D_spectrum('h1_real.dat',param_set.num_steps)
@@ -1342,11 +1312,11 @@ elif param_set.task=='2DES':
                                                                                 # compute energy gap without 0-0 transition
 										GBOM_batch.gboms[icount].E_adiabatic=average_E_adiabatic
 										GBOM_batch.gboms[icount].calc_omega_av_qm(param_set.temperature,False)
-										GBOM_batch.gboms[icount].calc_g2_qm(param_set.temperature,param_set.num_steps,param_set.max_t,False)
+										GBOM_batch.gboms[icount].calc_g2_qm(param_set.temperature,param_set.num_steps,param_set.max_t,False,param_set.stdout)
 								else:
 										GBOM_batch.gboms[icount].E_adiabatic=average_E_adiabatic
 										GBOM_batch.gboms[icount].calc_omega_av_cl(param_list.temperature,is_emission)
-										GBOM_batch.gboms[icount].calc_g2_cl(param_set.temperature,param_set.num_steps,param_set.max_t,False)
+										GBOM_batch.gboms[icount].calc_g2_cl(param_set.temperature,param_set.num_steps,param_set.max_t,False,param_set.stdout)
 
 						#HACK
 						E_start=Eopt_av+average_Egap-param_set.spectral_window/2.0
@@ -1389,11 +1359,11 @@ elif param_set.task=='2DES':
 						# figure out start and end value for the spectrum.
 								if param_set.exact_corr:
 										GBOM_batch.gboms[icount].calc_omega_av_qm(param_set.temperature,False)
-										GBOM_batch.gboms[icount].calc_g2_qm(param_set.temperature,param_set.num_steps,param_set.max_t,False)
+										GBOM_batch.gboms[icount].calc_g2_qm(param_set.temperature,param_set.num_steps,param_set.max_t,False,param_set.stdout)
 										average_Egap=average_Egap+GBOM_batch.gboms[icount].omega_av_qm
 								else:
 										GBOM_batch.gboms[icount].calc_g2_cl(param_set.temperature,param_set.num_steps,param_set.max_t,False)
-										GBOM_batch.gboms[icount].calc_omega_av_cl(param_list.temperature,is_emission)
+										GBOM_batch.gboms[icount].calc_omega_av_cl(param_list.temperature,is_emission,param_set.stdout)
 										average_Egap=average_Egap+GBOM_batch.gboms[icount].omega_av_cl
 
 								icount=icount+1

@@ -214,27 +214,27 @@ class gbom:
 		else:
 			self.spectral_dens=gbom_cumulant_response.compute_spectral_dens(self.freqs_gs,self.Omega_sq,self.gamma,kbT,max_t,max_steps,decay_length,is_cl)
 	
-	def calc_g2_cl(self,temp,num_points,max_time,is_emission):
+	def calc_g2_cl(self,temp,num_points,max_time,is_emission,stdout):
 		kbT=const.kb_in_Ha*temp
 		if is_emission:
-			self.g2_cl=gbom_cumulant_response.full_2nd_order_lineshape(self.freqs_gs_emission,self.freqs_ex_emission,self.K_emission,self.J_emission,self.gamma,self.Omega_sq,kbT,self.omega_av_cl,max_time,num_points,True,is_emission,self.E_adiabatic)
+			self.g2_cl=gbom_cumulant_response.full_2nd_order_lineshape(self.freqs_gs_emission,self.freqs_ex_emission,self.K_emission,self.J_emission,self.gamma,self.Omega_sq,kbT,self.omega_av_cl,max_time,num_points,True,is_emission,self.E_adiabatic,stdout)
 		else:
-			self.g2_cl=gbom_cumulant_response.full_2nd_order_lineshape(self.freqs_gs,self.freqs_ex,self.K,self.J,self.gamma,self.Omega_sq,kbT,self.omega_av_cl,max_time,num_points,True,is_emission,self.E_adiabatic)
+			self.g2_cl=gbom_cumulant_response.full_2nd_order_lineshape(self.freqs_gs,self.freqs_ex,self.K,self.J,self.gamma,self.Omega_sq,kbT,self.omega_av_cl,max_time,num_points,True,is_emission,self.E_adiabatic,stdout)
 
 
-	def calc_g3_cl(self,temp,num_points,max_time,is_emission,four_phonon_term):
+	def calc_g3_cl(self,temp,num_points,max_time,is_emission,four_phonon_term,stdout):
 		kbT=const.kb_in_Ha*temp
 		if is_emission:
-			self.g3_cl=gbom_cumulant_response.full_third_order_lineshape(self.freqs_gs_emission,self.Omega_sq,self.gamma,kbT,max_time,num_points,True,four_phonon_term)
+			self.g3_cl=gbom_cumulant_response.full_third_order_lineshape(self.freqs_gs_emission,self.Omega_sq,self.gamma,kbT,max_time,num_points,True,four_phonon_term,stdout)
 		else:
-			self.g3_cl=gbom_cumulant_response.full_third_order_lineshape(self.freqs_gs,self.Omega_sq,self.gamma,kbT,max_time,num_points,True,four_phonon_term)
+			self.g3_cl=gbom_cumulant_response.full_third_order_lineshape(self.freqs_gs,self.Omega_sq,self.gamma,kbT,max_time,num_points,True,four_phonon_term,stdout)
 
-	def calc_g3_qm(self,temp,num_points,max_time,is_emission,four_phonon_term):
+	def calc_g3_qm(self,temp,num_points,max_time,is_emission,four_phonon_term,stdout):
 		kbT=const.kb_in_Ha*temp
 		if is_emission:
-			self.g3_exact=gbom_cumulant_response.full_third_order_lineshape(self.freqs_gs_emission,self.Omega_sq,self.gamma,kbT,max_time,num_points,False,four_phonon_term)
+			self.g3_exact=gbom_cumulant_response.full_third_order_lineshape(self.freqs_gs_emission,self.Omega_sq,self.gamma,kbT,max_time,num_points,False,four_phonon_term,stdout)
 		else:
-			self.g3_exact=gbom_cumulant_response.full_third_order_lineshape(self.freqs_gs,self.Omega_sq,self.gamma,kbT,max_time,num_points,False,four_phonon_term)
+			self.g3_exact=gbom_cumulant_response.full_third_order_lineshape(self.freqs_gs,self.Omega_sq,self.gamma,kbT,max_time,num_points,False,four_phonon_term,stdout)
 
 	def calc_h4_qm(self,temp,num_points,max_time,no_dusch,four_phonon_term):
 		kbT=const.kb_in_Ha*temp
@@ -268,12 +268,12 @@ class gbom:
 		kbT=const.kb_in_Ha*temp
 		self.h2_cl=gbom_cumulant_response.full_h2_func(self.freqs_gs,self.Omega_sq,self.gamma,kbT,max_time,num_points,True,no_dusch,four_phonon_term)
 
-	def calc_g2_qm(self,temp,num_points,max_time,is_emission):
+	def calc_g2_qm(self,temp,num_points,max_time,is_emission,stdout):
 		kbT=const.kb_in_Ha*temp
 		if is_emission:
-			self.g2_exact=gbom_cumulant_response.full_2nd_order_lineshape(self.freqs_gs_emission,self.freqs_ex_emission,self.K_emission,self.J_emission,self.gamma,self.Omega_sq,kbT,self.omega_av_qm,max_time,num_points,False,is_emission,self.E_adiabatic)
+			self.g2_exact=gbom_cumulant_response.full_2nd_order_lineshape(self.freqs_gs_emission,self.freqs_ex_emission,self.K_emission,self.J_emission,self.gamma,self.Omega_sq,kbT,self.omega_av_qm,max_time,num_points,False,is_emission,self.E_adiabatic,stdout)
 		else:
-			self.g2_exact=gbom_cumulant_response.full_2nd_order_lineshape(self.freqs_gs,self.freqs_ex,self.K,self.J,self.gamma,self.Omega_sq,kbT,self.omega_av_qm,max_time,num_points,False,is_emission,self.E_adiabatic)
+			self.g2_exact=gbom_cumulant_response.full_2nd_order_lineshape(self.freqs_gs,self.freqs_ex,self.K,self.J,self.gamma,self.Omega_sq,kbT,self.omega_av_qm,max_time,num_points,False,is_emission,self.E_adiabatic,stdout)
 
 	def calc_omega_av_cl(self,temp,is_emission):
 		kbT=const.kb_in_Ha*temp
@@ -300,21 +300,21 @@ class gbom:
 			omega_g_sq=get_omega_sq(self.freqs_gs)
 			self.ensemble_response=gbom_ensemble_response.compute_ensemble_response(self.freqs_gs,self.freqs_ex,self.J,self.K,self.E_adiabatic,self.lambda_0,self.gamma,self.Omega_sq,omega_e_sq,omega_g_sq,kbT,num_points,max_time,is_qm,is_emission)
 
-	def calc_fc_response(self,temp,num_points,max_time,is_emission):
+	def calc_fc_response(self,temp,num_points,max_time,is_emission,stdout):
 		kbT=const.kb_in_Ha*temp
 		if is_emission:
 			 self.fc_response=franck_condon_response.compute_full_response_func(self.freqs_gs_emission,self.freqs_ex_emission,self.J_emission,self.K_emission,self.E_adiabatic,kbT,num_points,max_time,is_emission)
 		else:
-			self.fc_response=franck_condon_response.compute_full_response_func(self.freqs_gs,self.freqs_ex,self.J,self.K,self.E_adiabatic,kbT,num_points,max_time,is_emission)
+			self.fc_response=franck_condon_response.compute_full_response_func(self.freqs_gs,self.freqs_ex,self.J,self.K,self.E_adiabatic,kbT,num_points,max_time,is_emission,stdout)
 
 	# differentiate between absorption and emission, and whether this is a Quantum Wigner distribution or classical 
 	# distribution for the ensemble sampling
-	def calc_eztfc_response(self,temp,num_points,max_time,is_qm,is_emission):
+	def calc_eztfc_response(self,temp,num_points,max_time,is_qm,is_emission,stdout):
 		low_temp_kbT=10.0*const.kb_in_Ha   # needed for computing low temperature FC limit. Set T to 10 K
 		if is_emission:
-			ztfc_resp=franck_condon_response.compute_full_response_func(self.freqs_gs_emission,self.freqs_ex_emission,self.J_emission,self.K_emission,self.E_adiabatic,low_temp_kbT,num_points,max_time,is_emission)
+			ztfc_resp=franck_condon_response.compute_full_response_func(self.freqs_gs_emission,self.freqs_ex_emission,self.J_emission,self.K_emission,self.E_adiabatic,low_temp_kbT,num_points,max_time,is_emission,stdout)
 		else: 
-			ztfc_resp=franck_condon_response.compute_full_response_func(self.freqs_gs,self.freqs_ex,self.J,self.K,self.E_adiabatic,low_temp_kbT,num_points,max_time,is_emission)
+			ztfc_resp=franck_condon_response.compute_full_response_func(self.freqs_gs,self.freqs_ex,self.J,self.K,self.E_adiabatic,low_temp_kbT,num_points,max_time,is_emission,stdout)
 		kbT=temp*const.kb_in_Ha
 		# implement this so it works either with quantum wigner or classical distribution of nuclei
 		if is_emission:
@@ -395,11 +395,11 @@ class gbom_list:
 			counter=counter+1
 		self.avEnsemble_response[:,1]=self.avEnsemble_response[:,1]/(1.0*self.num_gboms)
 
-	def calc_avZTFC_response(self,num_points,max_time,is_emission):
+	def calc_avZTFC_response(self,num_points,max_time,is_emission,stdout):
 		low_temp_kbT=10.0*const.kb_in_Ha
 		counter=0
 		while counter<self.num_gboms:
-			ztfc_resp=franck_condon_response.compute_full_response_func(self[counter].freqs_gs,self[counter].freqs_ex,self[counter].J,self[counter].K,0.0,low_temp_kbT,num_points,max_time,is_emission)
+			ztfc_resp=franck_condon_response.compute_full_response_func(self[counter].freqs_gs,self[counter].freqs_ex,self[counter].J,self[counter].K,0.0,low_temp_kbT,num_points,max_time,is_emission,stdout)
 			if counter==0:
 				self.avZTFC_response=ztfc_resp
 			else:
@@ -408,13 +408,13 @@ class gbom_list:
 			counter=counter+1
 		self.avZTFC_response[:,1]=self.avZTFC_response[:,1]/(1.0*self.num_gboms)
 
-	def calc_avFTFC_response(self,temp,num_points,max_time,is_emission):     
+	def calc_avFTFC_response(self,temp,num_points,max_time,is_emission,stdout):     
 		kbT=temp*const.kb_in_Ha
 		counter=0
 		print('Compute FTFC response for GBOM batch.')
 		while counter<self.num_gboms:
-			print('Processing batch	'+str(counter))
-			ftfc_resp=franck_condon_response.compute_full_response_func(self[counter].freqs_gs,self[counter].freqs_ex,self[counter].J,self[couinter].K,0.0,kbT,num_points,max_time,is_emission)
+			stdout.write('PROCESSING BATCH	'+str(counter))
+			ftfc_resp=franck_condon_response.compute_full_response_func(self[counter].freqs_gs,self[counter].freqs_ex,self[counter].J,self[couinter].K,0.0,kbT,num_points,max_time,is_emission,stdout)
 			if counter==0:
 				self.avFTFC_response=ftfc_resp
 			else:
@@ -423,11 +423,12 @@ class gbom_list:
 			counter=counter+1
 		self.avFTFC_response[:,1]=self.avFTFC_response[:,1]/(1.0*self.num_gboms)
 
-	def calc_full_FTFC_response(self,temp,num_points,max_time,is_emission):
+	def calc_full_FTFC_response(self,temp,num_points,max_time,is_emission,stdout):
 		kbT=temp*const.kb_in_Ha
 		counter=0
 		while counter<self.num_gboms:
-			ftfc_resp=franck_condon_response.compute_full_response_func(self[counter].freqs_gs,self[counter].freqs_ex,self[counter].J,self[counter].K,self[counter].E_adiabatic,kbT,num_points,max_time,is_emission)
+			stdout.write('PROCESSING BATCH  '+str(counter))
+			ftfc_resp=franck_condon_response.compute_full_response_func(self[counter].freqs_gs,self[counter].freqs_ex,self[counter].J,self[counter].K,self[counter].E_adiabatic,kbT,num_points,max_time,is_emission,stdout)
 			if counter==0:
 				self.full_FTFC_response=ftfc_resp
 			else:
