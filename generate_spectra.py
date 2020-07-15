@@ -37,7 +37,54 @@ from spec_pkg.Morse import morse
 # 8) Curvilinear coordinates instead of normal mode coordinates for the GBOM    #
 #        which will help with large amplitude motion for low frequency modes    #
 #        that tend to break the Condon approximation                            #
+# 9) Cumulant approach is only valid if energy gap fluctuations are Gaussian    #
+#    We need to implement a measure of Gaussian-ness for the energy gap flucts  #
+#    of the GBOM and calulate it in the beginning.                              #
 #################################################################################
+
+def print_banner(stdout):
+		stdout.write('\n')
+		stdout.write('    ###########################################################'+'\n')
+		stdout.write('    ###########################################################'+'\n')
+		stdout.write('    #  __  __       _ ____                  _    ____         #'+'\n')
+		stdout.write('    # |  \/  | ___ | / ___| ____   ___  ___| | _|  _ \ _  __  #'+'\n')
+		stdout.write('    # | |\/| |/ _ \| \___ \| ._ \ / _ \/ __| |/ / |_) | | | | #'+'\n')
+		stdout.write('    # | |  | | (_) | |___) | |_) |  __/ (__|   <|  __/| |_| | #'+'\n')
+		stdout.write('    # |_|  |_|\___/|_|____/| .__/ \___|\___|_|\_\_|    \__, | #'+'\n')
+		stdout.write('    #                      |_|                         |___/  #'+'\n')
+		stdout.write('    ###########################################################'+'\n')
+		stdout.write('    ###########################################################'+'\n')
+		stdout.write('    #                     Version 0.1                         #'+'\n')
+		stdout.write('    # Copyright (C) 2019-2020 Tim J. Zuehlsdorff. The source  #'+'\n')
+		stdout.write('    # code is subject to the terms of the Mozilla Public      #'+'\n')
+		stdout.write('    # License, v. 2.0. This program is distributed in the     #'+'\n')
+		stdout.write('    # hope that it will be useful, but WITHOUT ANY WARRANTY.  #'+'\n')
+		stdout.write('    # See the Mozilla Public License, v. 2.0 for details.     #'+'\n')
+		stdout.write('    ###########################################################'+'\n')
+		stdout.write('    #                   Acknowledgements:                     #'+'\n')
+		stdout.write('    # The purpose of this code is to generate linear and non- #'+'\n')
+		stdout.write('    # linear optical spectra for a variety of realistic and   #'+'\n')
+		stdout.write('    # simplified model systems in a variety of different      #'+'\n')
+		stdout.write('    # approximations.                                         #'+'\n')
+		stdout.write('    # The underlying algorithms implemented in this code are  #'+'\n')
+		stdout.write('    # described in the following publications:                #'+'\n')
+		stdout.write('    # 1) T. J. Zuehlsdorff, A. Montoya-Castillo, J. A. Napoli,#'+'\n')
+		stdout.write('    #    T. E. Markland, and C. M. Isborn, J. Chem. Phys. 151 #'+'\n')
+		stdout.write('    #    074111 (2019).                                       #'+'\n')
+		stdout.write('    # 2) T. J. Zuehlsdorff, H. Hong, L. Shi, and C. M. Isborn,#'+'\n')
+		stdout.write('    #    https://doi.org/10.26434/chemrxiv.12302018.v1 (2020) #'+'\n')
+		stdout.write('    # 3) T. J. Zuehlsdorff, and C. M. Isborn, J. Chem. Phys.  #'+'\n')
+		stdout.write('    #    148, 024110 (2018).                                  #'+'\n')
+		stdout.write('    # 4) T. J. Zuehlsdorff, J. A. Napoli, J. M. Milanese, T.  #'+'\n')
+		stdout.write('    #    E. Markland, and C. M. Isborn, J. Chem. Phys. 149,   #'+'\n')
+		stdout.write('    #    024107 (2018).                                       #'+'\n')
+		stdout.write('    # The code for computing Franck-Condon linear absorption  #'+'\n')
+		stdout.write('    # and emission spectra is based on the algorithm des-     #'+'\n')
+		stdout.write('    # cribed in: B. de Souza, F. Neese, and R. Izsak, J.      #'+'\n')
+		stdout.write('    # Chem. Phys. 148, 034104 (2018).                         #'+'\n')
+		stdout.write('    # Part of the interface between MolSpeckPy and Terachem   #'+'\n')
+		stdout.write('    # is based on code originally written by Ajay Khanna.     #'+'\n')
+		stdout.write('    ###########################################################'+'\n'+'\n')                                 
 
 # Compute the absorption spectrum for a Morse oscillator with 2 frequencies coupled by 
 # a Duschinsky rotation 
@@ -728,6 +775,8 @@ if os.path.exists(input_file):
 		param_set=params.params(input_file)
 else:
 		sys.exit('Error: Could not find input file')
+
+print_banner(param_set.stdout)
 
 param_set.stdout.write('Successfully parsed the input file!'+'\n')
 param_set.stdout.write('Now starting spectrum calculation'+'\n')
