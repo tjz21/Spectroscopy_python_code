@@ -34,9 +34,10 @@ class solvent_model:
 	def calc_spectral_dens(self,num_points):
 		self.spectral_dens=solvent_spectral_dens(self.cutoff_freq,self.reorg,self.cutoff_freq*20.0,num_points)
 
-	def calc_g2_solvent(self,temp,num_points,max_t):
+	def calc_g2_solvent(self,temp,num_points,max_t,stdout):
+		stdout.write('Compute the cumulant lineshape function for a solvent bath made up of an infinite set of harmonic oscillators.')
 		kbT=const.kb_in_Ha*temp
-		self.g2_solvent=cumulant.compute_2nd_order_cumulant_from_spectral_dens(self.spectral_dens,kbT,max_t,num_points)
+		self.g2_solvent=cumulant.compute_2nd_order_cumulant_from_spectral_dens(self.spectral_dens,kbT,max_t,num_points,stdout)
 
 	def calc_solvent_response(self,is_emission):
 		counter=0

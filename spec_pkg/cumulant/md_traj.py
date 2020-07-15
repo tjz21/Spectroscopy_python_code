@@ -89,8 +89,19 @@ def mean_of_func_batch(func):
 	for x in func:
 		for y in x:
 			mean=mean+y
+	mean=mean/(func.shape[0]*func.shape[1])
+	sd=0.0
+	skew=0.0
+	for x in func:
+		for y in x:
+			sd=sd+(y-mean)**2.0
+			skew=skew+(y-mean)**3.0
 
-	return mean/(func.shape[0]*func.shape[1])/const.Ha_to_eV
+	mean=mean/const.Ha_to_eV
+	sd=np.sqrt(sd/(func.shape[0]*func.shape[1])/const.Ha_to_eV)
+	skew=(skew/const.Ha_to_eV)/((func.shape[0]*func.shape[1])*sd**3.0)
+
+	return mean,sd,skew
 
 # generate an array of trajectory functions from files
 def get_all_trajs(num_trajs,name_list):
@@ -117,8 +128,12 @@ class MDtrajs:
 		self.num_trajs=num_trajs
 		stdout.write('Building an MD trajectory model:'+'\n')
 		stdout.write('Number of independent trajectories:   '+str(num_trajs)+'\n')
-		self.mean=mean_of_func_batch(trajs)
+		self.mean,sd,skew=mean_of_func_batch(trajs)
 		stdout.write('Mean thermal energy gap:    '+str(self.mean)+'  Ha'+'\n')
+		stdout.write('Standard deviation of energy gap fluctuations: '+str(sd)+' Ha'+'\n')
+		if abs(skew)>0.3: # check for large skewness parameter
+			stdout.write('WARNING: Large skewness value of '+str(skew)+' detected in energy gap fluctuations.'+'\n')
+			stdout.write('This means that the energy gap fluctuations are likely non-Gaussian in nature and low-order cumulant expansions might be unreliable!'+'\n'+'\n')
 
 		self.fluct=get_fluctuations(trajs,self.mean)
 		self.dipole_mom=get_dipole_mom(oscillators,trajs)
@@ -158,27 +173,27 @@ class MDtrajs:
 	def calc_2nd_order_corr(self):
 		self.corr_func_cl=cumulant.construct_corr_func(self.fluct,self.num_trajs,self.tau,self.time_step)
 
-	def calc_3rd_order_corr(self,corr_length):
-		self.corr_func_3rd_cl=cumulant.construct_corr_func_3rd(self.fluct,self.num_trajs,corr_length,self.tau,self.time_step)
+	def calc_3rd_order_corr(self,corr_length,stdout):
+		self.corr_func_3rd_cl=cumulant.construct_corr_func_3rd(self.fluct,self.num_trajs,corr_length,self.tau,self.time_step,stdout)
 
 	def calc_spectral_dens(self,temp):
 		kbT=temp*const.kb_in_Ha
 		sampling_rate=1.0/self.time_step*math.pi*2.0   # angular frequency associated with the sampling time step
 		self.spectral_dens=cumulant.compute_spectral_dens(self.corr_func_cl,kbT, sampling_rate,self.time_step)
 
-	def calc_g2(self,temp,max_t,num_steps):
+	def calc_g2(self,temp,max_t,num_steps,stdout):
 		kbT=temp*const.kb_in_Ha
-		self.g2=cumulant.compute_2nd_order_cumulant_from_spectral_dens(self.spectral_dens,kbT,max_t,num_steps)
+		self.g2=cumulant.compute_2nd_order_cumulant_from_spectral_dens(self.spectral_dens,kbT,max_t,num_steps,stdout)
 
 	def calc_corr_func_3rd_qm_freq(self,temp,low_freq_filter):
 		kbT=temp*const.kb_in_Ha
 		sampling_rate_in_fs=1.0/(self.time_step*const.fs_to_Ha)
 		self.corr_func_3rd_qm_freq=cumulant.construct_corr_func_3rd_qm_freq(self.corr_func_3rd_cl,kbT,sampling_rate_in_fs,low_freq_filter)
 
-	def calc_g3(self,temp,max_t,num_steps,low_freq_filter):
+	def calc_g3(self,temp,max_t,num_steps,low_freq_filter,stdout):
 		kbT=temp*const.kb_in_Ha
 		sampling_rate_in_fs=1.0/(self.time_step*const.fs_to_Ha)
-		self.g3=cumulant.compute_lineshape_func_3rd(self.corr_func_3rd_cl,kbT,sampling_rate_in_fs,max_t,num_steps,low_freq_filter)
+		self.g3=cumulant.compute_lineshape_func_3rd(self.corr_func_3rd_cl,kbT,sampling_rate_in_fs,max_t,num_steps,low_freq_filter,stdout)
 
 	def calc_h1(self,max_t,num_steps):
 		self.h1=cumulant.compute_h1_func(self.corr_func_3rd_qm_freq,max_t,num_steps)

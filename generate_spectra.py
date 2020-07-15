@@ -45,7 +45,7 @@ def compute_coupled_morse_absorption(param_list,coupled_morse,solvent,is_emissio
 		# first compute solvent response. This is NOT optional for the Morse oscillator, same
                 # as in the GBOM
                 solvent.calc_spectral_dens(param_list.num_steps)
-                solvent.calc_g2_solvent(param_list.temperature,param_list.num_steps,param_list.max_t)
+                solvent.calc_g2_solvent(param_list.temperature,param_list.num_steps,param_list.max_t,param_list.stdout)
                 solvent.calc_solvent_response(is_emission)
 
                 # figure out start and end values over which we compute the spectrum
@@ -87,7 +87,7 @@ def compute_morse_absorption(param_list,morse_oscs,solvent,is_emission):
 		# first compute solvent response. This is NOT optional for the Morse oscillator, same
 		# as in the GBOM
 		solvent.calc_spectral_dens(param_list.num_steps)
-		solvent.calc_g2_solvent(param_list.temperature,param_list.num_steps,param_list.max_t)
+		solvent.calc_g2_solvent(param_list.temperature,param_list.num_steps,param_list.max_t,param_list.stdout)
 		solvent.calc_solvent_response(is_emission)
 
 		# figure out start and end values over which we compute the spectrum
@@ -142,7 +142,7 @@ def compute_morse_absorption(param_list,morse_oscs,solvent,is_emission):
 def compute_GBOM_absorption(param_list,GBOM_chromophore,solvent,is_emission):
 		# first compute solvent response
 		solvent.calc_spectral_dens(param_list.num_steps)
-		solvent.calc_g2_solvent(param_list.temperature,param_list.num_steps,param_list.max_t)
+		solvent.calc_g2_solvent(param_list.temperature,param_list.num_steps,param_list.max_t,param_list.stdout)
 		solvent.calc_solvent_response(is_emission)
 
 		# if this is an emission calculation, need to reset some standard gbom parameters:
@@ -261,7 +261,7 @@ def compute_GBOM_absorption(param_list,GBOM_chromophore,solvent,is_emission):
 def compute_GBOM_batch_absorption(param_list,GBOM_batch,solvent,is_emission):
 		# first compute solvent response
 		solvent.calc_spectral_dens(param_list.num_steps)
-		solvent.calc_g2_solvent(param_list.temperature,param_list.num_steps,param_list.max_t)
+		solvent.calc_g2_solvent(param_list.temperature,param_list.num_steps,param_list.max_t,param_list.stdout)
 		solvent.calc_solvent_response(is_emission)
 		
 		# Now make sure that we have only a single average spectral window for the GBOM batch. 
@@ -475,7 +475,7 @@ def compute_hybrid_GBOM_batch_MD_absorption(param_list,MDtraj,GBOM_batch,solvent
                 # first check if we need a solvent model:
                 if param_list.is_solvent:
                                 solvent.calc_spectral_dens(param_list.num_steps)
-                                solvent.calc_g2_solvent(param_list.temperature,param_list.num_steps,param_list.max_t)
+                                solvent.calc_g2_solvent(param_list.temperature,param_list.num_steps,param_list.max_t,param_list.stdout)
                                 solvent.calc_solvent_response(is_emission)
 
                 # now fix energy range
@@ -506,14 +506,12 @@ def compute_hybrid_GBOM_batch_MD_absorption(param_list,MDtraj,GBOM_batch,solvent
                                 MDtraj.calc_2nd_order_corr()
                                 MDtraj.calc_spectral_dens(param_list.temperature_MD)
                                 np.savetxt(param_list.MD_root+'MD_spectral_density.dat', MDtraj.spectral_dens)
-                                MDtraj.calc_g2(param_list.temperature,param_list.max_t,param_list.num_steps)
-                                print('g2 FUNC MD')
-                                print(MDtraj.g2)
+                                MDtraj.calc_g2(param_list.temperature,param_list.max_t,param_list.num_steps,param_list.stdout)
                                 if param_list.third_order:
-                                                MDtraj.calc_3rd_order_corr(param_list.corr_length_3rd)
+                                                MDtraj.calc_3rd_order_corr(param_list.corr_length_3rd,param_list.stdout)
                                                 # technically, in 3rd order cumulant, can have 2 different temperatures again. one at
                                                 # which the MD was performed and one at wich the spectrum is simulated. Fix this...
-                                                MDtraj.calc_g3(param_list.temperature,param_list.max_t,param_list.num_steps,param_list.low_freq_cutoff)
+                                                MDtraj.calc_g3(param_list.temperature,param_list.max_t,param_list.num_steps,param_list.low_freq_cutoff,param_list.stdout)
                                                 MDtraj.calc_cumulant_response(True,is_emission)
                                 else:
                                                 MDtraj.calc_cumulant_response(False,is_emission)
@@ -536,7 +534,7 @@ def compute_hybrid_GBOM_batch_MD_absorption(param_list,MDtraj,GBOM_batch,solvent
                                                 for i in range(param_list.num_gboms):
                                                         GBOM_batch.gboms[i].calc_spectral_dens(param_list.temperature,param_list.max_t,param_list.num_steps,param_list.decay_length,True,is_emission,param_list.stdout)
                                                         #np.savetxt(param_list.GBOM_root+'_spectral_density_exact_corr.dat', GBOM_chromophore.spectral_dens)
-                                                        GBOM_batch.gboms[i].calc_g2_cl(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission)
+                                                        GBOM_batch.gboms[i].calc_g2_cl(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.stdout)
                                                         if param_list.third_order:
                                                                 GBOM_batch.gboms[i].calc_g3_cl(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.four_phonon_term,param_list.stdout)
 
@@ -587,7 +585,7 @@ def compute_hybrid_GBOM_MD_absorption(param_list,MDtraj,GBOM_chromophore,solvent
                 # first check if we need a solvent model:
                 if param_list.is_solvent:
                                 solvent.calc_spectral_dens(param_list.num_steps)
-                                solvent.calc_g2_solvent(param_list.temperature,param_list.num_steps,param_list.max_t)
+                                solvent.calc_g2_solvent(param_list.temperature,param_list.num_steps,param_list.max_t,param_list.stdout)
                                 solvent.calc_solvent_response(is_emission)
                 print('Solvent response:')
                 print(solvent.solvent_response) 
@@ -617,12 +615,12 @@ def compute_hybrid_GBOM_MD_absorption(param_list,MDtraj,GBOM_chromophore,solvent
                                 MDtraj.calc_2nd_order_corr()
                                 MDtraj.calc_spectral_dens(param_list.temperature_MD)
                                 np.savetxt(param_list.MD_root+'MD_spectral_density.dat', MDtraj.spectral_dens)
-                                MDtraj.calc_g2(param_list.temperature,param_list.max_t,param_list.num_steps)
+                                MDtraj.calc_g2(param_list.temperature,param_list.max_t,param_list.num_steps,param_list.stdout)
                                 if param_list.third_order:
-                                                MDtraj.calc_3rd_order_corr(param_list.corr_length_3rd)
+                                                MDtraj.calc_3rd_order_corr(param_list.corr_length_3rd,param_list.stdout)
                                                 # technically, in 3rd order cumulant, can have 2 different temperatures again. one at
                                                 # which the MD was performed and one at wich the spectrum is simulated. Fix this...
-                                                MDtraj.calc_g3(param_list.temperature,param_list.max_t,param_list.num_steps,param_list.low_freq_cutoff)
+                                                MDtraj.calc_g3(param_list.temperature,param_list.max_t,param_list.num_steps,param_list.low_freq_cutoff,param_list.stdout)
                                                 MDtraj.calc_cumulant_response(True,is_emission)
                                 else:
                                                 MDtraj.calc_cumulant_response(False,is_emission)
@@ -672,7 +670,7 @@ def compute_MD_absorption(param_list,MDtraj,solvent,is_emission):
 		# first check if we need a solvent model:
 		if param_list.is_solvent:
 				solvent.calc_spectral_dens(param_list.num_steps)
-				solvent.calc_g2_solvent(param_list.temperature,param_list.num_steps,param_list.max_t)
+				solvent.calc_g2_solvent(param_list.temperature,param_list.num_steps,param_list.max_t,param_list.stdout)
 				solvent.calc_solvent_response(is_emission)
 		# now fix energy range
 		E_start=MDtraj.mean-param_list.spectral_window/2.0
@@ -683,12 +681,12 @@ def compute_MD_absorption(param_list,MDtraj,solvent,is_emission):
 				MDtraj.calc_2nd_order_corr()
 				MDtraj.calc_spectral_dens(param_list.temperature_MD)
 				np.savetxt(param_list.MD_root+'MD_spectral_density.dat', MDtraj.spectral_dens)
-				MDtraj.calc_g2(param_list.temperature,param_list.max_t,param_list.num_steps)
+				MDtraj.calc_g2(param_list.temperature,param_list.max_t,param_list.num_steps,param_list.stdout)
 				if param_list.third_order:
-						MDtraj.calc_3rd_order_corr(param_list.corr_length_3rd)
+						MDtraj.calc_3rd_order_corr(param_list.corr_length_3rd,param_list.stdout)
 						# technically, in 3rd order cumulant, can have 2 different temperatures again. one at
 						# which the MD was performed and one at wich the spectrum is simulated. Fix this...
-						MDtraj.calc_g3(param_list.temperature,param_list.max_t,param_list.num_steps,param_list.low_freq_cutoff)
+						MDtraj.calc_g3(param_list.temperature,param_list.max_t,param_list.num_steps,param_list.low_freq_cutoff,param_list.stdout)
 						MDtraj.calc_cumulant_response(True,is_emission)
 				else:
 						MDtraj.calc_cumulant_response(False,is_emission)
@@ -1124,7 +1122,7 @@ elif param_set.task=='2DES':
 						sys.exit('Error: Pure GBOM calculations require some form of additional solvent broadening provided by a solvent model')
 
 				solvent_mod.calc_spectral_dens(param_set.num_steps)
-				solvent_mod.calc_g2_solvent(param_set.temperature,param_set.num_steps,param_set.max_t)
+				solvent_mod.calc_g2_solvent(param_set.temperature,param_set.num_steps,param_set.max_t,param_set.stdout)
 				filename_2DES=param_set.GBOM_root+''
 				if param_set.exact_corr:
 						GBOM.calc_omega_av_qm(param_set.temperature,False)
@@ -1266,7 +1264,7 @@ elif param_set.task=='2DES':
 				if param_set.method=='EOPT_AV':		# this is not an E_FTFC calculation but rather an Eopt_avFTFC calculation
 						filename_2DES=param_set.GBOM_root+''
 						solvent_mod.calc_spectral_dens(param_set.num_steps)
-						solvent_mod.calc_g2_solvent(param_set.temperature,param_set.num_steps,param_set.max_t)
+						solvent_mod.calc_g2_solvent(param_set.temperature,param_set.num_steps,param_set.max_t,param_set.stdout)
 						solvent_mod.calc_solvent_response(False)
 						
 						# get list of adiabatic energies and dipole moms. 
@@ -1352,7 +1350,7 @@ elif param_set.task=='2DES':
 
 						filename_2DES=param_set.GBOM_root+''
 						solvent_mod.calc_spectral_dens(param_set.num_steps)
-						solvent_mod.calc_g2_solvent(param_set.temperature,param_set.num_steps,param_set.max_t)
+						solvent_mod.calc_g2_solvent(param_set.temperature,param_set.num_steps,param_set.max_t,param_set.stdout)
 						solvent_mod.calc_solvent_response(False)
 
 						# Now make sure that we have only a single average spectral window for the GBOM batch. 
@@ -1366,7 +1364,7 @@ elif param_set.task=='2DES':
 										GBOM_batch.gboms[icount].calc_g2_qm(param_set.temperature,param_set.num_steps,param_set.max_t,False,param_set.stdout)
 										average_Egap=average_Egap+GBOM_batch.gboms[icount].omega_av_qm
 								else:
-										GBOM_batch.gboms[icount].calc_g2_cl(param_set.temperature,param_set.num_steps,param_set.max_t,False)
+										GBOM_batch.gboms[icount].calc_g2_cl(param_set.temperature,param_set.num_steps,param_set.max_t,False,param_set.stdout)
 										GBOM_batch.gboms[icount].calc_omega_av_cl(param_list.temperature,is_emission,param_set.stdout)
 										average_Egap=average_Egap+GBOM_batch.gboms[icount].omega_av_cl
 
@@ -1400,18 +1398,18 @@ elif param_set.task=='2DES':
 				# first check if we have a solvent model
 				if param_set.is_solvent:
 						solvent_mod.calc_spectral_dens(param_set.num_steps)
-						solvent_mod.calc_g2_solvent(param_set.temperature,param_set.num_steps,param_set.max_t)
+						solvent_mod.calc_g2_solvent(param_set.temperature,param_set.num_steps,param_set.max_t,param_set.stdout)
 				# then set up g2 for MDtraj
 				MDtraj.calc_2nd_order_corr()
 				MDtraj.calc_spectral_dens(param_set.temperature_MD)
 				np.savetxt(param_set.MD_root+'MD_spectral_density.dat', MDtraj.spectral_dens)
-				MDtraj.calc_g2(param_set.temperature,param_set.max_t,param_set.num_steps)
+				MDtraj.calc_g2(param_set.temperature,param_set.max_t,param_set.num_steps,param_set.stdout)
 				# 3rd order cumulant calculation? Then compute g_3, as well as the 3rd order quantum correlation function
 				if param_set.third_order:
-						MDtraj.calc_3rd_order_corr(param_set.corr_length_3rd)
+						MDtraj.calc_3rd_order_corr(param_set.corr_length_3rd,param_set.stdout)
 						# technically, in 3rd order cumulant, can have 2 different temperatures again. one at
 						# which the MD was performed and one at wich the spectrum is simulated. Fix this...
-						MDtraj.calc_g3(param_set.temperature,param_set.max_t,param_set.num_steps,param_set.low_freq_cutoff)
+						MDtraj.calc_g3(param_set.temperature,param_set.max_t,param_set.num_steps,param_set.low_freq_cutoff,param_set.stdout)
 						MDtraj.calc_corr_func_3rd_qm_freq(param_set.temperature_MD,param_set.low_freq_cutoff)
 						# Check if h1 and h2 are already computed and stored. computational savings...
 						if os.path.exists('h1_real.dat') and os.path.exists('h1_imag.dat') and os.path.exists('h2_real.dat') and os.path.exists('h2_imag.dat') and os.path.exists('h4_real.dat') and os.path.exists('h4_imag.dat') and os.path.exists('h5_real.dat') and os.path.exists('h5_imag.dat'):

@@ -96,7 +96,10 @@ def construct_corr_func_3rd_qm_freq(corr_func,kbT,sampling_rate_in_fs,low_freq_f
 	return eff_corr
 
 # function constructing the complete 3rd order lineshape function from a correlation function
-def compute_lineshape_func_3rd(corr_func,kbT,sampling_rate_in_fs,max_t,steps,low_freq_filter):
+def compute_lineshape_func_3rd(corr_func,kbT,sampling_rate_in_fs,max_t,steps,low_freq_filter,stdout):
+	stdout.write('\n'+"Computing third order cumulant lineshape function."+'\n')
+	if low_freq_filter>0.0:
+		 stdout.write("Applying a low pass frequency filter of "+str(low_freq_filter*const.Ha_to_cm)+' cm^(-1)'+'\n')
 	g_func=np.zeros((steps,2),dtype=np.complex)
 	# need to constuct 3rd order correlation function in the frequency domain. 
 	step_length_corr=corr_func[1,1,0]-corr_func[0,0,0]
@@ -143,6 +146,8 @@ def compute_lineshape_func_3rd(corr_func,kbT,sampling_rate_in_fs,max_t,steps,low
 			jcount=jcount+1
 		icount=icount+1
 
+
+	stdout.write('\n'+'  Step       Time (fs)          Re[g_3]         Im[g_3]'+'\n')
 	step_length=max_t/steps
 	counter=0
 	while counter<steps:
@@ -150,7 +155,7 @@ def compute_lineshape_func_3rd(corr_func,kbT,sampling_rate_in_fs,max_t,steps,low
 		g_func[counter,0]=t_current
 		integrant=integrant_3rd_order_cumulant_lineshape(corr_func_freq,freq_list,t_current,kbT)
 		g_func[counter,1]=simpson_integral_2D(integrant)   #  give x and y axis
-		print(g_func[counter,0],g_func[counter,1])
+		stdout.write("%5d      %10.4f          %10.4e           %10.4e" % (counter,t_current*const.fs_to_Ha, np.real(g_func[counter,1]), np.imag(g_func[counter,1]))+'\n')
 		counter=counter+1
 	return g_func
 
@@ -439,12 +444,14 @@ def construct_classical_3rd_order_corr_from_single_traj(fluctuations,correlation
 	return corr_func
 
 # construct the full classical 3rd order correlation function by making use of fast Fourier transforms. 
-def construct_corr_func_3rd(fluctuations,num_trajs,correlation_length,tau,time_step):
+def construct_corr_func_3rd(fluctuations,num_trajs,correlation_length,tau,time_step,stdout):
+	stdout.write('\n'+"Constructing classical 3rd order correlation function from MD trajectory."+'\n')
 	classical_corr=np.zeros((correlation_length*2+1,correlation_length*2+1,3))
 
 	traj_counter=0
 	while traj_counter<num_trajs:
 		# get classical correlation function:
+		stdout.write('Processing Trajectory '+str(traj_counter+1)+' of '+str(num_trajs))
 		temp_corr=construct_classical_3rd_order_corr_from_single_traj(fluctuations[:,traj_counter],correlation_length,time_step)
 		icount=0
 		while icount<temp_corr.shape[0]:
@@ -545,7 +552,6 @@ def construct_corr_func(fluctuations,num_trajs,tau,time_step):
 
 def calc_2nd_order_cumulant_divergence(corr_func,omega_step,time_step):
 	integral=integrate.simps(corr_func,dx=time_step)
-	print('MD_TRAJ_DIVERGENCE',integral)
 	return 	(1.0/(2.0*math.pi))*integral*omega_step
 
 def compute_spectral_dens(corr_func,kbT, sample_rate,time_step):
@@ -566,8 +572,10 @@ def compute_spectral_dens(corr_func,kbT, sample_rate,time_step):
 	return spectral_dens
 
 # define the maximum number of t points this should be calculated for and the maximum number of steps
-def compute_2nd_order_cumulant_from_spectral_dens(spectral_dens,kbT,max_t,steps):
+def compute_2nd_order_cumulant_from_spectral_dens(spectral_dens,kbT,max_t,steps,stdout):
 	q_func=np.zeros((steps,2),dtype=complex)
+	stdout.write('\n'+"Computing second order cumulant lineshape function."+'\n')
+	stdout.write('\n'+'  Step       Time (fs)          Re[g_2]         Im[g_2]'+'\n')
 	step_length=max_t/steps
 	step_length_omega=spectral_dens[1,0]-spectral_dens[0,0]
 	counter=0
@@ -576,6 +584,7 @@ def compute_2nd_order_cumulant_from_spectral_dens(spectral_dens,kbT,max_t,steps)
 		q_func[counter,0]=t_current
 		integrant=integrant_2nd_order_cumulant_lineshape(spectral_dens,t_current,kbT)
 		q_func[counter,1]=integrate.simps(integrant[:,1],dx=(integrant[1,0]-integrant[0,0]))   #  give x and y axis
+		stdout.write("%5d      %10.4f          %10.4e           %10.4e" % (counter,t_current*const.fs_to_Ha, np.real(q_func[counter,1]), np.imag(q_func[counter,1]))+'\n')
 		counter=counter+1
 	return q_func
 
