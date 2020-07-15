@@ -10,7 +10,8 @@ def get_param(filename,keyword):
 	line_count=0
 	keyword_line=9999999
 	for line in searchfile:
-		if keyword in line and keyword_line==9999999:
+		# account for comments in input file 
+		if keyword in line and keyword_line==9999999 and line[0]!='#':
 			keyword_line=line_count
 		line_count=line_count+1
 	searchfile.close()
@@ -29,7 +30,8 @@ def get_param_list(filename,keyword):
         line_count=0
         keyword_line=9999999
         for line in searchfile:
-                if keyword in line and keyword_line==9999999:
+		# account for comments in input file
+                if keyword in line and keyword_line==9999999 and line[0]!='#':
                         keyword_line=line_count
                 line_count=line_count+1
         searchfile.close()
