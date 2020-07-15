@@ -118,7 +118,6 @@ def compute_coupled_morse_absorption(param_list,coupled_morse,solvent,is_emissio
                         temp_func=np.real(coupled_morse.exact_2nd_order_corr)
                         temp_func[:,1]=np.imag(coupled_morse.exact_2nd_order_corr[:,1])
                         np.savetxt('Morse_duschinsky_2nd_order_corr_imag.dat',temp_func)
-                        print('Average energy gap:  '+str(coupled_morse.omega_av_qm))
                         coupled_morse.compute_spectral_dens()
                         np.savetxt('Morse_duschinsky_spectral_dens.dat',coupled_morse.spectral_dens)
                         coupled_morse.compute_2nd_order_cumulant_response(param_list.temperature,param_list.max_t,param_list.num_steps)
@@ -161,7 +160,6 @@ def compute_morse_absorption(param_list,morse_oscs,solvent,is_emission):
 			temp_func=np.real(morse_oscs.exact_2nd_order_corr)
 			temp_func[:,1]=np.imag(morse_oscs.exact_2nd_order_corr[:,1])
 			np.savetxt('Morse_oscs_2nd_order_corr_imag.dat',temp_func)
-			print('Average energy gap:  '+str(morse_oscs.omega_av_qm))
 			morse_oscs.compute_spectral_dens()
 			np.savetxt('Morse_oscs_spectral_dens.dat',morse_oscs.spectral_dens)
 			morse_oscs.compute_2nd_order_cumulant_response(param_list.temperature,param_list.max_t,param_list.num_steps)
@@ -201,14 +199,10 @@ def compute_GBOM_absorption(param_list,GBOM_chromophore,solvent,is_emission):
 				GBOM_chromophore.calc_omega_av_qm(param_list.temperature,is_emission)
 				E_start=GBOM_chromophore.omega_av_qm-param_list.spectral_window/2.0
 				E_end=GBOM_chromophore.omega_av_qm+param_list.spectral_window/2.0
-				print('omega av QM')
-				print(GBOM_chromophore.omega_av_qm)
 		else:
 				GBOM_chromophore.calc_omega_av_cl(param_list.temperature,is_emission)
 				E_start=GBOM_chromophore.omega_av_cl-param_list.spectral_window/2.0
 				E_end=GBOM_chromophore.omega_av_cl+param_list.spectral_window/2.0
-				print('omega av cl')
-				print(GBOM_chromophore.omega_av_cl)
 
 
 		if param_list.method=='ENSEMBLE':
@@ -350,7 +344,6 @@ def compute_GBOM_batch_absorption(param_list,GBOM_batch,solvent,is_emission):
 
 		# cumulant spectrum for all elements in the GBOM batch. The result is the summed spectrum
 		elif param_list.method=='CUMULANT':
-				print('Computing Cumulant response')
 				icount=0
 				spectrum=np.zeros((param_list.num_steps,2))
 				while icount<GBOM_batch.num_gboms:
@@ -448,7 +441,6 @@ def compute_GBOM_batch_absorption(param_list,GBOM_batch,solvent,is_emission):
 						else:
 							GBOM_batch.gboms[icount].calc_omega_av_cl(param_list.temperature,is_emission)
 
-						print('Adjusted GBOM energy and dipole mom and omega_av:', GBOM_batch.gboms[icount].E_adiabatic,GBOM_batch.gboms[icount].dipole_mom,GBOM_batch.gboms[icount].omega_av_qm)
 						icount=icount+1
 
 				# now compute average response function. Important: Average response function, NOT lineshape function
@@ -457,7 +449,6 @@ def compute_GBOM_batch_absorption(param_list,GBOM_batch,solvent,is_emission):
 				while icount<GBOM_batch.num_gboms:
 						if param_list.exact_corr:
 								# spectral density not needed for calculation purposes in the GBOM. just print it out anyway for analysis
-								print('OMEGA_AV_QM:',GBOM_batch.gboms[icount].omega_av_qm)
 								GBOM_batch.gboms[icount].calc_g2_qm(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.stdout)
 
 								# only compute third order cumulant if needed
@@ -499,7 +490,6 @@ def compute_GBOM_batch_absorption(param_list,GBOM_batch,solvent,is_emission):
 							eff_response_func[jcount,1]=eff_response_func[jcount,1]*cmath.exp(1j*(Eopt_av-Eopt[icount])*eff_response_func[jcount,0]/math.pi)
 					temp_spectrum=linear_spectrum.full_spectrum(eff_response_func,solvent.solvent_response,GBOM_batch.gboms[icount].dipole_mom,param_list.num_steps,E_start,E_end,True,is_emission,param_list.stdout)
 
-					print(icount,(Eopt[icount]-Eopt_av),GBOM_batch.gboms[icount].dipole_mom)
 					np.savetxt('Eopt_spec_snapshot'+str(icount)+'.dat',temp_spectrum)
 
 					if icount==0:
@@ -511,7 +501,6 @@ def compute_GBOM_batch_absorption(param_list,GBOM_batch,solvent,is_emission):
 				spectrum[:,1]=spectrum[:,1]/(1.0*GBOM_batch.num_gboms)	
 
 				np.savetxt(param_list.GBOM_root+'_Eopt_avcumulant_spectrum.dat', spectrum)
-				print(min(Eopt_fluct),max(Eopt_fluct))
 
 		else:
 				sys.exit('Unknown method for GBOM_BATCH linear spectrum: '+param_list.method)
@@ -538,8 +527,6 @@ def compute_hybrid_GBOM_batch_MD_absorption(param_list,MDtraj,GBOM_batch,solvent
                 if param_list.exact_corr:
                                 for i in range(param_list.num_gboms):
                                         GBOM_batch.gboms[i].calc_omega_av_qm(param_list.temperature,is_emission)
-                                        print('omega av QM')
-                                        print(GBOM_batch.gboms[i].omega_av_qm)
                 else:
                                 for i in range(param_list.num_gboms):
                                         GBOM_batch.gboms[i].calc_omega_av_cl(param_list.temperature,is_emission)
@@ -590,10 +577,7 @@ def compute_hybrid_GBOM_batch_MD_absorption(param_list,MDtraj,GBOM_batch,solvent
                                                 GBOM_batch.gboms[i].calc_cumulant_response(param_list.third_order,param_list.exact_corr,is_emission)
                                                 GBOM_batch.gboms[i].calc_fc_response(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.stdout)
                                                 # compute 2nd order cumulant divergence:
-                                                print('COMPUTING GBOM DIVERGENCE FOR GBOM NUMBER:   ',i)	
                                                 GBOM_batch.gboms[i].calc_2nd_order_divergence(param_list.temperature,param_list.exact_corr)
-                                                #print('GBOM number '+str(i))
-						#print(GBOM_batch.gboms[i].cumulant_response)
 
                                 # now build effective response function. What about dipole moment? Where does it come from? MD or GBOM? If condon approx is valid
                                 # it doesnt matter
@@ -602,7 +586,6 @@ def compute_hybrid_GBOM_batch_MD_absorption(param_list,MDtraj,GBOM_batch,solvent
                                 num_gboms_averaged=0
                                 for j in range(param_list.num_gboms):
                                         # can i average over this GBOM? Check
-                                        print('Divergences GBOM, MD   ',GBOM_batch.gboms[j].second_order_divergence,MDtraj.second_order_divergence)
                                         if GBOM_batch.gboms[j].second_order_divergence<MDtraj.second_order_divergence:
                                                 num_gboms_averaged=num_gboms_averaged+1
                                                 for icount in range(eff_response.shape[0]):
@@ -634,8 +617,6 @@ def compute_hybrid_GBOM_MD_absorption(param_list,MDtraj,GBOM_chromophore,solvent
                                 solvent.calc_spectral_dens(param_list.num_steps)
                                 solvent.calc_g2_solvent(param_list.temperature,param_list.num_steps,param_list.max_t,param_list.stdout)
                                 solvent.calc_solvent_response(is_emission)
-                print('Solvent response:')
-                print(solvent.solvent_response) 
                 # now fix energy range
                 E_start=MDtraj.mean-param_list.spectral_window/2.0
                 E_end=MDtraj.mean+param_list.spectral_window/2.0
@@ -647,12 +628,8 @@ def compute_hybrid_GBOM_MD_absorption(param_list,MDtraj,GBOM_chromophore,solvent
 
                 if param_list.exact_corr:
                                 GBOM_chromophore.calc_omega_av_qm(param_list.temperature,is_emission)
-                                print('omega av QM')
-                                print(GBOM_chromophore.omega_av_qm)
                 else:
                                 GBOM_chromophore.calc_omega_av_cl(param_list.temperature,is_emission)
-                                print('omega av cl')
-                                print(GBOM_chromophore.omega_av_cl)
 
 	
 		# Andres 2nd order cumulant GBOM approach assuming that the energy gap operator is
@@ -700,7 +677,6 @@ def compute_hybrid_GBOM_MD_absorption(param_list,MDtraj,GBOM_chromophore,solvent
 
 				# now we can compute the linear spectrum based on eff_response
                                 if param_list.is_solvent:
-                                                print('ADDING SOLVENT RESPONSE')
                                                 spectrum=linear_spectrum.full_spectrum(eff_response,solvent.solvent_response,MDtraj.dipole_mom_av,param_list.num_steps,E_start,E_end,True,is_emission,param_list.stdout)
                                 else:
                                                 spectrum=linear_spectrum.full_spectrum(eff_response,np.zeros((1,1)),MDtraj.dipole_mom_av,param_list.num_steps,E_start,E_end,False,is_emission,param_list.stdout)
@@ -1381,7 +1357,6 @@ elif param_set.task=='2DES':
 								else:
 									g2_temp=GBOM_batch.gboms[icount].g2_cl
 								tcount=0
-								print(Eopt[icount],average_Egap,Eopt_av)
 								while tcount<g2_temp.shape[0]:
 										g2_temp[tcount,1]=g2_temp[tcount,1]
 										tcount=tcount+1
