@@ -13,6 +13,19 @@ from spec_pkg.constants import constants as const
 
 #--------------------------------------------------------------------------
 # Function definitions
+def get_sd_skew(freqs_gs,Omega_sq,gamma,kbT,is_cl):
+	# compute 2nd order corr func for t=0 and 
+	# third order corr func for t1=t2=0. These 
+	# values are related to skew and sd
+	skew=gbom_cumulant_response.skew_from_third_order_corr(freqs_gs, Omega_sq, gamma, kbT,is_cl)
+	sd=0.0
+	if is_cl:
+  		sd=gbom_cumulant_response.sd_from_2nd_order_corr_cl(freqs_gs, Omega_sq, gamma, kbT)
+	else:
+                sd=gbom_cumulant_response.sd_from_2nd_order_corr_qm(freqs_gs, Omega_sq, gamma, kbT)
+
+	return sd,skew/(sd**3.0)
+
 def get_lambda_0(Kmat,Jmat,omega_e_sq):
 	Jtrans=np.transpose(Jmat)
 	Ktrans=np.transpose(Kmat)
@@ -114,7 +127,7 @@ class gbom:
 		# Derived terms beyond the model system parameters
 		self.omega_av_cl=0.0
 		self.omega_av_qm=0.0
-	
+
 		# response functions
 		self.ensemble_response=np.zeros((1,1))
 		self.fc_response=np.zeros((1,1))
@@ -217,8 +230,20 @@ class gbom:
 	def calc_g2_cl(self,temp,num_points,max_time,is_emission,stdout):
 		kbT=const.kb_in_Ha*temp
 		if is_emission:
+			# sanity check. Compute sd and skew to see whether cumulant is reliable
+			sd,skew=get_sd_skew(self.freqs_gs_emission,self.Omega_sq,self.gamma,kbT,True)
+			stdout.write('\n'+'Standard deviation of energy gap fluctuations for GBOM: '+str(sd)+' Ha. Skewness: '+str(skew)+'\n')
+			if abs(skew)>0.3:
+				stdout.write('WARNING: Large skewness value of '+str(skew)+' detected in energy gap fluctuations.'+'\n')
+                        	stdout.write('This means that the energy gap fluctuations are likely non-Gaussian in nature and low-order cumulant expansions might be unreliable!'+'\n'+'\n')
+
 			self.g2_cl=gbom_cumulant_response.full_2nd_order_lineshape(self.freqs_gs_emission,self.freqs_ex_emission,self.K_emission,self.J_emission,self.gamma,self.Omega_sq,kbT,self.omega_av_cl,max_time,num_points,True,is_emission,self.E_adiabatic,stdout)
 		else:
+			sd,skew=get_sd_skew(self.freqs_gs,self.Omega_sq,self.gamma,kbT,True)
+			stdout.write('\n'+'Standard deviation of energy gap fluctuations for GBOM: '+str(sd)+' Ha. Skewness: '+str(skew)+'\n')
+                        if abs(skew)>0.3:
+                                stdout.write('WARNING: Large skewness value of '+str(skew)+' detected in energy gap fluctuations.'+'\n')
+                        	stdout.write('This means that the energy gap fluctuations are likely non-Gaussian in nature and low-order cumulant expansions might be unreliable!'+'\n'+'\n')
 			self.g2_cl=gbom_cumulant_response.full_2nd_order_lineshape(self.freqs_gs,self.freqs_ex,self.K,self.J,self.gamma,self.Omega_sq,kbT,self.omega_av_cl,max_time,num_points,True,is_emission,self.E_adiabatic,stdout)
 
 
@@ -271,8 +296,18 @@ class gbom:
 	def calc_g2_qm(self,temp,num_points,max_time,is_emission,stdout):
 		kbT=const.kb_in_Ha*temp
 		if is_emission:
+			sd,skew=get_sd_skew(self.freqs_gs_emission,self.Omega_sq,self.gamma,kbT,False)
+                        stdout.write('\n'+'Standard deviation of energy gap fluctuations for GBOM: '+str(sd)+' Ha. Skewness: '+str(skew)+'\n')
+                        if abs(skew)>0.3:
+                                stdout.write('WARNING: Large skewness value of '+str(skew)+' detected in energy gap fluctuations.'+'\n')
+                        	stdout.write('This means that the energy gap fluctuations are likely non-Gaussian in nature and low-order cumulant expansions might be unreliable!'+'\n'+'\n')
 			self.g2_exact=gbom_cumulant_response.full_2nd_order_lineshape(self.freqs_gs_emission,self.freqs_ex_emission,self.K_emission,self.J_emission,self.gamma,self.Omega_sq,kbT,self.omega_av_qm,max_time,num_points,False,is_emission,self.E_adiabatic,stdout)
 		else:
+			sd,skew=get_sd_skew(self.freqs_gs,self.Omega_sq,self.gamma,kbT,False)
+                        stdout.write('\n'+'Standard deviation of energy gap fluctuations for GBOM: '+str(sd)+' Ha. Skewness: '+str(skew)+'\n')
+                        if abs(skew)>0.3:
+                                stdout.write('WARNING: Large skewness value of '+str(skew)+' detected in energy gap fluctuations.'+'\n')
+                                stdout.write('This means that the energy gap fluctuations are likely non-Gaussian in nature and low-order cumulant expansions might be unreliable!'+'\n'+'\n')
 			self.g2_exact=gbom_cumulant_response.full_2nd_order_lineshape(self.freqs_gs,self.freqs_ex,self.K,self.J,self.gamma,self.Omega_sq,kbT,self.omega_av_qm,max_time,num_points,False,is_emission,self.E_adiabatic,stdout)
 
 	def calc_omega_av_cl(self,temp,is_emission):

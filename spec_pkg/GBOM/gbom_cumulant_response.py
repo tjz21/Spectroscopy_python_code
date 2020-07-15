@@ -49,6 +49,23 @@ def two_time_corr_func_term_jung(prefac, omega1, omega2, kbT, t1, t2):
 
 
 @jit(fastmath=True)
+def skew_from_third_order_corr(freqs_gs, Omega_sq, gamma, kbT,is_cl):
+    n_i_vec = np.zeros(freqs_gs.shape[0])
+    icount = 0
+    skew=0.0
+    while icount < freqs_gs.shape[0]:
+        n_i_vec[icount] = bose_einstein(freqs_gs[icount], kbT)
+        icount = icount + 1
+    if is_cl:
+        skew=third_order_corr_t_cl(
+                    freqs_gs, Omega_sq, gamma, kbT,0.0,0.0, True)
+    else:
+        skew=third_order_corr_t_QM(
+                    freqs_gs, Omega_sq, gamma, n_i_vec,0.0, 0.0, True)
+
+    return np.real(skew)
+
+@jit(fastmath=True)
 def full_third_order_corr_func(
     freqs_gs, Omega_sq, gamma, kbT, max_t, num_points, is_cl, four_phonon_term
 ):
@@ -390,6 +407,67 @@ def full_2nd_order_corr_qm(
 
     return corr_func
 
+def sd_from_2nd_order_corr_qm(freqs_gs, Omega_sq, gamma, kbT):
+    # compute freqs, freqs_gs and
+    Omega_sq_sq = np.multiply(Omega_sq, Omega_sq)
+
+    n_i = np.zeros(freqs_gs.shape[0])
+    n_i_p = np.zeros(freqs_gs.shape[0])
+
+    # fill n_i and n_i_p vectors:
+    icount = 0
+    while icount < freqs_gs.shape[0]:
+        n_i[icount] = bose_einstein(freqs_gs[icount], kbT)
+        n_i_p[icount] = n_i[icount] + 1.0
+        icount = icount + 1
+
+    sd=np.sqrt(second_order_corr_t_qm(
+            freqs_gs, Omega_sq_sq.astype(np.complex_), gamma.astype(np.complex_), n_i.astype(np.complex), n_i_p.astype(np.complex),0.0))
+
+    return np.real(sd)
+
+def sd_from_2nd_order_corr_cl(freqs_gs, Omega_sq, gamma, kbT):
+    Omega_sq_sq = np.multiply(Omega_sq, Omega_sq)
+
+    n_i = np.zeros(freqs_gs.shape[0])
+    n_i_p = np.zeros(freqs_gs.shape[0])
+    n_ij_p = np.zeros((freqs_gs.shape[0], freqs_gs.shape[0]))
+    n_ij_m = np.zeros((freqs_gs.shape[0], freqs_gs.shape[0]))
+
+    # fill n_i vector:
+    icount = 0
+    while icount < freqs_gs.shape[0]:
+        n_i[icount] = bose_einstein(freqs_gs[icount], kbT)
+        n_i_p[icount] = n_i[icount] + 1.0
+        icount = icount + 1
+
+    # fill n_ij vectors. Make sure to deal corretly with cases where omegai==omegaj:
+    icount = 0
+    while icount < freqs_gs.shape[0]:
+        jcount = 0
+        while jcount < freqs_gs.shape[0]:
+            n_ij_p[icount, jcount] = bose_einstein(
+                freqs_gs[icount] + freqs_gs[jcount], kbT
+            )
+            if icount == jcount:
+                n_ij_m[icount, jcount] = 1.0
+            else:
+                n_ij_m[icount, jcount] = bose_einstein(
+                    freqs_gs[icount] - freqs_gs[jcount], kbT
+                )
+
+            jcount = jcount + 1
+        icount = icount + 1
+    sd=np.sqrt(second_order_corr_t_cl(
+            freqs_gs,
+            Omega_sq_sq.astype(np.complex_),
+            gamma.astype(np.complex_),
+            n_i.astype(np.complex_),
+            n_i_p.astype(np.complex_),
+            n_ij_p.astype(np.complex_),
+            n_ij_m.astype(np.complex_),
+            kbT,0.0))
+    return np.real(sd)
 
 def full_2nd_order_corr_cl(
     freqs_gs, Omega_sq, gamma, kbT, max_t, max_steps, decay_length
