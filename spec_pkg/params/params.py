@@ -58,6 +58,7 @@ class params:
 		self.max_t=1000.0/const.fs_to_Ha # by default, start with 1000 fs worth of max_t
 		self.num_steps=1000
 		self.num_steps_2DES=100
+		self.herzberg_teller=False
 		self.integration_points_morse=2000
 		self.max_states_morse_gs=50 # maximum number of states considered in each morse oscillator
 		self.max_states_morse_ex=50
@@ -222,6 +223,13 @@ class params:
 				self.four_phonon_term=False
 			if par== 'TRUE':
 				self.four_phonon_term=True
+
+		par=get_param(filepath, 'HERZBERG_TELLER')
+		if par != '':
+			if par== 'FALSE':
+				self.herzberg_teller=False
+			if par== 'TRUE':
+				self.herzberg_teller=True
 
 		par=get_param(filepath, 'NO_DUSCH')
 		if par != '':

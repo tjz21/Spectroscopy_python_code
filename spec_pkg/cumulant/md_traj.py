@@ -9,6 +9,7 @@ import time
 from numba import jit
 from spec_pkg.constants import constants as const
 import spec_pkg.cumulant.cumulant as cumulant
+import spec_pkg.cumulant.herzberg_teller as ht
 
 # Works
 @jit
@@ -18,20 +19,20 @@ def ensemble_response_for_given_t(fluctuations,dipole_mom,mean,t):
 	while icount<fluctuations.shape[0]:
 		jcount=0
 		while jcount<fluctuations.shape[1]:
-			response_val=response_val+(dipole_mom[icount,jcount])**2.0*cmath.exp(-1j*((fluctuations[icount,jcount])+mean)*t)
+			response_val=response_val+(dipole_mom[icount,jcount])**2.0*cmath.exp(-1j*((fluctuations[icount,jcount]))*t)
 			jcount=jcount+1
 		icount=icount+1
 	return response_val/(fluctuations.shape[0]*fluctuations.shape[1]*1.0)
 	
 # introduce artificial, constant SD for ensemble spectra. This can be treated as a convergence parameter to ensure smoothness
 # for insufficient sampling
-def construct_full_ensemble_response(fluctuations,dipole_mom, mean, max_t,num_steps):
+def construct_full_ensemble_response(fluctuations,dipole_mom, mean, max_t,num_steps,decay_const):
 	response_func=np.zeros((num_steps,2),dtype=complex)
 	tcount=0
 	t_step=max_t/num_steps
 	while tcount<num_steps:
 		response_func[tcount,0]=tcount*t_step
-		response_func[tcount,1]=ensemble_response_for_given_t(fluctuations,dipole_mom,mean,response_func[tcount,0])
+		response_func[tcount,1]=ensemble_response_for_given_t(fluctuations,dipole_mom,mean,response_func[tcount,0])*cmath.exp(-1j*mean*tcount*t_step)*np.exp(-abs(tcount*t_step)/decay_const)
 		tcount=tcount+1
 
 	return response_func
@@ -138,6 +139,10 @@ class MDtrajs:
 		self.fluct=get_fluctuations(trajs,self.mean)
 		self.dipole_mom=get_dipole_mom(oscillators,trajs)
 		self.dipole_mom_av=np.sum(self.dipole_mom)/(1.0*self.dipole_mom.shape[0]*self.dipole_mom.shape[1]) # average dipole mom
+		self.dipole_reorg=0.0 # dipole reorganization and renormalized dipole moment
+		self.dipole_renorm=0.0 # required for HT terms
+		self.dipole_fluct=self.dipole_mom-self.dipole_mom_av # construct fluctuations of 
+		# dipole mom needed for Herzberg Term
 		stdout.write('Mean dipole moment: '+str(self.dipole_mom_av)+'  Ha'+'\n')
 		
 		self.time_step=time_step # time between individual snapshots. Only relevant
@@ -152,6 +157,15 @@ class MDtrajs:
 		self.corr_func_3rd_cl=np.zeros((1,1))
 		self.corr_func_3rd_qm_freq=np.zeros((1,1))
 
+		# Herzberg-Teller correlation functions
+		self.corr_func_cross_cl=np.zeros((1,1)) # classical cross correlation function between
+		self.corr_func_dipole_cl=np.zeros((1,1)) # energy gap and dipole moment, as well as pure
+						         # dipole corr
+
+		# HT lineshape functions
+		self.A_HT2=np.zeros((1,1),dtype=complex)
+		self.A_HT3=np.zeros((1,1),dtype=complex)
+
 		# cumulant lineshape functions
 		self.g2=np.zeros((1,1))
 		self.g3=np.zeros((1,1))
@@ -165,6 +179,30 @@ class MDtrajs:
 		# response functions
 		self.ensemble_response=np.zeros((1,1))
 		self.cumulant_response=np.zeros((1,1))
+
+
+	# currently only works for 2nd order
+	def calc_ht_correction(self,temp,max_t,num_steps):
+		kbT=temp*const.kb_in_Ha
+		sampling_rate=1.0/self.time_step*math.pi*2.0
+		# now construct correlation functions
+		self.corr_func_dipole_cl=ht.construct_corr_func_dipole(self.dipole_fluct,self.num_trajs,self.tau,self.time_step)
+		self.corr_func_cross_cl=ht.construct_corr_func_cross(self.dipole_fluct,self.fluct,self.num_trajs,self.tau,self.time_step)
+		# Compute spectral density: this is really only done for analysis purposes:
+		sd=cumulant.compute_spectral_dens(self.corr_func_dipole_cl,kbT, sampling_rate,self.time_step)
+		np.savetxt('Dipole_dipole_spectral_density.dat',sd)
+		sd=cumulant.compute_spectral_dens(self.corr_func_cross_cl,kbT, sampling_rate,self.time_step)
+                np.savetxt('Dipole_energy_cross_spectral_density.dat',sd)
+
+		# now compute dipole reorganization and the renormalized dipole moment
+		self.dipole_reorg=ht.compute_dipole_reorg(self.corr_func_cross_cl, kbT,sampling_rate, self.time_step)
+		self.dipole_renorm=np.sqrt(self.dipole_mom_av**2.0-2.0*self.dipole_mom_av*self.dipole_reorg+self.dipole_reorg**2.0)
+
+		# now construct correlation functions in the frequency domain:
+		corr_func_cross_freq=ht.compute_corr_func_freq(self.corr_func_cross_cl,sampling_rate,self.time_step)
+		corr_func_dipole_freq=ht.compute_corr_func_freq(self.corr_func_dipole_cl,sampling_rate,self.time_step)
+		# now evaluate 2nd order cumulant correction term. 
+		self.A_HT2=ht.compute_HT_term_2nd_order(corr_func_dipole_freq,corr_func_cross_freq,self.dipole_mom_av,self.dipole_renorm,self.dipole_reorg,kbT,max_t,num_steps)
 
 	def calc_2nd_order_divergence(self):
 		omega_step=self.spectral_dens[1,0]-self.spectral_dens[0,0]
@@ -207,11 +245,13 @@ class MDtrajs:
 	def calc_h5(self,max_t,num_steps):
 		self.h5=cumulant.compute_h5_func(self.corr_func_3rd_qm_freq,max_t,num_steps)
 
-	def calc_cumulant_response(self,is_3rd_order,is_emission):
+	def calc_cumulant_response(self,is_3rd_order,is_emission,is_ht):
 		self.cumulant_response=construct_full_cumulant_response(self.g2,self.g3,self.mean,is_3rd_order,is_emission)	
+		if is_ht: # add herzberg-teller correction
+			for i in range(self.cumulant_response.shape[0]):
+				self.cumulant_response[i,1]=self.cumulant_response[i,1]*self.A_HT2[i,1]
 
 	def calc_ensemble_response(self,max_t,num_steps):
 		# Adjust for the fact that ensemble spectrum already contains dipole moment scaling
-		self.ensemble_response=1.0/(self.dipole_mom_av**2.0)*construct_full_ensemble_response(self.fluct,self.dipole_mom, self.mean, max_t,num_steps)
-
+		self.ensemble_response=1.0/(self.dipole_mom_av**2.0)*construct_full_ensemble_response(self.fluct,self.dipole_mom, self.mean, max_t,num_steps,self.tau)
 

@@ -65,8 +65,9 @@ def full_spectrum(response_func,solvent_response_func,dipole_mom,steps_spectrum,
 	for i in range(response_func.shape[0]):
 		stdout.write("%5d      %10.4f          %10.4e       %10.4e" % (i+1,np.real(response_func[i,0])*const.fs_to_Ha, np.real(response_func[i,1]), np.imag(response_func[i,1]))+'\n')
 
+	stdout.write('\n'+'Computing linear spectrum of the system between '+str(start_val*const.Ha_to_eV)+' and '+str(end_val*const.Ha_to_eV)+' eV.')
 	stdout.write('\n'+'Total linear spectrum of the system:'+'\n')
-	stdout.write('\n'+'Energy (Ha)         Absorbance (Ha)'+'\n')	
+	stdout.write('Energy (Ha)         Absorbance (Ha)'+'\n')	
 	step_length=((end_val-start_val)/steps_spectrum)
 	while counter<spectrum.shape[0]:
 		E_val=start_val+counter*step_length
@@ -78,9 +79,13 @@ def full_spectrum(response_func,solvent_response_func,dipole_mom,steps_spectrum,
 		counter=counter+1
 	
 	# compute mean, skew and SD of spectrum
-	mean,sd,skew=compute_mean_sd_skew(spectrum)
+	temp_spec=spectrum
+	mean,sd,skew=compute_mean_sd_skew(temp_spec)
 	stdout.write('\n'+'Mean of spectrum: '+str(mean)+' Ha, SD: '+str(sd)+' Ha, Skew: '+str(skew)+'\n')
 	
+	# unit conversion: Print X-Axis in eV
+	spectrum[:,0]=spectrum[:,0]*const.Ha_to_eV	
+
 	return spectrum
 
 def full_spectrum_integrant(response_func,solvent_response_func,E_val,is_solvent):
