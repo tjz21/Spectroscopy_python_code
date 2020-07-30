@@ -115,8 +115,11 @@ class gbom:
 		# correct for zero-point energy of ground and excited state
 		stdout.write('Adiabatic energy gap: '+str(self.E_adiabatic)+'  Ha'+'\n')
 		self.dipole_mom=dipole_mom 
-		stdout.write('Dipole moment  '+str(self.dipole_mom)+'  Ha'+'\n')	
-	
+		stdout.write('Dipole moment  '+str(self.dipole_mom)+'  Ha'+'\n')
+
+		# by default, this is set to an empty dummy array. It is only needed for HT effects
+		self.dipole_deriv=np.zeros((freqs_gs.shape[0],3))
+
 		# by default, initialize temporary variables for an absorption calculation.
 		self.set_absorption_variables()
 
@@ -133,6 +136,9 @@ class gbom:
 		self.fc_response=np.zeros((1,1))
 		self.eztfc_response=np.zeros((1,1))
 		self.cumulant_response=np.zeros((1,1))
+
+		# Herzberg teller contribution
+		self.HT=np.zeros((1,1))
 
 		# cumulant terms:
 		self.g2_exact=np.zeros((1,1),dtype=complex)
@@ -185,6 +191,10 @@ class gbom:
 		else:
 			self_corr_func_3rd_cl=gbom_cumulant_response.full_third_order_corr_func(self.freqs_gs,self.Omega_sq,self.gamma,kbT,max_t,num_points,True,four_phonon_term)
 
+        def compute_HT_term(self,temp,num_points,max_t,is_qm,stdout):
+                kbT=const.kb_in_Ha*temp
+		self.HT=gbom_cumulant_response.full_2nd_order_HT_term(self.freqs_gs,self.K,self.J,self.gamma,self.dipole_mom,self.dipole_deriv,kbT,max_t,num_points,is_qm,stdout)
+
 
 	def set_absorption_variables(self):
 		# temporary variable. Not needed to be accessible to the outside
@@ -214,11 +224,11 @@ class gbom:
 		# adjust E_adiabatic:
 		#self.E_adiabatic=self.E_adiabatic+0.5*(-np.sum(self.freqs_ex_emission)+np.sum(self.freqs_gs_emission))
 		
-	def calc_cumulant_response(self,is_3rd_order_cumulant,is_qm,is_emission):
+	def calc_cumulant_response(self,is_3rd_order_cumulant,is_qm,is_emission,is_HT):
 		if is_qm:
-			self.cumulant_response=gbom_cumulant_response.compute_cumulant_response(self.g2_exact,self.g3_exact,is_3rd_order_cumulant,is_emission)
+			self.cumulant_response=gbom_cumulant_response.compute_cumulant_response(self.g2_exact,self.g3_exact,self.dipole_mom,self.HT,is_3rd_order_cumulant,is_HT,is_emission)
 		else:
-			self.cumulant_response=gbom_cumulant_response.compute_cumulant_response(self.g2_cl,self.g3_cl,is_3rd_order_cumulant,is_emission)
+			self.cumulant_response=gbom_cumulant_response.compute_cumulant_response(self.g2_cl,self.g3_cl,self.dipole_mom,self.HT,is_3rd_order_cumulant,is_HT,is_emission)
 
 	def calc_spectral_dens(self,temp,max_t,max_steps,decay_length,is_cl,is_emission):
 		kbT=const.kb_in_Ha*temp
@@ -335,21 +345,21 @@ class gbom:
 			omega_g_sq=get_omega_sq(self.freqs_gs)
 			self.ensemble_response=gbom_ensemble_response.compute_ensemble_response(self.freqs_gs,self.freqs_ex,self.J,self.K,self.E_adiabatic,self.lambda_0,self.gamma,self.Omega_sq,omega_e_sq,omega_g_sq,kbT,num_points,max_time,is_qm,is_emission,stdout)
 
-	def calc_fc_response(self,temp,num_points,max_time,is_emission,stdout):
+	def calc_fc_response(self,temp,num_points,max_time,is_emission,is_HT,stdout):
 		kbT=const.kb_in_Ha*temp
 		if is_emission:
-			 self.fc_response=franck_condon_response.compute_full_response_func(self.freqs_gs_emission,self.freqs_ex_emission,self.J_emission,self.K_emission,self.E_adiabatic,kbT,num_points,max_time,is_emission)
+			 self.fc_response=franck_condon_response.compute_full_response_func(self.freqs_gs_emission,self.freqs_ex_emission,self.J_emission,self.K_emission,self.E_adiabatic,self.dipole_mom,self.dipole_deriv,kbT,num_points,max_time,is_emission,is_HT,stdout)
 		else:
-			self.fc_response=franck_condon_response.compute_full_response_func(self.freqs_gs,self.freqs_ex,self.J,self.K,self.E_adiabatic,kbT,num_points,max_time,is_emission,stdout)
+			self.fc_response=franck_condon_response.compute_full_response_func(self.freqs_gs,self.freqs_ex,self.J,self.K,self.E_adiabatic,self.dipole_mom,self.dipole_deriv,kbT,num_points,max_time,is_emission,is_HT,stdout)
 
 	# differentiate between absorption and emission, and whether this is a Quantum Wigner distribution or classical 
 	# distribution for the ensemble sampling
-	def calc_eztfc_response(self,temp,num_points,max_time,is_qm,is_emission,stdout):
+	def calc_eztfc_response(self,temp,num_points,max_time,is_qm,is_emission,is_HT,stdout):
 		low_temp_kbT=10.0*const.kb_in_Ha   # needed for computing low temperature FC limit. Set T to 10 K
 		if is_emission:
-			ztfc_resp=franck_condon_response.compute_full_response_func(self.freqs_gs_emission,self.freqs_ex_emission,self.J_emission,self.K_emission,self.E_adiabatic,low_temp_kbT,num_points,max_time,is_emission,stdout)
+			ztfc_resp=franck_condon_response.compute_full_response_func(self.freqs_gs_emission,self.freqs_ex_emission,self.J_emission,self.K_emission,self.E_adiabatic,low_temp_kbT,self.dipole_mom,self.dipole_deriv,num_points,max_time,is_emission,is_HT,stdout)
 		else: 
-			ztfc_resp=franck_condon_response.compute_full_response_func(self.freqs_gs,self.freqs_ex,self.J,self.K,self.E_adiabatic,low_temp_kbT,num_points,max_time,is_emission,stdout)
+			ztfc_resp=franck_condon_response.compute_full_response_func(self.freqs_gs,self.freqs_ex,self.J,self.K,self.E_adiabatic,self.dipole_mom,self.dipole_deriv,low_temp_kbT,num_points,max_time,is_emission,is_HT,stdout)
 		kbT=temp*const.kb_in_Ha
 		# implement this so it works either with quantum wigner or classical distribution of nuclei
 		if is_emission:
@@ -358,7 +368,7 @@ class gbom:
 			if is_qm:
 				# compute 'zero temperature' ensemble spectrum
 				ensemble_resp_zero_t=gbom_ensemble_response.compute_ensemble_response(self.freqs_gs_emission,self.freqs_ex_emission,self.J_emission,self.K_emission,self.E_adiabatic,self.lambda_0,self.gamma,self.Omega_sq,omega_e_sq,omega_g_sq,low_temp_kbT,num_points,max_time,True,is_emission,stdout)
-				ensemble_resp=gbom_ensemble_response.compute_ensemble_response(self.freqs_gs_emission,self.freqs_ex_emission,self.J_emission,self.K_emission,self.E_adiabatic,self.lambda_0,self.gamma,self.Omega_sq,omega_e_sq,omega_g_sq,kbT,num_points,max_time,True,is_emission)
+				ensemble_resp=gbom_ensemble_response.compute_ensemble_response(self.freqs_gs_emission,self.freqs_ex_emission,self.J_emission,self.K_emission,self.E_adiabatic,self.lambda_0,self.gamma,self.Omega_sq,omega_e_sq,omega_g_sq,kbT,num_points,max_time,True,is_emission,stdout)
 			else:
 				ensemble_resp=gbom_ensemble_response.compute_ensemble_response(self.freqs_gs_emission,self.freqs_ex_emission,self.J_emission,self.K_emission,self.E_adiabatic,self.lambda_0,self.gamma,self.Omega_sq,omega_e_sq,omega_g_sq,kbT,num_points,max_time,False,is_emission,stdout)
 		else:
@@ -430,11 +440,11 @@ class gbom_list:
 			counter=counter+1
 		self.avEnsemble_response[:,1]=self.avEnsemble_response[:,1]/(1.0*self.num_gboms)
 
-	def calc_avZTFC_response(self,num_points,max_time,is_emission,stdout):
+	def calc_avZTFC_response(self,num_points,max_time,is_emission,is_HT,stdout):
 		low_temp_kbT=10.0*const.kb_in_Ha
 		counter=0
 		while counter<self.num_gboms:
-			ztfc_resp=franck_condon_response.compute_full_response_func(self[counter].freqs_gs,self[counter].freqs_ex,self[counter].J,self[counter].K,0.0,low_temp_kbT,num_points,max_time,is_emission,stdout)
+			ztfc_resp=franck_condon_response.compute_full_response_func(self[counter].freqs_gs,self[counter].freqs_ex,self[counter].J,self[counter].K,0.0,self.dipole_mom,self.dipole_deriv,low_temp_kbT,num_points,max_time,is_emission,stdout)
 			if counter==0:
 				self.avZTFC_response=ztfc_resp
 			else:
@@ -443,13 +453,13 @@ class gbom_list:
 			counter=counter+1
 		self.avZTFC_response[:,1]=self.avZTFC_response[:,1]/(1.0*self.num_gboms)
 
-	def calc_avFTFC_response(self,temp,num_points,max_time,is_emission,stdout):     
+	def calc_avFTFC_response(self,temp,num_points,max_time,is_emission,is_HT,stdout):     
 		kbT=temp*const.kb_in_Ha
 		counter=0
 		print('Compute FTFC response for GBOM batch.')
 		while counter<self.num_gboms:
 			stdout.write('PROCESSING BATCH	'+str(counter))
-			ftfc_resp=franck_condon_response.compute_full_response_func(self[counter].freqs_gs,self[counter].freqs_ex,self[counter].J,self[couinter].K,0.0,kbT,num_points,max_time,is_emission,stdout)
+			ftfc_resp=franck_condon_response.compute_full_response_func(self[counter].freqs_gs,self[counter].freqs_ex,self[counter].J,self[couinter].K,0.0,self.dipole_mom,self.dipole_deriv,kbT,num_points,max_time,is_emission,is_HT,stdout)
 			if counter==0:
 				self.avFTFC_response=ftfc_resp
 			else:
@@ -458,12 +468,12 @@ class gbom_list:
 			counter=counter+1
 		self.avFTFC_response[:,1]=self.avFTFC_response[:,1]/(1.0*self.num_gboms)
 
-	def calc_full_FTFC_response(self,temp,num_points,max_time,is_emission,stdout):
+	def calc_full_FTFC_response(self,temp,num_points,max_time,is_emission,is_HT,stdout):
 		kbT=temp*const.kb_in_Ha
 		counter=0
 		while counter<self.num_gboms:
 			stdout.write('PROCESSING BATCH  '+str(counter))
-			ftfc_resp=franck_condon_response.compute_full_response_func(self[counter].freqs_gs,self[counter].freqs_ex,self[counter].J,self[counter].K,self[counter].E_adiabatic,kbT,num_points,max_time,is_emission,stdout)
+			ftfc_resp=franck_condon_response.compute_full_response_func(self[counter].freqs_gs,self[counter].freqs_ex,self[counter].J,self[counter].K,self[counter].E_adiabatic,self.dipole_mom,self.dipole_deriv,kbT,num_points,max_time,is_emission,is_HT,stdout)
 			if counter==0:
 				self.full_FTFC_response=ftfc_resp
 			else:

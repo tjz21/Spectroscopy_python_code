@@ -70,6 +70,40 @@ def get_b_ex(freq_ex, time):
     return b_mat
 
 
+@jit 
+def get_c_gs(freq_gs,kBT,time):
+    tau_gs = -1j * time + 1.0 / kBT
+    c_mat = np.zeros((freq_gs.shape[0], freq_gs.shape[0]), dtype=np.complex_)
+    counter = 0
+    while counter < freq_gs.shape[0]:
+        c_mat[counter, counter] = freq_gs[counter] * 1.0/cmath.tanh(
+            freq_gs[counter] * tau_gs / 2.0
+        )
+        counter = counter + 1
+
+    return c_mat
+
+@jit
+def get_c_ex(freq_ex,time):
+    tau_ex=time
+    c_mat = np.zeros((freq_ex.shape[0], freq_ex.shape[0]), dtype=np.complex_)
+    counter = 0
+    while counter < freq_ex.shape[0]:
+        c_mat[counter, counter] = freq_ex[counter] * 1.0/cmath.tanh(
+            freq_ex[counter] * tau_ex / 2.0
+        )
+        counter = counter + 1
+
+    return c_mat
+
+@jit 
+def get_cmat_barone(freq_gs,freq_ex,Jmat,kbT,time):
+    c_gs=get_c_gs(freq_gs,kbT,time)
+    c_ex=get_c_ex(freq_ex,time)
+    
+    return c_ex+np.dot(np.transpose(Jmat),np.dot(c_gs,Jmat))
+
+
 @jit
 def get_d_gs(freq_gs, kBT, time):
     tau_gs = -1j * time + 1.0 / kBT
@@ -130,6 +164,33 @@ def get_Bmat(b_gs, b_ex, Jmat):
 
     return Bmat
 
+@jit 
+def get_Cmat(b_gs,a_gs):
+    return b_gs-a_gs
+
+@jit 
+def get_Emat(Kmat,Jmat,Cmat):
+    Ktrans=np.transpose(Kmat)
+    temp=np.dot(Ktrans,Cmat)
+    mat=np.dot(temp,Jmat)   
+    Emat=np.zeros(Kmat.shape[0]+Kmat.shape[0],dtype=np.complex_)
+    for i in range(Kmat.shape[0]):
+        Emat[i]=mat[i]
+        Emat[i+Kmat.shape[0]]=mat[i]
+
+    return Emat
+
+@jit 
+def get_Dmat_souza(Amat,Bmat):
+    Dmat=np.zeros((Amat.shape[0]+Amat.shape[0], Amat.shape[0]+Amat.shape[0]),dtype=np.complex_)
+    for i in range(Amat.shape[0]):
+        for j in range(Amat.shape[0]):
+            Dmat[i,j]=Bmat[i,j]
+            Dmat[i+Amat.shape[0],j+Amat.shape[0]]=Bmat[i,j]
+            Dmat[i+Amat.shape[0],j]=-Amat[i,j]
+            Dmat[i,j+Amat.shape[0]]=-Amat[i,j]
+
+    return Dmat
 
 @jit
 def get_Dmat(d_gs, d_ex, Jmat):
@@ -156,9 +217,113 @@ def get_prefac(a_gs, a_ex, Amat, Bmat, Pmat):
 
     return cmath.sqrt(np.linalg.det(rmat))
 
+@jit 
+def calc_HT_correction_Souza(Dinv,Emat,dipole_mom,dipole_deriv):
+    sigma=np.dot(Dinv,Emat)
+    dsqu=np.dot(dipole_mom,dipole_mom)
+    sigma2=1j*Dinv
+    temp_mat=np.outer(sigma,sigma)
+    print 'Dinv'
+    print sigma2
+    print 'sigma'
+    print sigma
+    #print 'TEMP MAT'
+    #print temp_mat
+    sigma2=sigma2+temp_mat
+    #print 'SIGMA2+TEMP'
+    #print sigma2
+
+    # get dipole mom derivative in right dimensionality
+    eff_dipole_deriv=np.zeros((sigma.shape[0],3))
+    for i in range(dipole_deriv.shape[0]):
+        eff_dipole_deriv[i,:]=dipole_deriv[i,:]
+        eff_dipole_deriv[i+dipole_deriv.shape[0],:]=dipole_deriv[i,:]
+
+    du_x=eff_dipole_deriv[:,0]
+    du_y=eff_dipole_deriv[:,1]
+    du_z=eff_dipole_deriv[:,2]
+
+    FC_HT=np.dot(sigma,du_x)*dipole_mom[0]+np.dot(sigma,du_y)*dipole_mom[1]+np.dot(sigma,du_z)*dipole_mom[2]
+
+    HT=np.dot(np.dot(du_x,sigma2),du_x)+np.dot(np.dot(du_y,sigma2),du_y)+np.dot(np.dot(du_z,sigma2),du_z)
+
+    correction=dsqu-2.0*FC_HT+HT
+
+    return correction
+
 
 @jit
-def calc_chi_for_given_time(freq_gs, freq_ex, Jmat, Kmat, kBT, time):
+def calc_HT_correction(Dinv,Cmat,V,dipole_mom,dipole_deriv,freq_gs):
+    dsqu=np.dot(dipole_mom,dipole_mom)
+    Cinv=np.linalg.inv(Cmat)
+    Vconj=np.conjugate(V)
+    # scale by sqrt of gs frequencies to ensure the correct units!
+    #du_x=dipole_deriv[:,0]*np.sqrt(freq_gs[:])
+    #du_y=dipole_deriv[:,1]*np.sqrt(freq_gs[:])
+    #du_z=dipole_deriv[:,2]*np.sqrt(freq_gs[:])
+    du_x=dipole_deriv[:,0]
+    du_y=dipole_deriv[:,1]
+    du_z=dipole_deriv[:,2]
+
+
+    FC_HT=0.0
+    HT=0.0
+    temp=(np.dot(Dinv,V)+np.dot(Dinv,Vconj))
+    sigma=-0.5*temp
+    #sigma2=-0.5*Cinv+0.25*(np.outer(temp,temp)+Dinv+np.transpose(Dinv))  # TEST: Double Cinv term
+    sigma2=-0.25*(Cinv+(np.conj(Cinv)))
+
+    FC_HT=np.dot(sigma,du_x)*dipole_mom[0]+np.dot(sigma,du_y)*dipole_mom[1]+np.dot(sigma,du_z)*dipole_mom[2]
+
+    HT=np.dot(np.dot(du_x,sigma2),du_x)+np.dot(np.dot(du_y,sigma2),du_y)+np.dot(np.dot(du_z,sigma2),du_z)
+
+    correction=dsqu+2.0*FC_HT+HT
+
+    return correction
+
+
+@jit
+def calc_chi_for_given_time_Souza(freq_gs, freq_ex, Jmat, Kmat, dipole_mom,dipole_deriv,kBT, time,is_HT):
+    # calculate full value of chi(t) for the given value of t.
+    a_gs = get_a_gs(freq_gs, kBT, time)
+    a_ex = get_a_ex(freq_ex, time)
+    b_gs = get_b_gs(freq_gs, kBT, time)
+    b_ex = get_b_ex(freq_ex, time)
+    Amat = get_Amat(a_gs, a_ex, Jmat.astype(np.complex_))
+    Bmat = get_Bmat(b_gs, b_ex, Jmat.astype(np.complex_))
+    Cmat = get_Cmat(b_gs,a_gs)
+    Dmat = get_Dmat_souza(Amat,Bmat)
+    Emat = get_Emat(Kmat,Jmat,Cmat)
+    Pmat = get_Pmat(freq_gs, kBT)
+    
+
+    # successfully gotten auxillary matrices. First construct prefactor
+    # protect against small values of time, for which c and a diverge
+    if time < 0.000001:
+        prefac = cmath.sqrt((-1.0) ** (freq_gs.shape[0]))
+    else:
+        prefac = get_prefac(a_gs, a_ex, Amat, Bmat, Pmat)
+
+    Dinv = np.linalg.inv(Dmat)
+    Ktrans = np.transpose(Kmat.astype(np.complex_))
+    temp_mat = np.dot(Ktrans, Cmat)
+    temp1= np.dot(temp_mat,Kmat.astype(np.complex_))
+    Etrans=np.transpose(Emat)
+    temp_mat=np.dot(Etrans,Dinv)
+    temp2=np.dot(temp_mat,Emat)
+    total_val=1j*(temp1-temp2/2.0)
+
+    if is_HT:
+        dipole_prefac=calc_HT_correction_Souza(Dinv,Emat,dipole_mom,dipole_deriv)
+    else:
+        dipole_prefac=np.dot(dipole_mom,dipole_mom)
+
+    chi_t = dipole_prefac*prefac * cmath.exp(total_val)
+
+    return cmath.polar(chi_t)
+
+@jit
+def calc_chi_for_given_time(freq_gs, freq_ex, Jmat, Kmat, dipole_mom,dipole_deriv,kBT, time,is_HT):
     # calculate full value of chi(t) for the given value of t.
     a_gs = get_a_gs(freq_gs, kBT, time)
     a_ex = get_a_ex(freq_ex, time)
@@ -189,10 +354,48 @@ def calc_chi_for_given_time(freq_gs, freq_ex, Jmat, Kmat, kBT, time):
     temp2 = np.dot(Vtrans, temp)
     total_val = -temp1 + temp2
 
-    chi_t = prefac * cmath.exp(total_val)
+
+    if is_HT:
+        Cmat=get_cmat_barone(freq_gs,freq_ex,Jmat.astype(np.complex_),kBT,time)
+        dipole_prefac=calc_HT_correction(Dinv,Cmat,V,dipole_mom,dipole_deriv,freq_gs)
+    else:
+        dipole_prefac=np.dot(dipole_mom,dipole_mom)
+
+    chi_t = dipole_prefac*prefac * cmath.exp(total_val)
 
     return cmath.polar(chi_t)
 
+@jit 
+def calc_lineshape_for_given_time_Souza(freq_gs, freq_ex, Jmat, Kmat, kBT, time):
+    a_gs = get_a_gs(freq_gs, kBT, time)
+    a_ex = get_a_ex(freq_ex, time)
+    b_gs = get_b_gs(freq_gs, kBT, time)
+    b_ex = get_b_ex(freq_ex, time)
+    Amat = get_Amat(a_gs, a_ex, Jmat.astype(np.complex_))
+    Bmat = get_Bmat(b_gs, b_ex, Jmat.astype(np.complex_))
+    Cmat = get_Cmat(b_gs,a_gs)
+    Dmat = get_Dmat_souza(Amat,Bmat)
+    Emat = get_Emat(Kmat,Jmat,Cmat)
+    Pmat = get_Pmat(freq_gs, kBT)
+
+
+    # successfully gotten auxillary matrices. First construct prefactor
+    # protect against small values of time, for which c and a diverge
+    if time < 0.000001:
+        prefac = cmath.sqrt((-1.0) ** (freq_gs.shape[0]))
+    else:
+        prefac = get_prefac(a_gs, a_ex, Amat, Bmat, Pmat)
+
+    Dinv = np.linalg.inv(Dmat)
+    Ktrans = np.transpose(Kmat.astype(np.complex_))
+    temp_mat = np.dot(Ktrans, Cmat)
+    temp1= np.dot(temp_mat,Kmat.astype(np.complex_))
+    Etrans=np.transpose(Emat)
+    temp_mat=np.dot(Etrans,Dinv)
+    temp2=np.dot(temp_mat,Emat)
+    total_val=1j*(temp1-temp2/2.0)
+
+    return (-np.log(prefac) - total_val)
 
 @jit
 def calc_lineshape_for_given_time(freq_gs, freq_ex, Jmat, Kmat, kBT, time):
@@ -230,8 +433,8 @@ def calc_lineshape_for_given_time(freq_gs, freq_ex, Jmat, Kmat, kBT, time):
 
 
 def compute_full_response_func(
-    freq_gs, freq_ex, Jmat, Kmat, E_adiabatic, kBT, steps, max_time, is_emission
-,stdout):
+    freq_gs, freq_ex, Jmat, Kmat, E_adiabatic, dipole_mom,dipole_deriv,kBT, steps, max_time, is_emission
+,is_HT,stdout):
     stdout.write('Constructing the full Franck-Condon response function for a GBOM: '+'\n')
     stdout.write('Calculating the lineshape function for '+str(steps)+' time steps and a maximum time of '+str(max_time*const.fs_to_Ha)+'  fs'+'\n')
     chi = np.zeros((steps, 3))
@@ -249,17 +452,17 @@ def compute_full_response_func(
 	# This is already done outside of the routine. All we have to do is revert time. 
         if is_emission:
             chi_t = calc_chi_for_given_time(
-                freq_gs, freq_ex, Jmat, Kmat, kBT, -current_t
-            )
-            g_inf = calc_lineshape_for_given_time(
+                freq_gs, freq_ex, Jmat, Kmat, dipole_mom,dipole_deriv,kBT, -current_t,
+            is_HT)
+            g_inf = calc_lineshape_for_given_time_Souza(
                 freq_gs, freq_ex, Jmat, Kmat, kBT, -current_t
             )
         else:
             # calculate the effective lineshape function as well as chi_t
             chi_t = calc_chi_for_given_time(
-                freq_gs, freq_ex, Jmat, Kmat, kBT, current_t
-            )
-            g_inf = calc_lineshape_for_given_time(
+                freq_gs, freq_ex, Jmat, Kmat, dipole_mom,dipole_deriv,kBT, current_t,
+            is_HT)
+            g_inf = calc_lineshape_for_given_time_Souza(
                 freq_gs, freq_ex, Jmat, Kmat, kBT, current_t
             )
 	
@@ -300,4 +503,7 @@ def compute_full_response_func(
             )
         counter = counter + 1
 
+   
+    print('Dipole MOM')
+    print(dipole_mom)
     return response_func

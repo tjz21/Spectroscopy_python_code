@@ -95,6 +95,45 @@ def construct_corr_func_3rd_qm_freq(corr_func,kbT,sampling_rate_in_fs,low_freq_f
 
 	return eff_corr
 
+# construct a quantum 3rd order correlation function  in time domain using the Jung prefactor
+def construct_corr_func_3rd_qm(corr_func,kbT,sampling_rate_in_fs,low_freq_filter):
+        step_length_corr=corr_func[1,1,0]-corr_func[0,0,0]
+        sample_rate=sampling_rate_in_fs*math.pi*2.0*const.hbar_in_eVfs
+
+        # no padding:
+        extended_func=corr_func[:,:,2]
+
+        # remember: Need to normalize correlation func in frequency domain by multiplying by dt**2.0. Not necessary here because we do an inverse FFt
+        corr_func_freq=(np.fft.fftshift(np.fft.fftn(np.fft.ifftshift(extended_func[:,:]))))
+
+        freq_list=np.fft.fftshift(np.fft.fftfreq(corr_func_freq.shape[0],d=1./sample_rate))/const.Ha_to_eV
+
+        eff_corr=np.zeros((corr_func_freq.shape[0],corr_func_freq.shape[0]))
+        # loop over corr func and filter out imaginary part. This should be zero by the symmetries of the correlation function, but is not quite
+        icount=0
+        while icount<corr_func_freq.shape[0]:
+                jcount=0
+                while jcount<corr_func_freq.shape[0]:
+                        prefac=prefactor_jung(freq_list[icount],freq_list[jcount],kbT)
+                        eff_corr[icount,jcount]=(prefac*corr_func_freq[icount,jcount]).real
+                        # now apply low freq filter:
+                        if abs(freq_list[icount])<low_freq_filter and abs(freq_list[jcount])<low_freq_filter:
+                                eff_corr[icount,jcount,2]=0.0
+                        jcount=jcount+1
+                icount=icount+1
+
+        corr_func_qm=(np.fft.fftshift(np.fft.ifftn(np.fft.ifftshift(eff_corr))))
+
+
+	new_corr_func=np.zeros((corr_func.shape[0],corr_func.shape[0],3),dtype=complex)
+	
+	new_corr_func[:,:,0]=corr_func[:,:,0]
+	new_corr_func[:,:,1]=corr_func[:,:,1]
+	new_corr_func[:,:,2]=corr_func_qm[:,:]
+
+        return new_corr_func
+
+
 # function constructing the complete 3rd order lineshape function from a correlation function
 def compute_lineshape_func_3rd(corr_func,kbT,sampling_rate_in_fs,max_t,steps,low_freq_filter,stdout):
 	stdout.write('\n'+"Computing third order cumulant lineshape function."+'\n')

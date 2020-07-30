@@ -145,12 +145,12 @@ def compute_morse_absorption(param_list,morse_oscs,solvent,is_emission):
 		# exact solution to the morse oscillator
 		if param_list.method=='EXACT':
 			morse_oscs.compute_total_exact_response(param_list.temperature,param_list.max_t,param_list.num_steps)
-			spectrum=linear_spectrum.full_spectrum(morse_oscs.total_exact_response_func,solvent.solvent_response,param_list.dipole_mom,param_list.num_steps,E_start,E_end,True,is_emission,param_list.stdout)
+			spectrum=linear_spectrum.full_spectrum(morse_oscs.total_exact_response_func,solvent.solvent_response,param_list.num_steps,E_start,E_end,True,is_emission,param_list.stdout)
 			np.savetxt('Morse_exact_spectrum.dat', spectrum, header='Energy (eV)      Intensity (arb. units)')
 		# The effective FC spectrum for this oscillator
 		elif param_list.method=='FC_HARMONIC':
-			morse_oscs.compute_harmonic_FC_response_func(param_list.temperature,param_list.max_t,param_list.num_steps,False,param_list.stdout)
-			spectrum=linear_spectrum.full_spectrum(morse_oscs.harmonic_fc_response_func,solvent.solvent_response,param_list.dipole_mom,param_list.num_steps,E_start,E_end,True,is_emission,param_list.stdout)
+			morse_oscs.compute_harmonic_FC_response_func(param_list.temperature,param_list.max_t,param_list.num_steps,False,False,param_list.stdout)  # NO emission and No Herzberg-Teller implemented at the moment
+			spectrum=linear_spectrum.full_spectrum(morse_oscs.harmonic_fc_response_func,solvent.solvent_response,param_list.num_steps,E_start,E_end,True,is_emission,param_list.stdout)
 			np.savetxt('Morse_harmonic_fc_spectrum.dat', spectrum, header='Energy (eV)      Intensity (arb. units)')
 
 		# cumulant based approach:
@@ -163,7 +163,7 @@ def compute_morse_absorption(param_list,morse_oscs,solvent,is_emission):
 			morse_oscs.compute_spectral_dens()
 			np.savetxt('Morse_oscs_spectral_dens.dat',morse_oscs.spectral_dens)
 			morse_oscs.compute_2nd_order_cumulant_response(param_list.temperature,param_list.max_t,param_list.num_steps)
-			spectrum=linear_spectrum.full_spectrum(morse_oscs.cumulant_response_func,solvent.solvent_response,param_list.dipole_mom,param_list.num_steps,E_start,E_end,True,is_emission,param_list.stdout)
+			spectrum=linear_spectrum.full_spectrum(morse_oscs.cumulant_response_func,solvent.solvent_response,param_list.num_steps,E_start,E_end,True,is_emission,param_list.stdout)
 			np.savetxt('Morse_second_order_cumulant_spectrum.dat', spectrum, header='Energy (eV)      Intensity (arb. units)')
 
 		# Andres Hybrid approach
@@ -171,8 +171,7 @@ def compute_morse_absorption(param_list,morse_oscs,solvent,is_emission):
 			# Set average energy gap for GBOM
 			morse_oscs.eff_gbom.calc_omega_av_qm(param_list.temperature,is_emission,param_list.stdout)
 			morse_oscs.compute_cumul_fc_hybrid_response_func(param_list.temperature,param_list.decay_length,param_list.max_t,param_list.num_steps,is_emission,param_list.stdout)
-			spectrum=linear_spectrum.full_spectrum(morse_oscs.hybrid_cumul_fc_response_func,solvent.solvent_response,param_list.dipole_mom,param_list.num_steps,E_start,E_end,True,is_emission,param_list.stdout)	
-
+			spectrum=linear_spectrum.full_spectrum(morse_oscs.hybrid_cumul_fc_response_func,solvent.solvent_response,param_list.num_steps,E_start,E_end,True,is_emission,param_list.stdout)	
 			np.savetxt('Morse_hybrid_cumul_harmonic_FC_spectrum.dat', spectrum, header='Energy (eV)      Intensity (arb. units)')
 
 		# nothing else implemented yet. However, in the future, we could have
@@ -207,19 +206,19 @@ def compute_GBOM_absorption(param_list,GBOM_chromophore,solvent,is_emission):
 
 		if param_list.method=='ENSEMBLE':
 				GBOM_chromophore.calc_ensemble_response(param_list.temperature,param_list.num_steps,param_list.max_t,param_list.qm_wigner_dist,is_emission,param_list.stdout)		
-				spectrum=linear_spectrum.full_spectrum(GBOM_chromophore.ensemble_response,solvent.solvent_response,param_list.dipole_mom,param_list.num_steps,E_start,E_end,True,is_emission,param_list.stdout)	
+				spectrum=linear_spectrum.full_spectrum(GBOM_chromophore.ensemble_response,solvent.solvent_response,param_list.num_steps,E_start,E_end,True,is_emission,param_list.stdout)	
 				if param_list.qm_wigner_dist:
 						np.savetxt(param_list.GBOM_root+'_ensemble_spectrum_qm_wigner_dist.dat', spectrum, header='Energy (eV)      Intensity (arb. units)')
 				else:
 						np.savetxt(param_list.GBOM_root+'_ensemble_spectrum_boltzmann_dist.dat', spectrum, header='Energy (eV)      Intensity (arb. units)')
 		elif param_list.method=='FC':
-				GBOM_chromophore.calc_fc_response(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.stdout)
+				GBOM_chromophore.calc_fc_response(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.herzberg_teller,param_list.stdout)
 
-				spectrum=linear_spectrum.full_spectrum(GBOM_chromophore.fc_response,solvent.solvent_response,param_list.dipole_mom,param_list.num_steps,E_start,E_end,True,is_emission,param_list.stdout)
+				spectrum=linear_spectrum.full_spectrum(GBOM_chromophore.fc_response,solvent.solvent_response,param_list.num_steps,E_start,E_end,True,is_emission,param_list.stdout)
 				np.savetxt(param_list.GBOM_root+'_FC_spectrum.dat', spectrum, header='Energy (eV)      Intensity (arb. units)')
 		elif param_list.method=='EZTFC':
 				GBOM_chromophore.calc_eztfc_response(param_list.temperature,param_list.num_steps,param_list.max_t,param_list.qm_wigner_dist,is_emission,param_list.stdout)
-				spectrum=linear_spectrum.full_spectrum(GBOM_chromophore.eztfc_response,solvent.solvent_response,param_list.dipole_mom,param_list.num_steps,E_start,E_end,True,is_emission,param_list.stdout)
+				spectrum=linear_spectrum.full_spectrum(GBOM_chromophore.eztfc_response,solvent.solvent_response,param_list.num_steps,E_start,E_end,True,is_emission,param_list.stdout)
 				if param_list.qm_wigner_dist:
 						np.savetxt(param_list.GBOM_root+'_EZTFC_spectrum_qm_wigner_dist.dat', spectrum, header='Energy (eV)      Intensity (arb. units)')
 				else:
@@ -244,8 +243,12 @@ def compute_GBOM_absorption(param_list,GBOM_chromophore,solvent,is_emission):
 								GBOM_chromophore.calc_g3_cl(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.four_phonon_term,param_list.stdout)
 
 
-				GBOM_chromophore.calc_cumulant_response(param_list.third_order,param_list.exact_corr,is_emission)		
-				spectrum=linear_spectrum.full_spectrum(GBOM_chromophore.cumulant_response,solvent.solvent_response,param_list.dipole_mom,param_list.num_steps,E_start,E_end,True,is_emission,param_list.stdout)
+				# Check if I need HT term:
+				if param_list.herzberg_teller:
+					GBOM_chromophore.compute_HT_term(param_list.temperature,param_list.num_steps,param_list.max_t,param_list.exact_corr,param_list.stdout)
+
+				GBOM_chromophore.calc_cumulant_response(param_list.third_order,param_list.exact_corr,is_emission,param_list.herzberg_teller)		
+				spectrum=linear_spectrum.full_spectrum(GBOM_chromophore.cumulant_response,solvent.solvent_response,param_list.num_steps,E_start,E_end,True,is_emission,param_list.stdout)
 				if param_list.exact_corr:
 						np.savetxt(param_list.GBOM_root+'_cumulant_spectrum_exact_corr.dat', spectrum, header='Energy (eV)      Intensity (arb. units)')
 				else:
@@ -261,11 +264,11 @@ def compute_GBOM_absorption(param_list,GBOM_chromophore,solvent,is_emission):
 				else:
 						np.savetxt(param_list.GBOM_root+'_ensemble_spectrum_boltzmann_dist.dat', spectrum, header='Energy (eV)      Intensity (arb. units)')
 
-				GBOM_chromophore.calc_fc_response(param_list.temperature,param_list.num_steps,param_list.max_t, is_emission,param_list.stdout)
-				spectrum=linear_spectrum.full_spectrum(GBOM_chromophore.fc_response,solvent.solvent_response,param_list.dipole_mom,param_list.num_steps,E_start,E_end,True,is_emission,param_list.stdout)
+				GBOM_chromophore.calc_fc_response(param_list.temperature,param_list.num_steps,param_list.max_t, is_emission,param_list.herzberg_teller,param_list.stdout)
+				spectrum=linear_spectrum.full_spectrum(GBOM_chromophore.fc_response,solvent.solvent_response,param_list.num_steps,E_start,E_end,True,is_emission,param_list.stdout)
 				np.savetxt(param_list.GBOM_root+'_FC_spectrum.dat', spectrum, header='Energy (eV)      Intensity (arb. units)')
 				GBOM_chromophore.calc_eztfc_response(param_list.temperature,param_list.num_steps,param_list.max_t,param_list.qm_wigner_dist,is_emission,param_list.stdout)
-				spectrum=linear_spectrum.full_spectrum(GBOM_chromophore.eztfc_response,solvent.solvent_response,param_list.dipole_mom,param_list.num_steps,E_start,E_end,True,is_emission,param_list.stdout)
+				spectrum=linear_spectrum.full_spectrum(GBOM_chromophore.eztfc_response,solvent.solvent_response,param_list.num_steps,E_start,E_end,True,is_emission,param_list.stdout)
 
 				if param_list.qm_wigner_dist:
 						np.savetxt(param_list.GBOM_root+'_EZTFC_spectrum_qm_wigner_dist.dat', spectrum, header='Energy (eV)      Intensity (arb. units)')
@@ -287,7 +290,7 @@ def compute_GBOM_absorption(param_list,GBOM_chromophore,solvent,is_emission):
 						if param_list.third_order:
 								GBOM_chromophore.calc_g3_cl(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.four_phonon_term,param_list.stdout)
 				GBOM_chromophore.calc_cumulant_response(param_list.third_order,param_list.exact_corr, is_emission)		
-				spectrum=linear_spectrum.full_spectrum(GBOM_chromophore.cumulant_response,solvent.solvent_response,param_list.dipole_mom,param_list.num_steps,E_start,E_end,True,is_emission,param_list.stdout)
+				spectrum=linear_spectrum.full_spectrum(GBOM_chromophore.cumulant_response,solvent.solvent_response,param_list.num_steps,E_start,E_end,True,is_emission,param_list.stdout)
 
 				if param_list.exact_corr:
 						np.savetxt(param_list.GBOM_root+'_cumulant_spectrum_exact_corr.dat', spectrum,header='Energy (eV)      Intensity (arb. units)')
@@ -330,9 +333,9 @@ def compute_GBOM_batch_absorption(param_list,GBOM_batch,solvent,is_emission):
 				icount=0 
 				spectrum=np.zeros((param_list.num_steps,2))
 				while icount<GBOM_batch.num_gboms:
-						GBOM_batch.gboms[icount].calc_fc_response(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.stdout)
+						GBOM_batch.gboms[icount].calc_fc_response(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.herzberg_teller,param_list.stdout)
 
-						temp_spectrum=linear_spectrum.full_spectrum(GBOM_batch.gboms[icount].fc_response,solvent.solvent_response,param_list.dipole_mom,param_list.num_steps,E_start,E_end,True,is_emission,param_list.stdout)
+						temp_spectrum=linear_spectrum.full_spectrum(GBOM_batch.gboms[icount].fc_response,solvent.solvent_response,param_list.num_steps,E_start,E_end,True,is_emission,param_list.stdout)
 						if icount==0:
 								spectrum=spectrum+temp_spectrum
 						else:
@@ -364,7 +367,7 @@ def compute_GBOM_batch_absorption(param_list,GBOM_batch,solvent,is_emission):
 						GBOM_batch.gboms[icount].calc_spectral_dens(param_list.temperature,param_list.max_t,param_list.num_steps,param_list.decay_length,param_list.exact_corr,is_emission)
 
 						GBOM_batch.gboms[icount].calc_cumulant_response(param_list.third_order,param_list.exact_corr,is_emission)
-						temp_spectrum=linear_spectrum.full_spectrum(GBOM_batch.gboms[icount].cumulant_response,solvent.solvent_response,param_list.dipole_mom,param_list.num_steps,E_start,E_end,True,is_emission,param_list.stdout)
+						temp_spectrum=linear_spectrum.full_spectrum(GBOM_batch.gboms[icount].cumulant_response,solvent.solvent_response,param_list.num_steps,E_start,E_end,True,is_emission,param_list.stdout)
 						if icount==0:
 								sd=GBOM_batch.gboms[icount].spectral_dens
 								spectrum=temp_spectrum
@@ -488,7 +491,7 @@ def compute_GBOM_batch_absorption(param_list,GBOM_batch,solvent,is_emission):
 					eff_response_func=average_response
 					for jcount in range(eff_response_func.shape[0]):
 							eff_response_func[jcount,1]=eff_response_func[jcount,1]*cmath.exp(1j*(Eopt_av-Eopt[icount])*eff_response_func[jcount,0]/math.pi)
-					temp_spectrum=linear_spectrum.full_spectrum(eff_response_func,solvent.solvent_response,GBOM_batch.gboms[icount].dipole_mom,param_list.num_steps,E_start,E_end,True,is_emission,param_list.stdout)
+					temp_spectrum=linear_spectrum.full_spectrum(eff_response_func,solvent.solvent_response,param_list.num_steps,E_start,E_end,True,is_emission,param_list.stdout)
 
 					np.savetxt('Eopt_spec_snapshot'+str(icount)+'.dat',temp_spectrum, header='Energy (eV)      Intensity (arb. units)')
 
@@ -575,7 +578,7 @@ def compute_hybrid_GBOM_batch_MD_absorption(param_list,MDtraj,GBOM_batch,solvent
                                 # calculate FC and 2nd order cumulant response functions for GBOM
                                 for i in range(param_list.num_gboms):
                                                 GBOM_batch.gboms[i].calc_cumulant_response(param_list.third_order,param_list.exact_corr,is_emission)
-                                                GBOM_batch.gboms[i].calc_fc_response(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.stdout)
+                                                GBOM_batch.gboms[i].calc_fc_response(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.herzberg_teller,param_list.stdout)
                                                 # compute 2nd order cumulant divergence:
                                                 GBOM_batch.gboms[i].calc_2nd_order_divergence(param_list.temperature,param_list.exact_corr)
 
@@ -599,9 +602,9 @@ def compute_hybrid_GBOM_batch_MD_absorption(param_list,MDtraj,GBOM_batch,solvent
                                 # now we can compute the linear spectrum based on eff_response
                                 # no need for solvent model. This is taken care of in the MD trajectory
                                 if param_list.is_solvent:
-                                                spectrum=linear_spectrum.full_spectrum(eff_response,solvent.solvent_response,MDtraj.dipole_mom_av,param_list.num_steps,E_start,E_end,True,is_emission,param_list.stdout)
+                                                spectrum=linear_spectrum.full_spectrum(eff_response,solvent.solvent_response,param_list.num_steps,E_start,E_end,True,is_emission,param_list.stdout)
                                 else:
-                                                spectrum=linear_spectrum.full_spectrum(eff_response,np.zeros((1,1)),MDtraj.dipole_mom_av,param_list.num_steps,E_start,E_end,False,is_emission,param_list.stdout)
+                                                spectrum=linear_spectrum.full_spectrum(eff_response,np.zeros((1,1)),param_list.num_steps,E_start,E_end,False,is_emission,param_list.stdout)
 
                                 np.savetxt(param_list.GBOM_root+'_cumul_FC_separable_spectrum.dat', spectrum, header='Energy (eV)      Intensity (arb. units)')
 
@@ -668,7 +671,7 @@ def compute_hybrid_GBOM_MD_absorption(param_list,MDtraj,GBOM_chromophore,solvent
 
 				# calculate FC and 2nd order cumulant response functions for GBOM
                                 GBOM_chromophore.calc_cumulant_response(param_list.third_order,param_list.exact_corr,is_emission)
-                                GBOM_chromophore.calc_fc_response(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.stdout)	
+                                GBOM_chromophore.calc_fc_response(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.herzberg_teller,param_list.stdout)	
 				
 				# now build effective response function
                                 eff_response=GBOM_chromophore.fc_response
@@ -677,9 +680,9 @@ def compute_hybrid_GBOM_MD_absorption(param_list,MDtraj,GBOM_chromophore,solvent
 
 				# now we can compute the linear spectrum based on eff_response
                                 if param_list.is_solvent:
-                                                spectrum=linear_spectrum.full_spectrum(eff_response,solvent.solvent_response,MDtraj.dipole_mom_av,param_list.num_steps,E_start,E_end,True,is_emission,param_list.stdout)
+                                                spectrum=linear_spectrum.full_spectrum(eff_response,solvent.solvent_response,param_list.num_steps,E_start,E_end,True,is_emission,param_list.stdout)
                                 else:
-                                                spectrum=linear_spectrum.full_spectrum(eff_response,np.zeros((1,1)),MDtraj.dipole_mom_av,param_list.num_steps,E_start,E_end,False,is_emission,param_list.stdout)
+                                                spectrum=linear_spectrum.full_spectrum(eff_response,np.zeros((1,1)),param_list.num_steps,E_start,E_end,False,is_emission,param_list.stdout)
                                 np.savetxt(param_list.GBOM_root+'_cumul_FC_separable_spectrum.dat', spectrum, header='Energy (eV)      Intensity (arb. units)')
 
                 else:
@@ -725,23 +728,28 @@ def compute_MD_absorption(param_list,MDtraj,solvent,is_emission):
 				eff_dipole_mom=MDtraj.dipole_mom_av
 				if param_list.herzberg_teller:
 					eff_dipole_mom=MDtraj.dipole_renorm
+					
+
+				# HACK: DO THIS PROPERLY
+				MDtraj.cumulant_response[:,1]=MDtraj.cumulant_response[:,1]*eff_dipole_mom**2.0
+				######## END HACK ############
 
 				# compute linear spectrum
 				if param_list.is_solvent:
-						spectrum=linear_spectrum.full_spectrum(MDtraj.cumulant_response,solvent.solvent_response,eff_dipole_mom,param_list.num_steps,E_start,E_end,True,is_emission,param_list.stdout)
+						spectrum=linear_spectrum.full_spectrum(MDtraj.cumulant_response,solvent.solvent_response,param_list.num_steps,E_start,E_end,True,is_emission,param_list.stdout)
 				else:
 						# set solvent response to a zero dummy vector
-						spectrum=linear_spectrum.full_spectrum(MDtraj.cumulant_response,np.zeros((1,1)),eff_dipole_mom,param_list.num_steps,E_start,E_end,False,is_emission,param_list.stdout)
+						spectrum=linear_spectrum.full_spectrum(MDtraj.cumulant_response,np.zeros((1,1)),param_list.num_steps,E_start,E_end,False,is_emission,param_list.stdout)
 				np.savetxt(param_list.MD_root+'MD_cumulant_spectrum.dat', spectrum, header='Energy (eV)      Intensity (arb. units)')
 
 		# now do ensemble approach
 		elif param_list.method=='ENSEMBLE':
 				MDtraj.calc_ensemble_response(param_list.max_t,param_list.num_steps)
 				if param_list.is_solvent:
-						spectrum=linear_spectrum.full_spectrum(MDtraj.ensemble_response,solvent.solvent_response,MDtraj.dipole_mom_av,param_list.num_steps,E_start,E_end,True,is_emission,param_list.stdout)
+						spectrum=linear_spectrum.full_spectrum(MDtraj.ensemble_response,solvent.solvent_response,param_list.num_steps,E_start,E_end,True,is_emission,param_list.stdout)
 				else:
 						# set solvent response to a zero dummy vector
-						spectrum=linear_spectrum.full_spectrum(MDtraj.ensemble_response,np.zeros((1,1)),MDtraj.dipole_mom_av,param_list.num_steps,E_start,E_end,False,is_emission,param_list.stdout)				 
+						spectrum=linear_spectrum.full_spectrum(MDtraj.ensemble_response,np.zeros((1,1)),param_list.num_steps,E_start,E_end,False,is_emission,param_list.stdout)				 
 				np.savetxt(param_list.MD_root+'MD_ensemble_spectrum.dat', spectrum, header='Energy (eV)      Intensity (arb. units)')
 		else:
 				sys.exit('Error: Method '+param_list.method+' does not work with a pure MD based model. Set Method to ENSEMBLE or CUMULANT.')
@@ -805,9 +813,17 @@ if param_set.model=='GBOM' or param_set.model=='MD_GBOM':
 								else:
 										J=gaussian_params.extract_duschinsky_mat(param_set.GBOM_root+'_vibronic.log',param_set.num_modes)
 
+								param_set.dipole_mom=gaussian_params.extract_transition_dipole(param_set.GBOM_root+'_ex.log',param_set.target_excited_state)
 								param_set.E_adiabatic=gaussian_params.extract_adiabatic_freq(param_set.GBOM_root+'_vibronic.log')
 
 								GBOM=gbom.gbom(freqs_gs,freqs_ex,J,K,param_set.E_adiabatic,param_set.dipole_mom,param_set.stdout)
+
+								if param_set.herzberg_teller:
+									GBOM.dipole_deriv=np.genfromtxt(param_set.GBOM_root+'_dipole_deriv.dat')
+									# HACK! TRY AND SCALE MASSES
+									reduced_masses=np.genfromtxt(param_set.GBOM_root+'_reduced_masses.dat')
+									for i in range(GBOM.dipole_deriv.shape[0]):
+										GBOM.dipole_deriv[i,:]=GBOM.dipole_deriv[i,:]*np.sqrt(reduced_masses[i]*const.emass_in_au)
 
 						elif param_set.GBOM_input_code=='TERACHEM':
 								# first obtain coordinates and Hessian. Check if we have frozen atoms.
@@ -895,6 +911,7 @@ if param_set.model=='GBOM' or param_set.model=='MD_GBOM':
 										K=gaussian_params.extract_Kmat(param_set.GBOM_root+str(batch_count)+'_vibronic.log',param_set.num_modes)
 										J=gaussian_params.extract_duschinsky_mat(param_set.GBOM_root+str(batch_count)+'_vibronic.log',param_set.num_modes)
 										E_adiabatic=gaussian_params.extract_adiabatic_freq(param_set.GBOM_root+str(batch_count)+'_vibronic.log')
+										param_set.dipole_mom=gaussian_params.extract_transition_dipole(param_set.GBOM_root+'_ex.log',param_set.target_excited_state)
 										# are we switching off Duschinsky rotation?
 										if param_set.no_dusch:
 												J=np.zeros((K.shape[0],K.shape[0]))
@@ -994,7 +1011,7 @@ if param_set.model=='GBOM' or param_set.model=='MD_GBOM':
 # Morse oscillator model
 elif param_set.model=='MORSE':
                 if param_set.morse_gs_path!='' and param_set.morse_ex_path!='':
-                                                if param_set.dipole_mom==0.0 and param_set.E_adiabatic==0.0:
+                                                if np.dot(param_set.dipole_mom,param_set.dipole_mom)==0.0 and param_set.E_adiabatic==0.0:
                                                                 sys.exit('Error: Did not provide dipole moment or adiabatic energy gap for Morse oscillator!')
                                                 # create effective morse oscillator from input values
                                                 else:
@@ -1222,10 +1239,6 @@ elif param_set.task=='2DES':
 										twoDES.print_2D_spectrum('h5_real.dat',GBOM.h5_exact,False)
 										twoDES.print_2D_spectrum('h5_imag.dat',GBOM.h5_exact,True)
 
-								# now construct 3rd order correlation function. Needed to speed up evaluation of h3
-								#GBOM.compute_corr_func_3rd(param_set.temperature*const.kb_in_Ha,param_set.num_steps,param_set.max_t,True)
-								#twoDES.print_2D_spectrum('corr_func_3rd_real.dat',GBOM.corr_func_3rd_qm,False)
-								#twoDES.print_2D_spectrum('corr_func_3rd_imag.dat',GBOM.corr_func_3rd_qm,True)
 
 						if param_set.method_2DES=='2DES':
 								if param_set.third_order:
@@ -1446,6 +1459,14 @@ elif param_set.task=='2DES':
 						# technically, in 3rd order cumulant, can have 2 different temperatures again. one at
 						# which the MD was performed and one at wich the spectrum is simulated. Fix this...
 						MDtraj.calc_g3(param_set.temperature,param_set.max_t,param_set.num_steps,param_set.low_freq_cutoff,param_set.stdout)
+
+						# HACK PRINT THE 3rd order corr!!
+						MDtraj.calc_corr_func_3rd_qm(param_set.temperature_MD,param_set.low_freq_cutoff)
+						twoDES.print_2D_spectrum('third_order_corr_QM_real.dat',(MDtraj.corr_func_3rd_qm),False)
+						twoDES.print_2D_spectrum('third_order_corr_QM_imag.dat',(MDtraj.corr_func_3rd_qm),True)
+						#END HACK
+						print('DONE')
+
 						MDtraj.calc_corr_func_3rd_qm_freq(param_set.temperature_MD,param_set.low_freq_cutoff)
 						# Check if h1 and h2 are already computed and stored. computational savings...
 						if os.path.exists('h1_real.dat') and os.path.exists('h1_imag.dat') and os.path.exists('h2_real.dat') and os.path.exists('h2_imag.dat') and os.path.exists('h4_real.dat') and os.path.exists('h4_imag.dat') and os.path.exists('h5_real.dat') and os.path.exists('h5_imag.dat'):

@@ -7,7 +7,8 @@ import cmath
 from spec_pkg.constants import constants as const
 
 # check whether this is an absorption or an emission calculation
-def compute_cumulant_response(g2, g3, is_3rd_order_cumulant, is_emission):
+# also include HT capabilities
+def compute_cumulant_response(g2, g3, dipole_mom, HT_term,is_3rd_order_cumulant, is_HT,is_emission):
     # compute the effective response function of energy gap fluctuations in the 2nd or 3rd order cumulant
     response_func = np.zeros((g2.shape[0], 2), dtype=complex)
     counter = 0
@@ -32,7 +33,16 @@ def compute_cumulant_response(g2, g3, is_3rd_order_cumulant, is_emission):
                 response_func[counter, 1] = cmath.exp(-g2[counter, 1])
 
         counter = counter + 1
+
+    if is_HT:
+            response_func[:,1]=response_func[:,1]*HT_term[:,1]
+
+    else:
+            response_func[:,1]=np.dot(dipole_mom,dipole_mom)*response_func[:,1]  
+
     return response_func
+
+
 
 
 @jit(fastmath=True)
@@ -633,6 +643,56 @@ def second_order_corr_t_qm(freqs_gs, Omega_sq, gamma, n_i, n_i_p, t):
 def bose_einstein(freq, kbT):
     n = math.exp(freq / kbT) - 1.0
     return 1.0 / n
+
+
+def full_2nd_order_HT_term(freqs_gs,Kmat,Jmat,gamma,dipole_mom,dipole_deriv,kbT,max_t,num_points,is_qm,stdout):
+    Jtrans=np.transpose(Jmat)
+    HT_func=np.zeros((num_points, 2), dtype=complex)
+    n_i_vec = np.zeros(freqs_gs.shape[0])
+    Jdip_deriv=np.zeros((freqs_gs.shape[0],3))
+    Jdip_deriv[:,0]=np.dot(dipole_deriv[:,0],Jtrans)
+    Jdip_deriv[:,1]=np.dot(dipole_deriv[:,1],Jtrans)
+    Jdip_deriv[:,2]=np.dot(dipole_deriv[:,2],Jtrans)
+    reorg_dipole=np.zeros(3)
+    reorg_dipole[0]=np.dot(Jdip_deriv[:,0],Kmat)
+    reorg_dipole[1]=np.dot(Jdip_deriv[:,1],Kmat)
+    reorg_dipole[2]=np.dot(Jdip_deriv[:,2],Kmat)
+
+    # compute the total renormalized dipole moment
+    total_renorm_dipole=np.dot(dipole_mom,dipole_mom)-2.0*np.dot(reorg_dipole,dipole_mom)+np.dot(reorg_dipole,reorg_dipole)
+
+    if is_qm:
+        icount = 0
+        while icount < freqs_gs.shape[0]:
+            n_i_vec[icount] = bose_einstein(freqs_gs[icount], kbT)
+            icount = icount + 1
+ 
+    t=0.0
+    step_length=max_t/num_points
+    for i in range(num_points):
+        HT_func[i,0]=t
+        if is_qm:
+            HT_func[i,1]=second_order_HT_qm_t(freqs_gs,Kmat,Jtrans,gamma,n_i_vec,dipole_mom,Jdip_deriv,reorg_dipole,total_renorm_dipole,t) 
+        #else:
+            # CURRENTLY NOT IMPLEMENTED!!!!
+        t=t+step_length
+
+    return HT_func
+
+def second_order_HT_qm_t(freqs_gs,Kmat,Jtrans,gamma,n,dipole_mom,Jdip_deriv,reorg_dipole,total_renorm_dipole,t):
+
+    one_deriv_term=0.0+0.0*1j
+    for i in range(freqs_gs.shape[0]):
+        term_xyz=-2.0*(reorg_dipole[0]*Jdip_deriv[i,0]+reorg_dipole[1]*Jdip_deriv[i,1]+reorg_dipole[2]*Jdip_deriv[i,2]-dipole_mom[0]*Jdip_deriv[i,0]-dipole_mom[1]*Jdip_deriv[i,1]-dipole_mom[2]*Jdip_deriv[i,2])*gamma[i]/(2.0*freqs_gs[i]**2.0)*((n[i]+1)*(1.0-cmath.exp(-1j*freqs_gs[i]*t))+n[i]*(1.0-cmath.exp(1j*freqs_gs[i])*t))
+        one_deriv_term=one_deriv_term+term_xyz
+
+    two_deriv_term=0.0+1j*0.0
+    for i in range(freqs_gs.shape[0]):
+        term_xyz=(Jdip_deriv[i,0]**2.0+Jdip_deriv[i,1]**2.0+Jdip_deriv[i,2]**2.0)/(2.0*freqs_gs[i])*((n[i]+1.0)*cmath.exp(-1j*freqs_gs[i]*t)+n[i]*cmath.exp(1j*freqs_gs[i]*t))
+	two_deriv_term=two_deriv_term+term_xyz
+
+    total=total_renorm_dipole+one_deriv_term+two_deriv_term
+    return total
 
 
 # g2 as derived from either the exact classical correlation function or the exact QM correlation function

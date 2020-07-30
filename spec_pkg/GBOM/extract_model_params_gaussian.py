@@ -6,6 +6,27 @@ import math
 import numba
 from spec_pkg.constants import constants as const
 
+def extract_transition_dipole(filename,target_state):
+	dipole=np.zeros(3)
+	searchfile=open(filename,"r") 
+	line_count=0
+	dipole_line=0
+	for line in searchfile:
+		searchphrase='Ground to excited state transition electric dipole moments' 
+		if searchphrase in line:
+			dipole_line=line_count
+		line_count=line_count+1
+	if dipole_line>0:
+		dipole_line=dipole_line+1+target_state
+		searchfile.close()
+		linefile=open(filename,"r")
+		lines=linefile.readlines()
+		current_line=lines[dipole_line].split()
+		dipole[0]=float(current_line[1])	
+		dipole[1]=float(current_line[2])
+		dipole[2]=float(current_line[3])
+	return dipole      
+
 
 def extract_normal_mode_freqs(filename,num_modes,frozen_atoms):
 	freq_list=np.zeros(num_modes)

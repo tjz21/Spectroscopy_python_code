@@ -94,7 +94,7 @@ class params:
 		self.morse_ex_path='' # excited state potential parameters D and alpha, and shift (relative to gs minimum. Reduced mass is assumed to be identical to GS) 
 		self.num_atoms=0   # needed for terachem calculation
 		self.frozen_atom_path=''  # path to file list detailing the frozen atoms. 
-		self.dipole_mom=1.0
+		self.dipole_mom=np.array([1.0,0.0,0.0])  # dipole moment is a vector that by default has x,y,z coordinates
 		self.E_adiabatic=0.0
 		self.decay_length=500.0/const.fs_to_Ha
 		self.md_step=2.0/const.fs_to_Ha
@@ -207,9 +207,11 @@ class params:
 		par=get_param(filepath,'CORRELATION_LENGTH_3RD')
 		if par != '':
 			self.corr_length_3rd=int(par)
-		par=get_param(filepath,'DIPOLE_MOM')
+		par=get_param_list(filepath,'DIPOLE_MOM')
 		if par != '':
-			self.dipole_mom=float(par)
+			self.dipole_mom[0]=float(par[0])
+			self.dipole_mom[1]=float(par[1])
+			self.dipole_mom[2]=float(par[2])
 		par=get_param(filepath,'E_ADIABATIC')
 		if par != '':
 			self.E_adiabatic=float(par)/const.Ha_to_eV

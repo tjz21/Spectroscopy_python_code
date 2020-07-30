@@ -40,7 +40,7 @@ def compute_mean_sd_skew(spectrum):
 	return mean,sd,skew
 
 
-def spectrum_prefactor(Eval,dipole_mom,is_emission):
+def spectrum_prefactor(Eval,is_emission):
 	# prefactor alpha in Ha atomic units
 	# Absorption: prefac=10*pi*omega*mu**2*alpha/(3*epsilon_0*ln(10))
 	# Emission:   prefac=2*mu**2*omega**4*alpha**3/(3*epsilon_0)
@@ -49,14 +49,14 @@ def spectrum_prefactor(Eval,dipole_mom,is_emission):
 	prefac=0.0
 	if not is_emission:
 		# absorption constants
-		prefac=40.0*math.pi**2.0*dipole_mom**2.0*const.fine_struct*Eval/(3.0*math.log(10.0))
+		prefac=40.0*math.pi**2.0*const.fine_struct*Eval/(3.0*math.log(10.0))
 	else:
 		# emission constants
-		prefac=2.0*dipole_mom**2.0*const.fine_struct**3.0*Eval**4.0*4.0*math.pi/3.0
+		prefac=2.0*const.fine_struct**3.0*Eval**4.0*4.0*math.pi/3.0
 
 	return prefac
 
-def full_spectrum(response_func,solvent_response_func,dipole_mom,steps_spectrum,start_val,end_val,is_solvent,is_emission,stdout):
+def full_spectrum(response_func,solvent_response_func,steps_spectrum,start_val,end_val,is_solvent,is_emission,stdout):
 	spectrum=np.zeros((steps_spectrum,2))
 	counter=0
 	# print total response function
@@ -71,7 +71,7 @@ def full_spectrum(response_func,solvent_response_func,dipole_mom,steps_spectrum,
 	step_length=((end_val-start_val)/steps_spectrum)
 	while counter<spectrum.shape[0]:
 		E_val=start_val+counter*step_length
-		prefac=spectrum_prefactor(E_val,dipole_mom,is_emission)
+		prefac=spectrum_prefactor(E_val,is_emission)
 		integrant=full_spectrum_integrant(response_func,solvent_response_func,E_val,is_solvent)
 		spectrum[counter,0]=E_val
 		spectrum[counter,1]=prefac*(integrate.simps(integrant,dx=response_func[1,0].real-response_func[0,0].real))

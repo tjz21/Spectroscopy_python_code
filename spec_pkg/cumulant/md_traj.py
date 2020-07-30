@@ -10,6 +10,7 @@ from numba import jit
 from spec_pkg.constants import constants as const
 import spec_pkg.cumulant.cumulant as cumulant
 import spec_pkg.cumulant.herzberg_teller as ht
+import spec_pkg.nonlinear_spectrum.twoDES as twoDES
 
 # Works
 @jit
@@ -156,6 +157,7 @@ class MDtrajs:
 		self.spectral_dens=np.zeros((1,1))
 		self.corr_func_3rd_cl=np.zeros((1,1))
 		self.corr_func_3rd_qm_freq=np.zeros((1,1))
+		self.corr_func_3rd_qm=np.zeros((1,1))
 
 		# Herzberg-Teller correlation functions
 		self.corr_func_cross_cl=np.zeros((1,1)) # classical cross correlation function between
@@ -213,6 +215,8 @@ class MDtrajs:
 
 	def calc_3rd_order_corr(self,corr_length,stdout):
 		self.corr_func_3rd_cl=cumulant.construct_corr_func_3rd(self.fluct,self.num_trajs,corr_length,self.tau,self.time_step,stdout)
+                # HACK: PRINT correlation function
+		twoDES.print_2D_spectrum('classical_third_order_corr.dat',self.corr_func_3rd_cl,False)
 
 	def calc_spectral_dens(self,temp):
 		kbT=temp*const.kb_in_Ha
@@ -227,6 +231,12 @@ class MDtrajs:
 		kbT=temp*const.kb_in_Ha
 		sampling_rate_in_fs=1.0/(self.time_step*const.fs_to_Ha)
 		self.corr_func_3rd_qm_freq=cumulant.construct_corr_func_3rd_qm_freq(self.corr_func_3rd_cl,kbT,sampling_rate_in_fs,low_freq_filter)
+	
+	def calc_corr_func_3rd_qm(self,temp,low_freq_filter):
+		kbT=temp*const.kb_in_Ha
+		sampling_rate_in_fs=1.0/(self.time_step*const.fs_to_Ha)
+		self.corr_func_3rd_qm=cumulant.construct_corr_func_3rd_qm(self.corr_func_3rd_cl,kbT,sampling_rate_in_fs,low_freq_filter)
+
 
 	def calc_g3(self,temp,max_t,num_steps,low_freq_filter,stdout):
 		kbT=temp*const.kb_in_Ha

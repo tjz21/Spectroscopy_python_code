@@ -36,12 +36,31 @@ def get_ex_energy_dipole_mom(input_path_ex,root):
 		line_count=line_count+1
 	if keyword_line==999999999:
 		sys.exit('Error: Could not find excited state energy and dipole moment in Terachem file:  '+input_path)
+	searchfile.close()
 	linefile=open(input_path_ex,"r")
 	lines=linefile.readlines()
 	energy_line=lines[keyword_line+3+root].split()
 	energy=float(energy_line[1])
 	ex_energy=float(energy_line[2])/const.Ha_to_eV # convert to Ha 
-	dipole_mom=np.sqrt(3.0/2.0*float(energy_line[3])/ex_energy)
+
+	search_phrase='Transition dipole moments:'
+	line_count=0
+	keyword_line=999999999
+	for line in searchfile:
+		if search_phrase in line and keyword_line==999999999:
+			keyword_line=line_count
+		line_count=line_count+1
+	if keyword_line==999999999:
+		sys.exit('Error: Could not find excited state energy and dipole moment in Terachem file:  '+input_path)
+	searchfile.close()
+	linefile=open(input_path_ex,"r")
+	lines=linefile.readlines()	
+	dipole_line=lines[keyword_line+3+root].split()
+
+	dipole_mom=np.zeros(3)
+	dipole_mom[0]=float(dipole_line[1])
+	dipole_mom[1]=float(dipole_line[2])
+	dipole_mom[2]=float(dipole_line[3])
 	return energy,dipole_mom
 
 def get_e_adiabatic_dipole(input_path_gs,input_path_ex,root):
