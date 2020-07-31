@@ -72,7 +72,7 @@ def print_banner(stdout):
 		stdout.write('    #    T. E. Markland, and C. M. Isborn, J. Chem. Phys. 151 #'+'\n')
 		stdout.write('    #    074111 (2019).                                       #'+'\n')
 		stdout.write('    # 2) T. J. Zuehlsdorff, H. Hong, L. Shi, and C. M. Isborn,#'+'\n')
-		stdout.write('    #    https://doi.org/10.26434/chemrxiv.12302018.v1 (2020) #'+'\n')
+		stdout.write('    #    J. Chem. Phys. 153, 044127 (2020).                   #'+'\n')
 		stdout.write('    # 3) T. J. Zuehlsdorff, and C. M. Isborn, J. Chem. Phys.  #'+'\n')
 		stdout.write('    #    148, 024110 (2018).                                  #'+'\n')
 		stdout.write('    # 4) T. J. Zuehlsdorff, J. A. Napoli, J. M. Milanese, T.  #'+'\n')
