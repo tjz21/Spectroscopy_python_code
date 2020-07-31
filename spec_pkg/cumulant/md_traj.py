@@ -194,7 +194,7 @@ class MDtrajs:
 		sd=cumulant.compute_spectral_dens(self.corr_func_dipole_cl,kbT, sampling_rate,self.time_step)
 		np.savetxt('Dipole_dipole_spectral_density.dat',sd)
 		sd=cumulant.compute_spectral_dens(self.corr_func_cross_cl,kbT, sampling_rate,self.time_step)
-                np.savetxt('Dipole_energy_cross_spectral_density.dat',sd)
+		np.savetxt('Dipole_energy_cross_spectral_density.dat',sd)
 
 		# now compute dipole reorganization and the renormalized dipole moment
 		self.dipole_reorg=ht.compute_dipole_reorg(self.corr_func_cross_cl, kbT,sampling_rate, self.time_step)

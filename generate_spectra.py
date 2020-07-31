@@ -1459,14 +1459,6 @@ elif param_set.task=='2DES':
 						# technically, in 3rd order cumulant, can have 2 different temperatures again. one at
 						# which the MD was performed and one at wich the spectrum is simulated. Fix this...
 						MDtraj.calc_g3(param_set.temperature,param_set.max_t,param_set.num_steps,param_set.low_freq_cutoff,param_set.stdout)
-
-						# HACK PRINT THE 3rd order corr!!
-						MDtraj.calc_corr_func_3rd_qm(param_set.temperature_MD,param_set.low_freq_cutoff)
-						twoDES.print_2D_spectrum('third_order_corr_QM_real.dat',(MDtraj.corr_func_3rd_qm),False)
-						twoDES.print_2D_spectrum('third_order_corr_QM_imag.dat',(MDtraj.corr_func_3rd_qm),True)
-						#END HACK
-						print('DONE')
-
 						MDtraj.calc_corr_func_3rd_qm_freq(param_set.temperature_MD,param_set.low_freq_cutoff)
 						# Check if h1 and h2 are already computed and stored. computational savings...
 						if os.path.exists('h1_real.dat') and os.path.exists('h1_imag.dat') and os.path.exists('h2_real.dat') and os.path.exists('h2_imag.dat') and os.path.exists('h4_real.dat') and os.path.exists('h4_imag.dat') and os.path.exists('h5_real.dat') and os.path.exists('h5_imag.dat'):

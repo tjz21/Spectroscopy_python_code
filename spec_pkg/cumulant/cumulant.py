@@ -125,11 +125,11 @@ def construct_corr_func_3rd_qm(corr_func,kbT,sampling_rate_in_fs,low_freq_filter
         corr_func_qm=(np.fft.fftshift(np.fft.ifftn(np.fft.ifftshift(eff_corr))))
 
 
-	new_corr_func=np.zeros((corr_func.shape[0],corr_func.shape[0],3),dtype=complex)
+        new_corr_func=np.zeros((corr_func.shape[0],corr_func.shape[0],3),dtype=complex)
 	
-	new_corr_func[:,:,0]=corr_func[:,:,0]
-	new_corr_func[:,:,1]=corr_func[:,:,1]
-	new_corr_func[:,:,2]=corr_func_qm[:,:]
+        new_corr_func[:,:,0]=corr_func[:,:,0]
+        new_corr_func[:,:,1]=corr_func[:,:,1]
+        new_corr_func[:,:,2]=corr_func_qm[:,:]
 
         return new_corr_func
 

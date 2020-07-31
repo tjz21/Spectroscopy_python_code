@@ -223,15 +223,7 @@ def calc_HT_correction_Souza(Dinv,Emat,dipole_mom,dipole_deriv):
     dsqu=np.dot(dipole_mom,dipole_mom)
     sigma2=1j*Dinv
     temp_mat=np.outer(sigma,sigma)
-    print 'Dinv'
-    print sigma2
-    print 'sigma'
-    print sigma
-    #print 'TEMP MAT'
-    #print temp_mat
     sigma2=sigma2+temp_mat
-    #print 'SIGMA2+TEMP'
-    #print sigma2
 
     # get dipole mom derivative in right dimensionality
     eff_dipole_deriv=np.zeros((sigma.shape[0],3))

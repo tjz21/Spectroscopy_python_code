@@ -113,7 +113,7 @@ def full_third_order_corr_func(
 
 # compute third order quantum correlation function constructed from the classical correlation function using the
 # jung prefactor
-@njit(fastmath=True, parallel=True)
+@njit(fastmath=True)
 def third_order_corr_t_cl(freqs_gs, Omega_sq, gamma, kbT, t1, t2, four_phonon_term):
     corr_val = 0.0 + 0.0j
     gamma_term = 0.0 + 0.0j
@@ -239,7 +239,7 @@ def third_order_corr_t_cl(freqs_gs, Omega_sq, gamma, kbT, t1, t2, four_phonon_te
 
 
 # compute the third order quantum correlation function for two points in time
-@njit(fastmath=True, parallel=True)
+@njit(fastmath=True)
 def third_order_corr_t_QM(freqs_gs, Omega_sq, gamma, n_i_vec, t1, t2, four_phonon_term):
     corr_val = 0.0 + 0.0j
     gamma_term = 0.0 + 0.0j
@@ -689,7 +689,7 @@ def HT_qm_t(freqs_gs,Kmat,Jtrans,Omega_sq,gamma,n,dipole_mom,Jdip_deriv,reorg_di
     two_deriv_term=0.0+1j*0.0
     for i in range(freqs_gs.shape[0]):
         term_xyz=(Jdip_deriv[i,0]**2.0+Jdip_deriv[i,1]**2.0+Jdip_deriv[i,2]**2.0)/(2.0*freqs_gs[i])*((n[i]+1.0)*cmath.exp(-1j*freqs_gs[i]*t)+n[i]*cmath.exp(1j*freqs_gs[i]*t))
-	two_deriv_term=two_deriv_term+term_xyz
+        two_deriv_term=two_deriv_term+term_xyz
 
 
     if is_3rd_order:
@@ -709,7 +709,7 @@ def HT_qm_t(freqs_gs,Kmat,Jtrans,Omega_sq,gamma,n,dipole_mom,Jdip_deriv,reorg_di
                 prefac1=-(Omega_sq[i,j]+Omega_sq[j,i])*np.dot(Jdip_deriv[i,:],Jdip_deriv[j,:])/(4.0*freqs_gs[i]*freqs_gs[j])
                  
                 dmudUdmu=dmudUdmu+prefac1*HT_fac_dmu_dU_dmu((n[i]+1.0)*(n[j]+1.0),-omega_m,freqs_gs[i],t)
-   		dmudUdmu=dmudUdmu+prefac1*HT_fac_dmu_dU_dmu(n[i]*n[j],omega_m,-freqs_gs[i],t)
+                dmudUdmu=dmudUdmu+prefac1*HT_fac_dmu_dU_dmu(n[i]*n[j],omega_m,-freqs_gs[i],t)
                 dmudUdmu=dmudUdmu+prefac1*HT_fac_dmu_dU_dmu((n[i]+1.0)*n[j],-omega_p,freqs_gs[i],t)
                 dmudUdmu=dmudUdmu+prefac1*HT_fac_dmu_dU_dmu((n[j]+1.0)*n[i],omega_p,-freqs_gs[i],t)
 
@@ -4391,7 +4391,7 @@ def prefactor_3rd_order_lineshape_QM(const_fac, omega1, omega2, kbT, t):
 
 
 # prefactor by Jung that turns the classical two time correlation function into its quantum counterpart:
-@njit(fastmath=True, parallel=True)
+@njit(fastmath=True)
 def prefactor_jung(omega1, omega2, kbT):
     omega12 = omega1 + omega2
     tol = 10.0 ** (-15)
