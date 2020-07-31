@@ -191,9 +191,9 @@ class gbom:
 		else:
 			self_corr_func_3rd_cl=gbom_cumulant_response.full_third_order_corr_func(self.freqs_gs,self.Omega_sq,self.gamma,kbT,max_t,num_points,True,four_phonon_term)
 
-        def compute_HT_term(self,temp,num_points,max_t,is_qm,stdout):
+        def compute_HT_term(self,temp,num_points,max_t,is_qm,is_3rd,stdout):
                 kbT=const.kb_in_Ha*temp
-		self.HT=gbom_cumulant_response.full_2nd_order_HT_term(self.freqs_gs,self.K,self.J,self.gamma,self.dipole_mom,self.dipole_deriv,kbT,max_t,num_points,is_qm,stdout)
+		self.HT=gbom_cumulant_response.full_HT_term(self.freqs_gs,self.K,self.J,self.Omega_sq,self.gamma,self.dipole_mom,self.dipole_deriv,kbT,max_t,num_points,is_qm,is_3rd,stdout)
 
 
 	def set_absorption_variables(self):

@@ -245,7 +245,7 @@ def compute_GBOM_absorption(param_list,GBOM_chromophore,solvent,is_emission):
 
 				# Check if I need HT term:
 				if param_list.herzberg_teller:
-					GBOM_chromophore.compute_HT_term(param_list.temperature,param_list.num_steps,param_list.max_t,param_list.exact_corr,param_list.stdout)
+					GBOM_chromophore.compute_HT_term(param_list.temperature,param_list.num_steps,param_list.max_t,param_list.exact_corr,param_list.third_order,param_list.stdout)
 
 				GBOM_chromophore.calc_cumulant_response(param_list.third_order,param_list.exact_corr,is_emission,param_list.herzberg_teller)		
 				spectrum=linear_spectrum.full_spectrum(GBOM_chromophore.cumulant_response,solvent.solvent_response,param_list.num_steps,E_start,E_end,True,is_emission,param_list.stdout)

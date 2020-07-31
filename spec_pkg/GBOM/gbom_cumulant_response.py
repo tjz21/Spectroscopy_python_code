@@ -645,7 +645,7 @@ def bose_einstein(freq, kbT):
     return 1.0 / n
 
 
-def full_2nd_order_HT_term(freqs_gs,Kmat,Jmat,gamma,dipole_mom,dipole_deriv,kbT,max_t,num_points,is_qm,stdout):
+def full_HT_term(freqs_gs,Kmat,Jmat,Omega_sq,gamma,dipole_mom,dipole_deriv,kbT,max_t,num_points,is_qm,is_3rd_order,stdout):
     Jtrans=np.transpose(Jmat)
     HT_func=np.zeros((num_points, 2), dtype=complex)
     n_i_vec = np.zeros(freqs_gs.shape[0])
@@ -672,14 +672,14 @@ def full_2nd_order_HT_term(freqs_gs,Kmat,Jmat,gamma,dipole_mom,dipole_deriv,kbT,
     for i in range(num_points):
         HT_func[i,0]=t
         if is_qm:
-            HT_func[i,1]=second_order_HT_qm_t(freqs_gs,Kmat,Jtrans,gamma,n_i_vec,dipole_mom,Jdip_deriv,reorg_dipole,total_renorm_dipole,t) 
+            HT_func[i,1]=HT_qm_t(freqs_gs,Kmat,Jtrans,Omega_sq,gamma,n_i_vec,dipole_mom,Jdip_deriv,reorg_dipole,total_renorm_dipole,is_3rd_order,t) 
         #else:
             # CURRENTLY NOT IMPLEMENTED!!!!
         t=t+step_length
 
     return HT_func
 
-def second_order_HT_qm_t(freqs_gs,Kmat,Jtrans,gamma,n,dipole_mom,Jdip_deriv,reorg_dipole,total_renorm_dipole,t):
+def HT_qm_t(freqs_gs,Kmat,Jtrans,Omega_sq,gamma,n,dipole_mom,Jdip_deriv,reorg_dipole,total_renorm_dipole,is_3rd_order,t):
 
     one_deriv_term=0.0+0.0*1j
     for i in range(freqs_gs.shape[0]):
@@ -691,8 +691,106 @@ def second_order_HT_qm_t(freqs_gs,Kmat,Jtrans,gamma,n,dipole_mom,Jdip_deriv,reor
         term_xyz=(Jdip_deriv[i,0]**2.0+Jdip_deriv[i,1]**2.0+Jdip_deriv[i,2]**2.0)/(2.0*freqs_gs[i])*((n[i]+1.0)*cmath.exp(-1j*freqs_gs[i]*t)+n[i]*cmath.exp(1j*freqs_gs[i]*t))
 	two_deriv_term=two_deriv_term+term_xyz
 
-    total=total_renorm_dipole+one_deriv_term+two_deriv_term
+
+    if is_3rd_order:
+        # Compute 3rd order cumulant correction
+        dUdUdmu=0.0+0.0j
+        dmudUdU=0.0+0.0j
+        dmudUdmu=0.0+0.0j
+  
+        # loop over two phonon terms
+        for i in range(freqs_gs.shape[0]):
+            for j in range(freqs_gs.shape[0]):
+                # start with dmudUdmu
+                omega_m=freqs_gs[i]-freqs_gs[j]
+                omega_p=freqs_gs[i]+freqs_gs[j]
+
+                # absorb the extra minus sign in the prefactor
+                prefac1=-(Omega_sq[i,j]+Omega_sq[j,i])*np.dot(Jdip_deriv[i,:],Jdip_deriv[j,:])/(4.0*freqs_gs[i]*freqs_gs[j])
+                 
+                dmudUdmu=dmudUdmu+prefac1*HT_fac_dmu_dU_dmu((n[i]+1.0)*(n[j]+1.0),-omega_m,freqs_gs[i],t)
+   		dmudUdmu=dmudUdmu+prefac1*HT_fac_dmu_dU_dmu(n[i]*n[j],omega_m,-freqs_gs[i],t)
+                dmudUdmu=dmudUdmu+prefac1*HT_fac_dmu_dU_dmu((n[i]+1.0)*n[j],-omega_p,freqs_gs[i],t)
+                dmudUdmu=dmudUdmu+prefac1*HT_fac_dmu_dU_dmu((n[j]+1.0)*n[i],omega_p,-freqs_gs[i],t)
+
+                # now dUdUdmu
+                prefac2=-(np.dot(Jdip_deriv[i,:],reorg_dipole)-2.0*np.dot(Jdip_deriv[i,:],dipole_mom))*(Omega_sq[i,j]+Omega_sq[j,i])*gamma[j]/(4.0*freqs_gs[i]*freqs_gs[j])
+                dUdUdmu=dUdUdmu+prefac2*HT_fac_dU_dU_dmu((n[i]+1.0)*(n[j]+1.0),-freqs_gs[i],omega_p,t)
+                dUdUdmu=dUdUdmu+prefac2*HT_fac_dU_dU_dmu(n[i]*n[j],freqs_gs[i],-omega_p,t)
+                dUdUdmu=dUdUdmu+prefac2*HT_fac_dU_dU_dmu((n[i]+1.0)*n[j],-freqs_gs[i],omega_m,t)
+                dUdUdmu=dUdUdmu+prefac2*HT_fac_dU_dU_dmu((n[j]+1.0)*n[i],freqs_gs[i],-omega_m,t)
+
+                dUdUdmu=dUdUdmu+prefac2*HT_fac_dU_dU_dmu((n[i]+1.0)*(n[j]+1.0),-omega_m,freqs_gs[i],t)
+                dUdUdmu=dUdUdmu+prefac2*HT_fac_dU_dU_dmu(n[i]*n[j],omega_m,-freqs_gs[i],t)
+                dUdUdmu=dUdUdmu+prefac2*HT_fac_dU_dU_dmu((n[i]+1.0)*n[j],-omega_p,freqs_gs[i],t)
+                dUdUdmu=dUdUdmu+prefac2*HT_fac_dU_dU_dmu((n[j]+1.0)*n[i],omega_p,-freqs_gs[i],t)
+
+
+                # now dmudUdU. Slightly different prefactor. 
+                prefac3=-np.dot(Jdip_deriv[i,:],reorg_dipole)*(Omega_sq[i,j]+Omega_sq[j,i])*gamma[j]/(4.0*freqs_gs[i]*freqs_gs[j])
+                dmudUdU=dmudUdU+prefac3*HT_fac_dmu_dU_dU((n[i]+1.0)*(n[j]+1.0),freqs_gs[i],freqs_gs[j],t)
+                dmudUdU=dmudUdU+prefac3*HT_fac_dmu_dU_dU(n[i]*n[j]+1.0,-freqs_gs[i],-freqs_gs[j],t)
+                dmudUdU=dmudUdU+prefac3*HT_fac_dmu_dU_dU((n[j]+1.0)*n[i],-freqs_gs[i],freqs_gs[j],t)
+                dmudUdU=dmudUdU+prefac3*HT_fac_dmu_dU_dU((n[i]+1.0)*n[j],freqs_gs[i],-freqs_gs[j],t)
+             
+                dmudUdU=dmudUdU+prefac3*HT_fac_dmu_dU_dU((n[i]+1.0)*(n[j]+1.0),-freqs_gs[i],omega_p,t)
+                dmudUdU=dmudUdU+prefac3*HT_fac_dmu_dU_dU(n[i]*n[j],freqs_gs[i],-omega_p,t)
+                dmudUdU=dmudUdU+prefac3*HT_fac_dmu_dU_dU((n[i]+1.0)*n[j],-freqs_gs[i],omega_m,t)
+                dmudUdU=dmudUdU+prefac3*HT_fac_dmu_dU_dU((n[j]+1.0)*n[i],freqs_gs[i],-omega_m,t)
+                
+
+        total=total_renorm_dipole+one_deriv_term+dUdUdmu+dmudUdU+two_deriv_term+dmudUdmu
+    else:
+        total=total_renorm_dipole+one_deriv_term+two_deriv_term
+
     return total
+
+# the factor that arises from performing the time-ordered integral over the dUdUdmu corr func
+def HT_fac_dU_dU_dmu(prefac,omega1,omega2,t):
+    omega_bar=omega1+omega2
+    tiny=10e-16
+    term=0.0+1j*0.0
+
+    if abs(omega2)<tiny:
+       term=(1.0-cmath.exp(-1j*omega_bar*t))/(omega1*omega_bar)-1j*t/omega1
+    elif abs(omega_bar)<tiny:
+    
+       term=1j*t/omega1-(1.0-cmath.exp(-1j*omega2*t))/(omega1*omega2)
+    elif abs(omega1)<tiny:
+       term=1j*t*cmath.exp(-1j*omega2*t)/omega2  # double check this limit
+
+    else:
+       term=(1.0-cmath.exp(-1j*omega_bar*t))/(omega1*omega_bar)-(1.0-cmath.exp(-1j*omega2*t))/(omega1*omega2)
+
+    return term*prefac
+
+def HT_fac_dmu_dU_dmu(prefac,omega1,omega2,t):
+    omega_bar=omega1+omega2
+    tiny=10e-16
+    term=0.0+1j*0.0
+
+    if abs(omega1)<tiny:
+       term=1j*t*cmath.exp(-1j*omega_bar*t)
+    else:
+       term=(cmath.exp(-1j*omega2*t)-cmath.exp(-1j*omega_bar*t))/omega1
+
+    return term*prefac
+
+def HT_fac_dmu_dU_dU(prefac,omega1,omega2,t):
+    omega_bar=omega1+omega2
+    tiny=10e-16
+    term=0.0+1j*0.0
+
+    if abs(omega1)<tiny:
+       term=cmath.exp(-1j*omega2*t)/omega_bar*((cmath.exp(1j*omega2*t)-1.0)/omega2-1j*t)      
+    elif abs(omega2)<tiny:
+       term=cmath.exp(-1j*omega2*t)/omega_bar*(1j*t+(cmath.exp(-1j*omega1*t)-1.0)/omega1) 
+    elif abs(omega_bar)<tiny:
+       term=0.0+0.0j # NOT THE CORRECT LIMIT. WORK OUT ANALYTICALLY
+    else:
+       term=cmath.exp(-1j*omega2*t)/omega_bar*((cmath.exp(1j*omega2*t)-1.0)/omega2+(cmath.exp(-1j*omega1*t)-1.0)/omega1) 
+    
+    return prefac*term
 
 
 # g2 as derived from either the exact classical correlation function or the exact QM correlation function
