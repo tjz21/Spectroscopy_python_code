@@ -1447,8 +1447,10 @@ elif param_set.task=='2DES':
 		# a Franck-Condon type Morse spectrum 
 		elif param_set.model=='MORSE':
 			if param_set.method=='EXACT':
-				E_start=morse_oscs.E_adiabatic-param_set.spectral_window/2.0
-				E_end=morse_oscs.E_adiabatic+param_set.spectral_window/2.0
+				# only need to compute corr func so we have a value for the average energy gap
+				morse_oscs.compute_total_corr_func_exact(param_set.temperature,param_set.decay_length,param_set.max_t,param_set.num_steps)
+				E_start=morse_oscs.omega_av_qm-param_set.spectral_window/2.0
+				E_end=morse_oscs.omega_av_qm+param_set.spectral_window/2.0
 				filename_2DES='Decoupled_Morse_'
 				solvent_mod.calc_spectral_dens(param_set.num_steps)
 				solvent_mod.calc_g2_solvent(param_set.temperature,param_set.num_steps,param_set.max_t,param_set.stdout)
@@ -1461,8 +1463,6 @@ elif param_set.task=='2DES':
 				morse_2DES.calc_2DES_time_series_morse_list(morse_oscs.morse_oscs,solvent_mod.g2_solvent,E_start,E_end,E_start,E_end,param_set.num_steps_2DES,filename_2DES,param_set.num_time_samples_2DES,param_set.t_step_2DES)
 		
 			elif param_set.method=='CUMULANT':
-				E_start=morse_oscs.E_adiabatic-param_set.spectral_window/2.0
-				E_end=morse_oscs.E_adiabatic+param_set.spectral_window/2.0
 				filename_2DES='Decoupled_Morse_cumulant'
 				solvent_mod.calc_spectral_dens(param_set.num_steps)
 				solvent_mod.calc_g2_solvent(param_set.temperature,param_set.num_steps,param_set.max_t,param_set.stdout)
@@ -1477,6 +1477,33 @@ elif param_set.task=='2DES':
 				q_func_eff[:,1]=q_func_eff[:,1]+solvent_mod.g2_solvent[:,1]
 
 				twoDES.calc_2DES_time_series(q_func_eff,E_start,E_end,E_start,E_end,param_set.num_steps_2DES,filename_2DES,param_set.num_time_samples_2DES,param_set.t_step_2DES,0.0)
+
+			elif param_set.method=='FC_HARMONIC':
+				filename_2DES='Decoupled_Morse_harmonic_FC'
+				solvent_mod.calc_spectral_dens(param_set.num_steps)
+				solvent_mod.calc_g2_solvent(param_set.temperature,param_set.num_steps,param_set.max_t,param_set.stdout)
+
+				morse_oscs.eff_gbom.calc_omega_av_qm(param_set.temperature,False)
+				morse_oscs.eff_gbom.calc_g2_qm(param_set.temperature,param_set.num_steps,param_set.max_t,False,param_set.stdout)
+				# set the start and end values for both the x and the y axis of the
+				# 2DES spectrum
+				eff_shift1=0.0
+				eff_shift2=0.0
+				if abs(param_set.omega1)>0.000001:
+					eff_shift1=param_set.omega1-morse_oscs.eff_gbom.omega_av_qm
+				if abs(param_set.omega3)>0.000001:
+					eff_shift2=param_set.omega3-morse_oscs.eff_gbom.omega_av_qm
+
+				E_start1=morse_oscs.eff_gbom.omega_av_qm-param_set.spectral_window/2.0+eff_shift1
+				E_end1=morse_oscs.eff_gbom.omega_av_qm+param_set.spectral_window/2.0+eff_shift1
+				E_start2=morse_oscs.eff_gbom.omega_av_qm-param_set.spectral_window/2.0+eff_shift2
+				E_end2=morse_oscs.eff_gbom.omega_av_qm+param_set.spectral_window/2.0+eff_shift2
+
+				q_func_eff=morse_oscs.eff_gbom.g2_exact
+				q_func_eff[:,1]=q_func_eff[:,1]+solvent_mod.g2_solvent[:,1]
+
+
+				twoDES.calc_2DES_time_series(q_func_eff,E_start1,E_end1,E_start2,E_end2,param_set.num_steps_2DES,filename_2DES,param_set.num_time_samples_2DES,param_set.t_step_2DES,0.0)
 
 		elif param_set.model=='COUPLED_MORSE':
 			if param_set.method=='EXACT':
