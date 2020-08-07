@@ -14,6 +14,7 @@ from spec_pkg.GBOM import gbom
 from spec_pkg.cumulant import cumulant
 from spec_pkg.GBOM import gbom_cumulant_response
 from spec_pkg.nonlinear_spectrum import twoDES
+from spec_pkg.Morse import morse_2DES
 
 #---------------------------------------------------------------------------------------------
 # Class definition of a single discplaced Morse oscillator, where ground and excited state PES 
@@ -201,6 +202,30 @@ def exact_corr_func_t(gs_energy_list,boltzmann_list, delta_U_matrix,t):
 	corr_val=np.trace(tot_mat)/Z
 	return corr_val
 
+# compute the exact two-time correlation function of the energy gap for a given value of t,t'.
+def exact_corr_func_3rd_t(gs_energy_list,boltzmann_list,delta_U_matrix,t1,t2):
+	pos_phase_mat_t1=np.zeros((gs_energy_list.shape[0],gs_energy_list.shape[0]),dtype=np.complex_)
+	pos_phase_mat_t2=np.zeros((gs_energy_list.shape[0],gs_energy_list.shape[0]),dtype=np.complex_)
+	for i in range(gs_energy_list.shape[0]):
+		pos_phase_mat_t1[i,i]=cmath.exp(1j*gs_energy_list[i]*t1)
+		pos_phase_mat_t2[i,i]=cmath.exp(1j*gs_energy_list[i]*t2)
+
+	Z=np.sum(boltzmann_list)
+	corr_val=0.0+1j*0.0
+	boltzmann_mat=np.zeros((boltzmann_list.shape[0],boltzmann_list.shape[0]))
+	for i in range(boltzmann_mat.shape[0]):
+		boltzmann_mat[i,i]=boltzmann_list[i]
+
+	t1t2_mat=np.dot(np.dot(np.conjugate(pos_phase_mat_t2),pos_phase_mat_t),delta_U_matrix)
+	posU=np.dot(pos_phase_mat_t2,delta_U_mat)
+	negU=np.dot(np.conjugate(pos_phase_mat_t1),deltaU_mat)
+	
+	temp_mat=np.dot(np.dot(negU,t1t2_mat),negU)
+	tot_mat=np.dot(temp_mat,boltzmann_mat)
+
+	corr_val=np.trace(tot_mat)/Z
+	return corr_val
+
 # compute exact correlation function of energy gap fluctuations.
 def exact_corr_func(He_mat,D_gs,freq_gs,omega_av,kbT,num_points,max_t):
 	gs_energy_list=np.zeros(He_mat.shape[0])
@@ -218,6 +243,26 @@ def exact_corr_func(He_mat,D_gs,freq_gs,omega_av,kbT,num_points,max_t):
 		corr_func[i,0]=current_t
 		corr_func[i,1]=exact_corr_func_t(gs_energy_list,boltzmann_list, delta_U_mat,current_t)
 		current_t=current_t+time_step
+
+	return corr_func
+
+def exact_corr_func_3rd(He_mat,D_gs,freqs_gs,omega_av,kbT,num_points,max_t):
+	gs_energy_list=np.zeros(He_mat.shape[0])
+	delta_U_mat=He_mat
+	for i in range(gs_energy_list.shape[0]):
+		gs_energy_list[i]=compute_morse_eval_n(freq_gs,D_gs,i)
+		delta_U_mat[i,i]=delta_U_mat[i,i]-gs_energy_list[i]
+	boltzmann_list=np.exp(-gs_energy_list/kbT)
+
+	time_step=max_t/num_points
+	corr_func=np.zeros((2*num_points+1,2*num_points+1,3),np.complex_)
+	t_start=-max_t
+
+	for i in range(corr_func.shape[0]):
+		for j in range(corr_func.shape[0]):
+			corr_func[i,j,0]=t_start+i*time_step
+			corr_func[i,j,1]=t_start+j*time_step
+			corr_func[i,j,2]=exact_corr_func_3rd_t(gs_energy_list,boltzmann_list, delta_U_mat,corr_func[i,j,0],corr_func[i,j,1])
 
 	return corr_func
 
@@ -438,6 +483,7 @@ def compute_excited_state_wf_2D(num_points,start_point,end_point,D,alpha,mu,n,sh
 
 
 # compute the effective Franck-Condon wavefunction overlap between two wavefunctions
+# This shouldnt be squared!
 def get_fc_factor(num_points,start_point,end_point,D_gs,D_ex,alpha_gs,alpha_ex,mu,K,n_gs,n_ex):
         #print start_point,end_point,D,alpha,n_gs,n_ex,d
         func1=compute_wavefunction_n(num_points, start_point,end_point,D_gs,alpha_gs,mu,n_gs,0.0)
@@ -447,10 +493,10 @@ def get_fc_factor(num_points,start_point,end_point,D_gs,D_ex,alpha_gs,alpha_ex,m
                 x[1]=x[1]*func2[counter,1]
                 counter=counter+1
 
-        return (integrate.simps(func1[:,1],dx=func1[1,0]-func1[0,0]))**2.0
+        return integrate.simps(func1[:,1],dx=func1[1,0]-func1[0,0])
 
 
-# 2D version of get_fc_factor
+# 2D version of get_fc_factor. NOTe that WF overlaps are Not squared
 def get_fc_factor_2D(num_points,start_point,end_point,D_gs,D_ex,alpha_gs,alpha_ex,mu,K,J,n_gs,n_ex):
 	# n_gs and n_ex are vectors
 	# first build 2D gs wavefunc
@@ -470,7 +516,7 @@ def get_fc_factor_2D(num_points,start_point,end_point,D_gs,D_ex,alpha_gs,alpha_e
 	#twoDES.print_2D_spectrum('2D_ex_wavefunction.dat',ex_wavefunc,False)
 	overlap=gs_wavefunc
 	overlap[:,:,2]=overlap[:,:,2]*ex_wavefunc[:,:,2]
-	return (cumulant.simpson_integral_2D(overlap))**2.0
+	return cumulant.simpson_integral_2D(overlap)
 
 class morse: 
 	def __init__(self,D_gs,D_ex,alpha_gs,alpha_ex,mu,K,E_adiabatic,dipole_mom,max_states_gs,max_states_ex,num_points):
@@ -515,8 +561,12 @@ class morse:
 		# modulus squared of the overlaps of nuclear wavefunctions between ground
 		# and excited state PES
 		self.wf_overlaps=np.zeros((self.n_max_gs,self.n_max_ex))
+		self.wf_overlaps_sq=np.zeros((self.n_max_gs,self.n_max_ex))
 		self.transition_energies=np.zeros((self.n_max_gs,self.n_max_ex))
-		
+		self.gs_energies=np.zeros(self.n_max_gs)
+		self.boltzmann_fac=np.zeros(self.n_max_gs)
+		self.ex_energies=np.zeros(self.n_max_ex)	
+	
 		# effective overlap between ground state wavefunctions and excited state hamiltonian
 		self.He_mat=np.zeros((self.n_max_gs,self.n_max_gs))
 
@@ -526,7 +576,10 @@ class morse:
 		# cumulant parameters
 		self.exact_2nd_order_corr=np.zeros((1,1),dtype=np.complex_)
 		self.exact_g2=np.zeros((1,1),dtype=np.complex_)
-	
+
+	def compute_boltzmann_fac(self,temp):
+		kbT=const.kb_in_Ha*temp
+		self.boltzmann_fac=np.exp(-self.gs_energies/kbT)	
 
 	# Now declare functions of the Morse oscillator 
 	def compute_exact_corr(self,temp,num_points,max_t):
@@ -562,14 +615,18 @@ class morse:
 	def compute_exact_response(self,temp,max_t,num_steps):
 		kbT=const.kb_in_Ha*temp
 		self.compute_overlaps_and_transition_energies()
-		self.exact_response_func=compute_exact_response_func(self.wf_overlaps,self.transition_energies,self.freq_gs,self.D_gs,kbT,max_t,num_steps)
+		self.exact_response_func=compute_exact_response_func(self.wf_overlaps_sq,self.transition_energies,self.freq_gs,self.D_gs,kbT,max_t,num_steps)
 
 	# now compute all wavefunction overlaps and Transition energies 
 	def compute_overlaps_and_transition_energies(self):
 		for i in range(self.n_max_gs):
+			self.gs_energies[i]=compute_morse_eval_n(self.freq_gs,self.D_gs,i)
 			for j in range(self.n_max_ex):
+				self.ex_energies[j]=compute_morse_eval_n(self.freq_ex,self.D_ex,j)+self.E_adiabatic
 				self.transition_energies[i,j]=self.transition_energy(i,j)
 				self.wf_overlaps[i,j]=get_fc_factor(self.grid_n_points,self.grid_start,self.grid_end,self.D_gs,self.D_ex,self.alpha_gs,self.alpha_ex,self.mu,self.K,i,j)
+				self.wf_overlaps_sq[i,j]=self.wf_overlaps[i,j]**2.0
+
 		print('Transition energies relative to GS')
 		print(self.transition_energies[0,:])
 
@@ -620,7 +677,9 @@ class morse_list:
 
 		# cumulant
 		self.exact_2nd_order_corr=np.zeros((1,1),dtype=np.complex_)
-		self.exact_2nd_order_corr_freqr=np.zeros((1,1),dtype=np.complex_)
+		self.exact_2nd_order_corr_freq=np.zeros((1,1),dtype=np.complex_)
+		self.exact_3rd_order_corr=np.zeros((1,1,1),dtype=np.complex_)
+		self.exact_3rd_order_corr_freq=np.zeros((1,1,1),dtype=np.complex_)
 		self.spectral_dens=np.zeros((1,1))
 		self.g2_exact=np.zeros((1,1),dtype=np.complex_)
 
@@ -684,13 +743,17 @@ class morse_list:
 		counter = 0
 		while counter < self.spectral_dens.shape[0]:
 			self.spectral_dens[counter, 0] = freqs[counter]
-			self.spectral_dens[counter, 1] = -step_length*np.real(1j*corr_func_freq[counter]) # HACK
+			self.spectral_dens[counter, 1] = -step_length*np.real(1j*corr_func_freq[counter]) 
 			counter = counter + 1
 
-	def compute_2nd_order_cumulant_response(self,temp,max_t,num_points):
+	def compute_g2_exact(self,temp,max_t,num_points,stdout):
+		kbT=const.kb_in_Ha*temp
+		self.g2_exact=cumulant.compute_2nd_order_cumulant_from_spectral_dens(self.spectral_dens,kbT,max_t,num_points,stdout)
+
+	def compute_2nd_order_cumulant_response(self,temp,max_t,num_points,stdout):
 		kbT=const.kb_in_Ha*temp	
 		#self.g2_exact=g2_from_corr_func(self.exact_2nd_order_corr_freq,num_points,max_t)
-		self.g2_exact=cumulant.compute_2nd_order_cumulant_from_spectral_dens(self.spectral_dens,kbT,max_t,num_points)
+		self.g2_exact=cumulant.compute_2nd_order_cumulant_from_spectral_dens(self.spectral_dens,kbT,max_t,num_points,stdout)
 		self.cumulant_response_func=gbom_cumulant_response.compute_cumulant_response(self.g2_exact, np.zeros((1,1)),False, False)
 		for i in range(self.cumulant_response_func.shape[0]):
 			self.cumulant_response_func[i,1]=self.cumulant_response_func[i,1]*cmath.exp(-1j*self.cumulant_response_func[i,0]*self.omega_av_qm)
@@ -772,7 +835,11 @@ class morse_coupled:
 
 		# all possible wf overlaps for a combination of Morse wavefunctions on the ground and excited state PES saved in a N*N matrix
                 self.wf_overlaps=np.zeros((int(self.n_max_gs[0]*self.n_max_gs[1]),int(self.n_max_ex[0]*self.n_max_ex[1])))
+                self.wf_overlaps_sq=np.zeros((int(self.n_max_gs[0]*self.n_max_gs[1]),int(self.n_max_ex[0]*self.n_max_ex[1])))
                 self.transition_energies=np.zeros((int(self.n_max_gs[0]*self.n_max_gs[1]),int(self.n_max_ex[0]*self.n_max_ex[1])))
+                self.boltmann_fac=np.zeros(int(self.n_max_gs[0]*self.n_max_gs[1]))
+                self.gs_energies=np.zeros(int(self.n_max_gs[0]*self.n_max_gs[1]))
+                self.ex_energies=np.zeros(int(self.n_max_ex[0]*self.n_max_ex[1]))
 
 		# He mat needed for exact response func
                 self.He_mat=np.zeros((int(self.n_max_gs[0]*self.n_max_gs[1]),int(self.n_max_gs[0]*self.n_max_gs[1])))		
@@ -787,6 +854,10 @@ class morse_coupled:
                 self.exact_2nd_order_corr=np.zeros((1,1),dtype=np.complex_)
                 self.spectal_dens=np.zeros((1,1))	
                 self.g2_exact=np.zeros((1,1),dtype=np.complex_)
+	
+        def compute_boltzmann_fac(self,temp):
+                kbT=const.kb_in_Ha*temp
+                self.boltmann_fac=np.exp(-self.gs_energies/kbT)
 
         def compute_wf_overlaps_energies(self):
                 print('COMPUTING WF overlaps:')
@@ -801,7 +872,12 @@ class morse_coupled:
                                                 n_ex=np.array([k,l])
                                                 self.transition_energies[index_gs,index_ex]=self.transition_energy(n_gs,n_ex)
                                                 self.wf_overlaps[index_gs,index_ex]=get_fc_factor_2D(self.grid_n_points,self.grid_start,self.grid_end,self.D_gs,self.D_ex,self.alpha_gs,self.alpha_ex,self.mu,self.K,self.J,n_gs,n_ex)
+                                                self.wf_overlaps_sq[index_gs,index_ex]=self.wf_overlaps[index_gs,index_ex]**2.0
+
+                                                self.gs_energies[index_gs]=compute_morse_eval_n(self.gs_freqs[0],self.D_gs[0],n_gs[0])+compute_morse_eval_n(self.gs_freqs[1],self.D_gs[1],n_gs[1])
+                                                self.ex_energies[index_ex]=compute_morse_eval_n(self.ex_freqs[0],self.D_ex[0],n_ex[0])+compute_morse_eval_n(self.ex_freqs[1],self.D_ex[1],n_ex[1])+self.E_adiabatic
                                                 print(i,j,k,l,self.wf_overlaps[index_gs,index_ex])
+
 
 	# calculate transition energy between two specific morse oscillators.
         def transition_energy(self,n_gs,n_ex):
@@ -859,6 +935,10 @@ class morse_coupled:
                         self.spectral_dens[counter, 1] = -step_length*np.real(1j*corr_func_freq[counter]) # HACK
                         counter = counter + 1
 
+        def compute_g2_exact(self,temp,max_t,num_points):
+                kbT=const.kb_in_Ha*temp
+                self.g2_exact=cumulant.compute_2nd_order_cumulant_from_spectral_dens(self.spectral_dens,kbT,max_t,num_points)
+
         def compute_2nd_order_cumulant_response(self,temp,max_t,num_points):
                 kbT=const.kb_in_Ha*temp 
                 self.g2_exact=cumulant.compute_2nd_order_cumulant_from_spectral_dens(self.spectral_dens,kbT,max_t,num_points)
@@ -869,4 +949,4 @@ class morse_coupled:
         def compute_exact_response(self,temp,max_t,num_steps):
                 kbT=const.kb_in_Ha*temp
                 self.compute_wf_overlaps_energies()
-                self.exact_response_func=compute_exact_response_func_2D(self.wf_overlaps,self.transition_energies,self.gs_freqs,self.n_max_gs,self.D_gs,kbT,max_t,num_steps)
+                self.exact_response_func=compute_exact_response_func_2D(self.wf_overlaps_sq,self.transition_energies,self.gs_freqs,self.n_max_gs,self.D_gs,kbT,max_t,num_steps)

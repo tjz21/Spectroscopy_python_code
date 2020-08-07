@@ -19,6 +19,7 @@ from spec_pkg.solvent_model import solvent_model
 from spec_pkg.cumulant import md_traj
 from spec_pkg.params import params
 from spec_pkg.Morse import morse
+from spec_pkg.Morse import morse_2DES
 
 # TODO ##########################################################################
 # 1) Write simulation information to stdout (what calculation is done, how it	#
@@ -1441,6 +1442,54 @@ elif param_set.task=='2DES':
 						# Successfully set up set of GBOMs ready for 2DES calculation.
 						twoDES.calc_2DES_time_series_batch(q_func_eff_batch,GBOM_batch.num_gboms,E_start,E_end,E_start,E_end,param_set.num_steps_2DES,filename_2DES,param_set.num_time_samples_2DES,param_set.t_step_2DES,0.0)
 
+
+		# For time being, only exact morse spectrum is implemented. In principle, here we can also compute a CUMULANT morse spectrum and 
+		# a Franck-Condon type Morse spectrum 
+		elif param_set.model=='MORSE':
+			if param_set.method=='EXACT':
+				E_start=morse_oscs.E_adiabatic-param_set.spectral_window/2.0
+				E_end=morse_oscs.E_adiabatic+param_set.spectral_window/2.0
+				filename_2DES='Decoupled_Morse_'
+				solvent_mod.calc_spectral_dens(param_set.num_steps)
+				solvent_mod.calc_g2_solvent(param_set.temperature,param_set.num_steps,param_set.max_t,param_set.stdout)
+				                                # set variables in each of the morse oscillators
+				for i in range(len(morse_oscs.morse_oscs)):
+					morse_oscs.morse_oscs[i].compute_overlaps_and_transition_energies()
+					morse_oscs.morse_oscs[i].compute_boltzmann_fac(param_set.temperature)
+
+				# now construct 2DES
+				morse_2DES.calc_2DES_time_series_morse_list(morse_oscs.morse_oscs,solvent_mod.g2_solvent,E_start,E_end,E_start,E_end,param_set.num_steps_2DES,filename_2DES,param_set.num_time_samples_2DES,param_set.t_step_2DES)
+		
+			elif param_set.method=='CUMULANT':
+				E_start=morse_oscs.E_adiabatic-param_set.spectral_window/2.0
+				E_end=morse_oscs.E_adiabatic+param_set.spectral_window/2.0
+				filename_2DES='Decoupled_Morse_cumulant'
+				solvent_mod.calc_spectral_dens(param_set.num_steps)
+				solvent_mod.calc_g2_solvent(param_set.temperature,param_set.num_steps,param_set.max_t,param_set.stdout)
+				morse_oscs.compute_total_corr_func_exact(param_set.temperature,param_set.decay_length,param_set.max_t,param_set.num_steps)
+				morse_oscs.compute_spectral_dens()
+				morse_oscs.compute_g2_exact(param_set.temperature,param_set.max_t,param_set.num_steps,param_set.stdout)
+			
+				E_start=morse_oscs.omega_av_qm-param_set.spectral_window/2.0
+				E_end=morse_oscs.omega_av_qm+param_set.spectral_window/2.0
+	
+				q_func_eff=morse_oscs.g2_exact
+				q_func_eff[:,1]=q_func_eff[:,1]+solvent_mod.g2_solvent[:,1]
+
+				twoDES.calc_2DES_time_series(q_func_eff,E_start,E_end,E_start,E_end,param_set.num_steps_2DES,filename_2DES,param_set.num_time_samples_2DES,param_set.t_step_2DES,0.0)
+
+		elif param_set.model=='COUPLED_MORSE':
+			if param_set.method=='EXACT':
+				E_start=coupled_morse.E_adiabatic-param_set.spectral_window/2.0
+				E_end=coupled_morse.E_adiabatic+param_set.spectral_window/2.0
+
+				filename_2DES='Coupled_Morse_'
+				solvent_mod.calc_spectral_dens(param_set.num_steps)
+				solvent_mod.calc_g2_solvent(param_set.temperature,param_set.num_steps,param_set.max_t,param_set.stdout)
+				coupled_morse.compute_overlaps_and_transition_energies()
+				coupled_morse.compute_boltzmann_fac(param_set.temperature)
+				morse_2DES.calc_2DES_time_series_morse_list(coupled_morse,solvent_mod.g2_solvent,E_start,E_end,E_start,E_end,param_set.num_steps_2DES,filename_2DES,param_set.num_time_samples_2DES,param_set.t_step_2DES)
+	
 
 		elif param_set.model=='MD':
 				filename_2DES=param_set.MD_root+''
