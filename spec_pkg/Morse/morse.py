@@ -575,11 +575,18 @@ class morse:
 
 		# cumulant parameters
 		self.exact_2nd_order_corr=np.zeros((1,1),dtype=np.complex_)
+		self.exact_3rd_order_corr=np.zeros((1,1,1),dtype=np.complex_)
 		self.exact_g2=np.zeros((1,1),dtype=np.complex_)
 
 	def compute_boltzmann_fac(self,temp):
 		kbT=const.kb_in_Ha*temp
 		self.boltzmann_fac=np.exp(-self.gs_energies/kbT)	
+	
+	def compute_exact_corr_3rd(self,temp,num_points,max_t):
+		kbT=const.kb_in_Ha*temp
+		self.He_mat=gs_wavefunc_He_matrix(self.grid_n_points,self.grid_start,self.grid_end,self.D_gs,self.D_ex,self.alpha_gs,self.alpha_ex,self.K,self.mu,self.E_adiabatic,self.n_max_gs)
+		self.omega_av_qm= compute_omega_av_qm(self.He_mat,self.freq_gs,self.D_gs,kbT)
+		self.exact_3rd_order_corr=exact_corr_func_3rd(self.He_mat,self.D_gs,self.freq_gs,self.omega_av_qm,kbT,num_points,max_t)
 
 	# Now declare functions of the Morse oscillator 
 	def compute_exact_corr(self,temp,num_points,max_t):
@@ -699,6 +706,23 @@ class morse_list:
 		# shift final response function by the adiabatic energy gap
 		for j in range(self.total_exact_response_func.shape[0]):
 			self.total_exact_response_func[j,1]=self.total_exact_response_func[j,1]*cmath.exp(-1j*self.E_adiabatic*self.total_exact_response_func[j,0])
+
+	# routine computes the exact 3rd order correlation function and its Fourier transform
+	def compute_total_corr_func_3rd_exact(self,temp,decay_length,max_t,num_steps):
+		for i in range(self.num_morse_oscillators):
+			self.morse_oscs[i].compute_exact_corr_3rd(temp,num_steps,max_t)
+			self.omega_av_qm=self.omega_av_qm+(self.morse_oscs[i].omega_av_qm)
+			if i==0:
+				self.exact_3rd_order_corr=self.morse_oscs[i].exact_3rd_order_corr
+			else:
+				self.exact_3rd_order_corr[:,:,2]=self.exact_3rd_order_corr[:,:,2]+self.morse_oscs[i].exact_3rd_order_corr[:,:,2]
+		skew=(np.sqrt(np.sum(np.real(self.exact_2nd_order_corr[:,1]))/(1.0*self.exact_2nd_order_corr.shape[0])))**3.0
+		
+		self.exact_3rd_order_corr[:,:,2]=self.exact_3rd_order_corr[:,:,2]-skew
+
+		# successfully computed the total 3rd order correlation function. Now need to construct its Fourier
+		# transform. 
+
 
 	# routine computes the exact correlation function and its Fourier transform
 	def compute_total_corr_func_exact(self,temp,decay_length,max_t,num_steps):

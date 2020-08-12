@@ -671,7 +671,7 @@ def compute_hybrid_GBOM_MD_absorption(param_list,MDtraj,GBOM_chromophore,solvent
                                                                 GBOM_chromophore.calc_g3_qm(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.four_phonon_term,param_list.stdout)
 
 				# calculate FC and 2nd order cumulant response functions for GBOM
-                                GBOM_chromophore.calc_cumulant_response(param_list.third_order,param_list.exact_corr,is_emission)
+                                GBOM_chromophore.calc_cumulant_response(param_list.third_order,param_list.exact_corr,is_emission,param_list.herzberg_teller)
                                 GBOM_chromophore.calc_fc_response(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.herzberg_teller,param_list.stdout)	
 				
 				# now build effective response function
