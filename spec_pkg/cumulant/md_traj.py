@@ -126,7 +126,7 @@ def get_all_trajs(num_trajs,name_list):
 # Class definitions
 
 class MDtrajs:
-	def __init__(self,trajs,oscillators,tau,num_trajs,time_step,stdout):
+	def __init__(self,trajs,dipoles,tau,num_trajs,time_step,stdout):
 		self.num_trajs=num_trajs
 		stdout.write('Building an MD trajectory model:'+'\n')
 		stdout.write('Number of independent trajectories:   '+str(num_trajs)+'\n')
@@ -138,12 +138,20 @@ class MDtrajs:
 			stdout.write('This means that the energy gap fluctuations are likely non-Gaussian in nature and low-order cumulant expansions might be unreliable!'+'\n'+'\n')
 
 		self.fluct=get_fluctuations(trajs,self.mean)
-		self.dipole_mom=get_dipole_mom(oscillators,trajs)
-		self.dipole_mom_av=np.sum(self.dipole_mom)/(1.0*self.dipole_mom.shape[0]*self.dipole_mom.shape[1]) # average dipole mom
-		self.dipole_reorg=0.0 # dipole reorganization and renormalized dipole moment
+		self.dipole_mom=dipoles # dipoles is already a list of xyz dipole moments when it enters this routine
+		self.dipole_mom_av=np.zeros(3) # standard average dipole moment. This si also required in case this is no HT calculation
+		for i in range(dipoles.shape[0]): 
+			for j in range(dipoles.shape[1]):
+				self.dipole_mom_av[:]=self.dipole_mom_av[:]+self.dipole_mom[i,j,:]/(1.0*self.dipole_mom.shape[0]*self.dipole_mom.shape[1]) # average dipole mom
+
+		# dipole mom, dipole mom av and all related quantities are vector quantities
+		self.dipole_reorg=np.zeros(3) # dipole reorganization and renormalized dipole moment
 		self.dipole_renorm=0.0 # required for HT terms
-		self.dipole_fluct=self.dipole_mom-self.dipole_mom_av # construct fluctuations of 
-		# dipole mom needed for Herzberg Term
+		self.dipole_fluct=self.dipole_mom
+		for i in range(self.dipole_mom.shape[0]):
+			for j in range(self.dipole_mom.shape[1]):
+				self.dipole_fluct[i,j,:]=self.dipole_fluct[i,j,:]-self.dipole_mom_av[:] # construct fluctuations of 
+					# dipole mom needed for Herzberg Term
 		stdout.write('Mean dipole moment: '+str(self.dipole_mom_av)+'  Ha'+'\n')
 		
 		self.time_step=time_step # time between individual snapshots. Only relevant
@@ -160,9 +168,10 @@ class MDtrajs:
 		self.corr_func_3rd_qm=np.zeros((1,1))
 
 		# Herzberg-Teller correlation functions
-		self.corr_func_cross_cl=np.zeros((1,1)) # classical cross correlation function between
+		self.corr_func_cross_cl=np.zeros((1,1,3)) # classical cross correlation function between
 		self.corr_func_dipole_cl=np.zeros((1,1)) # energy gap and dipole moment, as well as pure
-						         # dipole corr
+						         # dipole corr. Note that cross dipole function is a 
+							 # vector quantity.
 
 		# HT lineshape functions
 		self.A_HT2=np.zeros((1,1),dtype=complex)
@@ -193,15 +202,19 @@ class MDtrajs:
 		# Compute spectral density: this is really only done for analysis purposes:
 		sd=cumulant.compute_spectral_dens(self.corr_func_dipole_cl,kbT, sampling_rate,self.time_step)
 		np.savetxt('Dipole_dipole_spectral_density.dat',sd)
-		sd=cumulant.compute_spectral_dens(self.corr_func_cross_cl,kbT, sampling_rate,self.time_step)
-		np.savetxt('Dipole_energy_cross_spectral_density.dat',sd)
+		sd=cumulant.compute_spectral_dens(self.corr_func_cross_cl[:,0],kbT, sampling_rate,self.time_step)
+		np.savetxt('Dipole_energy_cross_spectral_density_x.dat',sd)
+		sd=cumulant.compute_spectral_dens(self.corr_func_cross_cl[:,1],kbT, sampling_rate,self.time_step)
+		np.savetxt('Dipole_energy_cross_spectral_density_y.dat',sd)
+		sd=cumulant.compute_spectral_dens(self.corr_func_cross_cl[:,2],kbT, sampling_rate,self.time_step)
+		np.savetxt('Dipole_energy_cross_spectral_density_z.dat',sd)
 
 		# now compute dipole reorganization and the renormalized dipole moment
 		self.dipole_reorg=ht.compute_dipole_reorg(self.corr_func_cross_cl, kbT,sampling_rate, self.time_step)
-		self.dipole_renorm=np.sqrt(self.dipole_mom_av**2.0-2.0*self.dipole_mom_av*self.dipole_reorg+self.dipole_reorg**2.0)
+		self.dipole_renorm=np.sqrt(np.dot(self.dipole_mom_av,self.dipole_mom_av)-2.0*np.dot(self.dipole_mom_av,self.dipole_reorg)+np.dot(self.dipole_reorg,self.dipole_reorg))
 
 		# now construct correlation functions in the frequency domain:
-		corr_func_cross_freq=ht.compute_corr_func_freq(self.corr_func_cross_cl,sampling_rate,self.time_step)
+		corr_func_cross_freq=ht.compute_cross_corr_func_freq(self.corr_func_cross_cl,sampling_rate,self.time_step)
 		corr_func_dipole_freq=ht.compute_corr_func_freq(self.corr_func_dipole_cl,sampling_rate,self.time_step)
 		# now evaluate 2nd order cumulant correction term. 
 		self.A_HT2=ht.compute_HT_term_2nd_order(corr_func_dipole_freq,corr_func_cross_freq,self.dipole_mom_av,self.dipole_renorm,self.dipole_reorg,kbT,max_t,num_steps)
@@ -215,8 +228,6 @@ class MDtrajs:
 
 	def calc_3rd_order_corr(self,corr_length,stdout):
 		self.corr_func_3rd_cl=cumulant.construct_corr_func_3rd(self.fluct,self.num_trajs,corr_length,self.tau,self.time_step,stdout)
-                # HACK: PRINT correlation function
-		twoDES.print_2D_spectrum('classical_third_order_corr.dat',self.corr_func_3rd_cl,False)
 
 	def calc_spectral_dens(self,temp):
 		kbT=temp*const.kb_in_Ha
@@ -260,8 +271,11 @@ class MDtrajs:
 		if is_ht: # add herzberg-teller correction
 			for i in range(self.cumulant_response.shape[0]):
 				self.cumulant_response[i,1]=self.cumulant_response[i,1]*self.A_HT2[i,1]
+		else:
+			self.cumulant_response[:,1]=self.cumulant_response[:,1]*np.dot(self.dipole_mom_av,self.dipole_mom_av)
+
 
 	def calc_ensemble_response(self,max_t,num_steps):
 		# Adjust for the fact that ensemble spectrum already contains dipole moment scaling
-		self.ensemble_response=1.0/(self.dipole_mom_av**2.0)*construct_full_ensemble_response(self.fluct,self.dipole_mom, self.mean, max_t,num_steps,self.tau)
+		self.ensemble_response=1.0/(np.dot(self.dipole_mom_av,self.dipole_mom_av))*construct_full_ensemble_response(self.fluct,self.dipole_mom, self.mean, max_t,num_steps,self.tau)
 
