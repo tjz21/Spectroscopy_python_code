@@ -1108,19 +1108,36 @@ if param_set.model=='MD_GBOM':
                                 if os.path.exists(param_set.MD_root+'traj'+str(traj_count)+'.dat'):
                                                 param_set.stdout.write('Reading in MD trajectory '+str(traj_count)+'  from file '+param_set.MD_root+'traj'+str(traj_count)+'.dat'+'\n')
                                                 traj_dipole=np.genfromtxt(param_set.MD_root+'traj'+str(traj_count)+'.dat')
+
+                                                # Sanity check. 
+                                                if param_set.herzberg_teller and traj_dipole.shape[1] != 5:
+                                                        sys.exit('Error: Requested HT calculation but input trajectory data only has '+str(traj_dipole.shape[1])+' columns!')
+
                                                 if traj_count==1:
                                                                 traj_batch=np.zeros((traj_dipole.shape[0],param_set.num_trajs))
-                                                                osc_batch=np.zeros((traj_dipole.shape[0],param_set.num_trajs))
+                                                                dipole_batch=np.zeros((traj_dipole.shape[0],param_set.num_trajs,3))
 
-                                                traj_batch[:,traj_count-1]=traj_dipole[:,0]
-                                                osc_batch[:,traj_count-1]=traj_dipole[:,1]
+                                                if not param_set.herzberg_teller:
+                                                        traj_batch[:,traj_count-1]=traj_dipole[:,0]
+                                                        # compute dipole moment from oscillator strength for each snapshot. Since direction of the 
+                                                        # dipole moment does not matter for non-HT calculations, simply let the dipole moment point pure
+                                                        # ly in the X direction.
+                                                        dipole_batch[:,traj_count-1,0]=np.sqrt(3.0*traj_dipole[:,1]/(2.0*traj_dipole[:,0]/const.Ha_to_eV))
+
+                                                else:
+                                                        # This is a HT calculation. read in full data from file. 
+                                                        traj_batch[:,traj_count-1]=traj_dipole[:,0]
+                                                        dipole_batch[:,traj_count-1,0]=traj_dipole[:,2]
+                                                        dipole_batch[:,traj_count-1,1]=traj_dipole[:,3]
+                                                        dipole_batch[:,traj_count-1,2]=traj_dipole[:,4]
+
 
                                 else:
                                                 param_set.stdout.write('Error: Trajectory file name necessary for MD-based model does not exist!')
                                                 sys.exit('Error: Trajectory file name necessary for MD-based model does not exist!')
 
                                 traj_count=traj_count+1
-                MDtraj=md_traj.MDtrajs(traj_batch,osc_batch,param_set.decay_length,param_set.num_trajs,param_set.md_step,param_set.stdout)
+                MDtraj=md_traj.MDtrajs(traj_batch,dipole_batch,param_set.decay_length,param_set.num_trajs,param_set.md_step,param_set.stdout)
                 param_set.stdout.write('Successfully read in MD trajectory data of energy gap fluctuations!'+'\n')
 
 # first check whether this is an absorption or a 2DES calculation
