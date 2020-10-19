@@ -63,7 +63,7 @@ def transient_abs_from_2DES(spec):
 		return transient_data
 
 
-def calc_2DES_time_series_batch_Eopt_av(q_batch,num_batches,E_min1,E_max1,E_min2,E_max2,num_points_2D,rootname,num_times,time_step,mean_fluct):
+def calc_2DES_time_series_batch_Eopt_av(q_batch,dipole_batch,num_batches,E_min1,E_max1,E_min2,E_max2,num_points_2D,rootname,num_times,time_step,mean_fluct):
                 averaged_val=np.zeros((num_times,2))
                 transient_abs=np.zeros((num_times,num_points_2D,3))
 
@@ -77,7 +77,7 @@ def calc_2DES_time_series_batch_Eopt_av(q_batch,num_batches,E_min1,E_max1,E_min2
                 counter=0
                 while counter<num_times:
                                 print(counter,current_delay,E_min1,E_max1)
-                                spectrum_2D=calc_2D_spectrum_Eopt_av_cumul(q_batch,current_delay,current_delay_index,E_min1,E_max1,E_min2,E_max2,num_points_2D,mean_fluct)
+                                spectrum_2D=calc_2D_spectrum_Eopt_av_cumul(q_batch,dipole_batch,current_delay,current_delay_index,E_min1,E_max1,E_min2,E_max2,num_points_2D,mean_fluct)
                                 print_2D_spectrum(rootname+'_2DES_Eopt_av'+str(counter)+'.dat',spectrum_2D,False)
 
                                 #compute transient absorption contribution here:
@@ -98,7 +98,7 @@ def calc_2DES_time_series_batch_Eopt_av(q_batch,num_batches,E_min1,E_max1,E_min2
                 np.savetxt(rootname+'_2DES_2nd_order_cumulant_averaged_spectrum.txt',averaged_val)
 
 # 2DES time series for a batch of spectra
-def calc_2DES_time_series_batch(q_batch,num_batches,E_min1,E_max1,E_min2,E_max2,num_points_2D,rootname,num_times,time_step,mean):
+def calc_2DES_time_series_batch(q_batch,dipole_batch,num_batches,E_min1,E_max1,E_min2,E_max2,num_points_2D,rootname,num_times,time_step,mean):
 		averaged_val=np.zeros((num_times,2))
 		transient_abs=np.zeros((num_times,num_points_2D,3))
 
@@ -116,7 +116,7 @@ def calc_2DES_time_series_batch(q_batch,num_batches,E_min1,E_max1,E_min2,E_max2,
 				batch_count=0 
 				while batch_count<num_batches:
 						print('Processing batch number '+str(batch_count+1))
-						spectrum_2D_temp=calc_2D_spectrum(q_batch[batch_count],current_delay,current_delay_index,E_min1,E_max1,E_min2,E_max2,num_points_2D,mean)
+						spectrum_2D_temp=calc_2D_spectrum(q_batch[batch_count],dipole_batch[batch_count],current_delay,current_delay_index,E_min1,E_max1,E_min2,E_max2,num_points_2D,mean)
 						if batch_count==0:
 								spectrum_2D=spectrum_2D+spectrum_2D_temp
 						else:
@@ -145,7 +145,7 @@ def calc_2DES_time_series_batch(q_batch,num_batches,E_min1,E_max1,E_min2,E_max2,
 
 # basic calculation routines:
 # calculate a full series of 2DES spectra, sampled with a certain delay time step
-def calc_2DES_time_series(q_func,E_min1,E_max1,E_min2,E_max2,num_points_2D,rootname,num_times,time_step,mean):
+def calc_2DES_time_series(q_func,dipole_mom,E_min1,E_max1,E_min2,E_max2,num_points_2D,rootname,num_times,time_step,mean):
 		averaged_val=np.zeros((num_times,2))
 		transient_abs=np.zeros((num_times,num_points_2D,3))
 
@@ -159,7 +159,7 @@ def calc_2DES_time_series(q_func,E_min1,E_max1,E_min2,E_max2,num_points_2D,rootn
 		counter=0
 		while counter<num_times:
 				print(counter,current_delay)
-				spectrum_2D=calc_2D_spectrum(q_func,current_delay,current_delay_index,E_min1,E_max1,E_min2,E_max2,num_points_2D,mean)
+				spectrum_2D=calc_2D_spectrum(q_func,dipole_mom,current_delay,current_delay_index,E_min1,E_max1,E_min2,E_max2,num_points_2D,mean)
 				print_2D_spectrum(rootname+'_2DES_'+str(counter)+'.dat',spectrum_2D,False)
 
 				#compute transient absorption contribution here:
@@ -183,7 +183,7 @@ def calc_2DES_time_series(q_func,E_min1,E_max1,E_min2,E_max2,num_points_2D,rootn
 # basic calculation routines:
 # calculate a full series of 2DES spectra, sampled with a certain delay time step
 # this routine is specifficaly for the 3rd order cumulant correction and an MD time series
-def calc_2DES_time_series_3rd(q_func,g_func,h1_func,h2_func,h4_func,h5_func,corr_func_freq_qm,E_min1,E_max1,E_min2,E_max2,num_points_2D,rootname,num_times,time_step,mean):
+def calc_2DES_time_series_3rd(q_func,dipole_mom,h1_func,h2_func,h4_func,h5_func,corr_func_freq_qm,E_min1,E_max1,E_min2,E_max2,num_points_2D,rootname,num_times,time_step,mean):
 		averaged_val=np.zeros((num_times,2))
 		transient_abs=np.zeros((num_times,num_points_2D,3))
 
@@ -198,7 +198,7 @@ def calc_2DES_time_series_3rd(q_func,g_func,h1_func,h2_func,h4_func,h5_func,corr
 		counter=0
 		while counter<num_times:
 				print(counter,current_delay)
-				spectrum_2D=calc_2D_spectrum_3rd(q_func,g_func,h1_func,h2_func,h4_func,h5_func,corr_func_freq_qm,current_delay,current_delay_index,E_min1,E_max1,E_min2,E_max2,num_points_2D,mean)
+				spectrum_2D=calc_2D_spectrum_3rd(q_func,g_func,h1_func,h2_func,h4_func,h5_func,corr_func_freq_qm,dipole_mom,current_delay,current_delay_index,E_min1,E_max1,E_min2,E_max2,num_points_2D,mean)
 				print_2D_spectrum(rootname+'_2DES_'+str(counter)+'.dat',spectrum_2D,False)
 
 				#compute transient absorption contribution here:
@@ -220,7 +220,7 @@ def calc_2DES_time_series_3rd(q_func,g_func,h1_func,h2_func,h4_func,h5_func,corr
 # basic calculation routines:
 # calculate a full series of 2DES spectra, sampled with a certain delay time step
 # this routine is specifically for the 3rd order cumulant correction and the GBOM
-def calc_2DES_time_series_GBOM_3rd(q_func,g_func,h1_func,h2_func,h4_func,h5_func,corr_func,freqs_gs,Omega_sq,gamma,kbT,E_min1,E_max1,E_min2,E_max2,num_points_2D,rootname,num_times,time_step,mean,is_cl,no_dusch,four_phonon_term):
+def calc_2DES_time_series_GBOM_3rd(q_func,g_func,h1_func,h2_func,h4_func,h5_func,corr_func,freqs_gs,Omega_sq,gamma,kbT,dipole_mom,E_min1,E_max1,E_min2,E_max2,num_points_2D,rootname,num_times,time_step,mean,is_cl,no_dusch,four_phonon_term):
 		averaged_val=np.zeros((num_times,2))
 		transient_abs=np.zeros((num_times,num_points_2D,3))
 
@@ -234,7 +234,7 @@ def calc_2DES_time_series_GBOM_3rd(q_func,g_func,h1_func,h2_func,h4_func,h5_func
 		counter=0
 		while counter<num_times:
 				print(counter,current_delay)
-				spectrum_2D=calc_2D_spectrum_GBOM_3rd(q_func,g_func,h1_func,h2_func,h4_func,h5_func,corr_func,freqs_gs,Omega_sq,gamma,kbT,current_delay,current_delay_index,E_min1,E_max1,E_min2,E_max2,num_points_2D,mean,is_cl,no_dusch,four_phonon_term)
+				spectrum_2D=calc_2D_spectrum_GBOM_3rd(q_func,g_func,h1_func,h2_func,h4_func,h5_func,corr_func,freqs_gs,Omega_sq,gamma,kbT,dipole_mom,current_delay,current_delay_index,E_min1,E_max1,E_min2,E_max2,num_points_2D,mean,is_cl,no_dusch,four_phonon_term)
 				print_2D_spectrum(rootname+'_2DES_'+str(counter)+'.dat',spectrum_2D,False)
 
 				#compute transient absorption contribution here:
@@ -257,7 +257,7 @@ def calc_2DES_time_series_GBOM_3rd(q_func,g_func,h1_func,h2_func,h4_func,h5_func
 # pump probe spectrum. this is essentially a 2DES spectrum, but where the excitation energy is fixed to just
 # a single frequency. Is this really correct though? 2DES is computed from the sum of rephasing and non-
 # rephasing diagrams. Is this the right basis for pump-probe? Double check
-def calc_pump_probe_time_series(q_func,E_min,E_max,num_points_2D,rootname,pump_energy,num_times,time_step,mean):
+def calc_pump_probe_time_series(q_func,dipole_mom,E_min,E_max,num_points_2D,rootname,pump_energy,num_times,time_step,mean):
 		pump_probe_spectrum=np.zeros((num_times,num_points_2D,3))
 		counter=0
 		current_delay=0.0
@@ -274,8 +274,9 @@ def calc_pump_probe_time_series(q_func,E_min,E_max,num_points_2D,rootname,pump_e
 
 
 # Calculation routine for the full spectrum in the 2nd order cumulant approximation 
+# Should be scaled by |mu|^4, where mu is the transition dipole moment. 
 @jit
-def calc_2D_spectrum(q_func,delay_time,delay_index,E_min1,E_max1,E_min2,E_max2,num_points_2D,mean):
+def calc_2D_spectrum(q_func,dipole_mom,delay_time,delay_index,E_min1,E_max1,E_min2,E_max2,num_points_2D,mean):
 	full_2D_spectrum=np.zeros((num_points_2D,num_points_2D,3))
 	step_length=((E_max1-E_min1)/num_points_2D)
 
@@ -287,7 +288,7 @@ def calc_2D_spectrum(q_func,delay_time,delay_index,E_min1,E_max1,E_min2,E_max2,n
 				full_2D_integrant=twoD_spectrum_integrant(rfunc,q_func,omega1-mean,omega2-mean,delay_time)
 				full_2D_spectrum[counter1,counter2,0]=omega1
 				full_2D_spectrum[counter1,counter2,1]=omega2
-				full_2D_spectrum[counter1,counter2,2]=cumul.simpson_integral_2D(full_2D_integrant).real
+				full_2D_spectrum[counter1,counter2,2]=(np.dot(dipole_mom,dipole_mom))**2.0*cumul.simpson_integral_2D(full_2D_integrant).real
 
 	return full_2D_spectrum
 
@@ -319,8 +320,8 @@ def twoD_spectrum_integrant_Eopt_av_cumulant(exp_rfunc_av,q_func,omega1,omega2,t
 
 # compute an effective Eopt_av_cumul spectrum by building an averaged response function from a list of q_functions that are 
 # all shifted to the same energy. Then calculate individual cumulant spectra with the averaged 2DES response function, shifted
-# to different pints contained in the omeg
-def calc_2D_spectrum_Eopt_av_cumul(q_func_list,delay_time,delay_index,E_min1,E_max1,E_min2,E_max2,num_points_2D,mean_fluct):
+# to different pints contained in the omega
+def calc_2D_spectrum_Eopt_av_cumul(q_func_list,dipole_list,delay_time,delay_index,E_min1,E_max1,E_min2,E_max2,num_points_2D,mean_fluct):
         full_2D_spectrum=np.zeros((num_points_2D,num_points_2D,3))
         counter1=0
         counter2=0
@@ -363,7 +364,7 @@ def calc_2D_spectrum_Eopt_av_cumul(q_func_list,delay_time,delay_index,E_min1,E_m
                                         full_2D_integrant=twoD_spectrum_integrant_Eopt_av_cumulant(exp_rfunc_av,q_func_list[i],omega1-mean_fluct[i],omega2-mean_fluct[i],delay_time)
                                         temp_spec[counter1,counter2,0]=omega1
                                         temp_spec[counter1,counter2,1]=omega2
-                                        temp_spec[counter1,counter2,2]=cumul.simpson_integral_2D(full_2D_integrant).real
+                                        temp_spec[counter1,counter2,2]=(np.dot(dipole_list[i],dipole_list[i]))**2.0*cumul.simpson_integral_2D(full_2D_integrant).real
                                         counter2=counter2+1
                         counter1=counter1+1
                 full_2D_spectrum[:,:,0]=temp_spec[:,:,0]
@@ -376,7 +377,7 @@ def calc_2D_spectrum_Eopt_av_cumul(q_func_list,delay_time,delay_index,E_min1,E_m
 
 # Calculation routine for the full spectrum in the 3rd order cumulant approximation 
 @jit
-def calc_2D_spectrum_3rd(q_func,g_func,h1_func,h2_func,h4_func,h5_func,corr_func_freq_qm,delay_time,delay_index,E_min1,E_max1,E_min2,E_max2,num_points_2D,mean):
+def calc_2D_spectrum_3rd(q_func,g_func,h1_func,h2_func,h4_func,h5_func,corr_func_freq_qm,dipole_mom,delay_time,delay_index,E_min1,E_max1,E_min2,E_max2,num_points_2D,mean):
 	full_2D_spectrum=np.zeros((num_points_2D,num_points_2D,3))
 	counter1=0
 	counter2=0
@@ -396,7 +397,7 @@ def calc_2D_spectrum_3rd(q_func,g_func,h1_func,h2_func,h4_func,h5_func,corr_func
 				full_2D_integrant=twoD_spectrum_integrant_3rd(rfunc,rfunc_3rd,q_func,omega1-mean,omega2-mean,delay_time)
 				full_2D_spectrum[counter1,counter2,0]=omega1
 				full_2D_spectrum[counter1,counter2,1]=omega2
-				full_2D_spectrum[counter1,counter2,2]=cumul.simpson_integral_2D(full_2D_integrant).real
+				full_2D_spectrum[counter1,counter2,2]=(np.dot(dipole_mom,dipole_mom))**2.0*cumul.simpson_integral_2D(full_2D_integrant).real
 				counter2=counter2+1
 		counter1=counter1+1
 
@@ -405,7 +406,7 @@ def calc_2D_spectrum_3rd(q_func,g_func,h1_func,h2_func,h4_func,h5_func,corr_func
 
 # Calculation routine for the full spectrum in the 3rd order cumulant approximation for a GBOM
 @jit
-def calc_2D_spectrum_GBOM_3rd(q_func,g_func,h1_func,h2_func,h4_func,h5_func,corr_func,freqs_gs,Omega_sq,gamma,kbT,delay_time,delay_index,E_min1,E_max1,E_min2,E_max2,num_points_2D,mean,is_cl,no_dusch,four_phonon_term):
+def calc_2D_spectrum_GBOM_3rd(q_func,g_func,h1_func,h2_func,h4_func,h5_func,corr_func,freqs_gs,Omega_sq,gamma,kbT,dipole_mom,delay_time,delay_index,E_min1,E_max1,E_min2,E_max2,num_points_2D,mean,is_cl,no_dusch,four_phonon_term):
 	full_2D_spectrum=np.zeros((num_points_2D,num_points_2D,3))
 	counter1=0
 	counter2=0
@@ -427,7 +428,7 @@ def calc_2D_spectrum_GBOM_3rd(q_func,g_func,h1_func,h2_func,h4_func,h5_func,corr
 				full_2D_integrant=twoD_spectrum_integrant_3rd(rfunc,rfunc_3rd,q_func,omega1-mean,omega2-mean,delay_time)
 				full_2D_spectrum[counter1,counter2,0]=omega1
 				full_2D_spectrum[counter1,counter2,1]=omega2
-				full_2D_spectrum[counter1,counter2,2]=cumul.simpson_integral_2D(full_2D_integrant).real
+				full_2D_spectrum[counter1,counter2,2]=(np.dot(dipole_mom,dipole_mom))**2.0*cumul.simpson_integral_2D(full_2D_integrant).real
 				counter2=counter2+1
 		counter1=counter1+1
 

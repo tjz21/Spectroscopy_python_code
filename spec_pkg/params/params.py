@@ -90,6 +90,11 @@ class params:
 		self.MD_root=''
 		self.GBOM_root=''
 
+		self.add_emission_shift=False # shift omega_eg_av by twice the solvent broadening (GBOM) or the total spectral dens
+						# reorganization energy (cumulant MD). This accounts for the fact that we have an 
+						# emission spectrum and havent dealt with the changes this does to the average energy
+						# gap.
+
 		self.morse_gs_path='' # ground state potential parameters D and alpha, mu
 		self.morse_ex_path='' # excited state potential parameters D and alpha, and shift (relative to gs minimum. Reduced mass is assumed to be identical to GS) 
 		self.num_atoms=0   # needed for terachem calculation
@@ -125,6 +130,11 @@ class params:
 									    # this will be extended to other supported codes
 
 		# dealt with keywords that were names. Now deal with variables
+		par=get_param(filepath,'ADD_EMISSION_SHIFT')
+		if par=='TRUE':
+			self.add_emission_shift=True
+		elif par=='FALSE':
+			self.add_emission_shift=False
 		par=get_param(filepath,'NUM_MODES')
 		if par != '':
 			self.num_modes=int(par)
@@ -218,6 +228,7 @@ class params:
 		par=get_param(filepath,'SPECTRAL_WINDOW')
 		if par != '':
 			self.spectral_window=float(par)/const.Ha_to_eV
+
 
 		par=get_param(filepath, 'COMPUTE_4PHONON_TERM')
 		if par != '':

@@ -170,8 +170,11 @@ class MDtrajs:
 		# Herzberg-Teller correlation functions
 		self.corr_func_cross_cl=np.zeros((1,1,3)) # classical cross correlation function between
 		self.corr_func_dipole_cl=np.zeros((1,1)) # energy gap and dipole moment, as well as pure
-						         # dipole corr. Note that cross dipole function is a 
-							 # vector quantity.
+						         # dipole corr. Note that cross dipole function is a vector quantity
+		self.corr_func_mu_U_mu_cl=np.zeros((1,1,3)) # 2D correlation function. This is a scalar quantity
+		self.corr_func_mu_U_U_cl=np.zeros((1,1,5)) # 2D correlation function. This is a vector quantity 
+		self.corr_func_U_U_mu_cl=np.zeros((1,1,5)) # 2D correlation function. This is a vector quantity
+		
 
 		# HT lineshape functions
 		self.A_HT2=np.zeros((1,1),dtype=complex)
@@ -193,9 +196,10 @@ class MDtrajs:
 
 
 	# currently only works for 2nd order
-	def calc_ht_correction(self,temp,max_t,num_steps):
+	def calc_ht_correction(self,temp,max_t,num_steps,corr_length,low_freq_filter,third_order,stdout):
 		kbT=temp*const.kb_in_Ha
 		sampling_rate=1.0/self.time_step*math.pi*2.0
+		sampling_rate_in_fs=1.0/(self.time_step*const.fs_to_Ha)
 		# now construct correlation functions
 		self.corr_func_dipole_cl=ht.construct_corr_func_dipole(self.dipole_fluct,self.num_trajs,self.tau,self.time_step)
 		self.corr_func_cross_cl=ht.construct_corr_func_cross(self.dipole_fluct,self.fluct,self.num_trajs,self.tau,self.time_step)
@@ -218,6 +222,21 @@ class MDtrajs:
 		corr_func_dipole_freq=ht.compute_corr_func_freq(self.corr_func_dipole_cl,sampling_rate,self.time_step)
 		# now evaluate 2nd order cumulant correction term. 
 		self.A_HT2=ht.compute_HT_term_2nd_order(corr_func_dipole_freq,corr_func_cross_freq,self.dipole_mom_av,self.dipole_renorm,self.dipole_reorg,kbT,max_t,num_steps)
+
+		# need to compute 3rd order correction
+		if third_order:
+			self.corr_func_mu_U_mu_cl=ht.construct_corr_func_3rd_mu_U_mu(self.dipole_fluct,self.fluct, self.num_trajs,corr_length,self.tau,self.time_step,stdout)
+			self.corr_func_U_U_mu_cl=ht.construct_corr_func_3rd_U_U_mu(self.dipole_fluct,self.fluct, self.num_trajs,corr_length,self.tau,self.time_step,stdout)
+			self.corr_func_mu_U_U_cl=ht.construct_corr_func_3rd_mu_U_U(self.dipole_fluct,self.fluct, self.num_trajs,corr_length,self.tau,self.time_step,stdout)
+
+			# Fourier transform 
+			corr_func_mu_U_U_freq=ht.compute_mu_U_U_corr_func_freq(self.corr_func_mu_U_U_cl,sampling_rate_in_fs,low_freq_filter)
+			corr_func_mu_U_mu_freq=ht.compute_mu_U_mu_corr_func_freq(self.corr_func_mu_U_mu_cl,sampling_rate_in_fs,low_freq_filter)
+
+			corr_func_U_U_mu_freq=ht.compute_mu_U_U_corr_func_freq(self.corr_func_U_U_mu_cl,sampling_rate_in_fs,low_freq_filter)
+
+			# build 3rd order correction:
+			self.A_HT3=ht.compute_HT_term_3rd_order(corr_func_mu_U_U_freq,corr_func_U_U_mu_freq,corr_func_mu_U_mu_freq,self.dipole_mom_av,self.dipole_renorm,self.dipole_reorg,kbT,max_t,num_steps)
 
 	def calc_2nd_order_divergence(self):
 		omega_step=self.spectral_dens[1,0]-self.spectral_dens[0,0]
@@ -270,7 +289,10 @@ class MDtrajs:
 		self.cumulant_response=construct_full_cumulant_response(self.g2,self.g3,self.mean,is_3rd_order,is_emission)	
 		if is_ht: # add herzberg-teller correction
 			for i in range(self.cumulant_response.shape[0]):
-				self.cumulant_response[i,1]=self.cumulant_response[i,1]*self.A_HT2[i,1]
+				if is_3rd_order:
+					self.cumulant_response[i,1]=self.cumulant_response[i,1]*(self.A_HT2[i,1]+self.A_HT3[i,1])
+				else:
+					self.cumulant_response[i,1]=self.cumulant_response[i,1]*self.A_HT2[i,1]
 		else:
 			self.cumulant_response[:,1]=self.cumulant_response[:,1]*np.dot(self.dipole_mom_av,self.dipole_mom_av)
 

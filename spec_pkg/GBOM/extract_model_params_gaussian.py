@@ -28,8 +28,30 @@ def extract_transition_dipole(filename,target_state):
 	return dipole      
 
 
-def extract_normal_mode_freqs(filename,num_modes,frozen_atoms):
+def extract_normal_mode_freqs(filename,num_modes):
 	freq_list=np.zeros(num_modes)
+	# Start by finding out how many atoms we have in the system:
+	searchfile = open(filename,"r")
+        line_count=0
+        freq_line=0
+	num_atoms_chromophore=(num_modes)/3
+	frozen_atoms=0
+        for line in searchfile:
+                searchphrase='Deg. of freedom'
+                if searchphrase in line and freq_line==0:
+                        freq_line=line_count
+                line_count=line_count+1
+	        searchfile = open(filename,"r")
+        if freq_line>0:
+                searchfile.close()
+                linefile=open(filename,"r")
+                lines=linefile.readlines()
+		current_line=lines[freq_line].split()
+		total_num_atoms=(int(current_line[3])+6)/3
+
+		frozen_atoms=total_num_atoms-num_atoms_chromophore
+	# Done
+
 	searchfile = open(filename,"r")
 	line_count=0
 	freq_line=0
@@ -41,14 +63,28 @@ def extract_normal_mode_freqs(filename,num_modes,frozen_atoms):
 
 	# found first line of frequencies:
 	#check number of loops over frequency lines have to be 
-	# performed
-	num_freq_loops=int(num_modes/5)
-	# number of lines between successive frequency rows:
-	lines_between_freq_rows=0
-	if frozen_atoms==0:   # standard case, no frozen atoms
-		lines_between_freq_rows=int(num_modes+6)+7             # number of atoms    
-	else:      # nonstandard case, frozen atoms
-		lines_between_freq_rows=int(num_modes+3*frozen_atoms)+7
+	# performed. This requires us to figure out whether it is a HPmodes calculation or not.
+	searchfile.close()
+	if freq_line>0:
+		linefile=open(filename,"r")
+		lines=linefile.readlines()
+
+		current_line=lines[freq_line].split()
+		if len(current_line) == 5:
+			freqs_per_row=3
+
+			lines_between_freq_rows=int(num_atoms_chromophore)+7
+
+			num_freq_loops=int(num_modes/3)
+
+		elif len(current_line) == 7:
+			freqs_per_row=5
+			if frozen_atoms == 0:
+				lines_between_freq_rows=int(num_modes+6)+7 
+			else:
+				lines_between_freq_rows=int(num_modes+3*frozen_atoms)+7
+
+			num_freq_loops=int(num_modes/5)
 
 	freq_counter=0
 	if freq_line>0:
@@ -59,12 +95,19 @@ def extract_normal_mode_freqs(filename,num_modes,frozen_atoms):
 		while row_counter<num_freq_loops:
 			current_line_start=row_counter*lines_between_freq_rows+freq_line
 			current_line=lines[current_line_start].split()
-			freq_list[freq_counter]=float(current_line[2])
-			freq_list[freq_counter+1]=float(current_line[3])
-			freq_list[freq_counter+2]=float(current_line[4])
-			freq_list[freq_counter+3]=float(current_line[5])
-			freq_list[freq_counter+4]=float(current_line[6])
-			freq_counter=freq_counter+5
+			if freqs_per_row==5:
+				freq_list[freq_counter]=float(current_line[2])
+				freq_list[freq_counter+1]=float(current_line[3])
+				freq_list[freq_counter+2]=float(current_line[4])
+				freq_list[freq_counter+3]=float(current_line[5])
+				freq_list[freq_counter+4]=float(current_line[6])
+				freq_counter=freq_counter+5
+			elif freqs_per_row==3:
+                                freq_list[freq_counter]=float(current_line[2])
+                                freq_list[freq_counter+1]=float(current_line[3])
+                                freq_list[freq_counter+2]=float(current_line[4])
+                                freq_counter=freq_counter+3
+
 			row_counter=row_counter+1
 
 
@@ -73,7 +116,6 @@ def extract_normal_mode_freqs(filename,num_modes,frozen_atoms):
 		missing_freqs=num_modes-freq_counter
 		current_line_start=row_counter*lines_between_freq_rows+freq_line
 		current_line=lines[current_line_start].split()
-		#print current_line
 		missing_counter=0
 		while missing_counter<missing_freqs:
 			freq_list[freq_counter+missing_counter]=float(current_line[2+missing_counter])

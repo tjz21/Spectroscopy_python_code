@@ -673,14 +673,35 @@ def full_HT_term(freqs_gs,Kmat,Jmat,Omega_sq,gamma,dipole_mom,dipole_deriv,kbT,m
         HT_func[i,0]=t
         if is_qm:
             HT_func[i,1]=HT_qm_t(freqs_gs,Kmat,Jtrans,Omega_sq,gamma,n_i_vec,dipole_mom,Jdip_deriv,reorg_dipole,total_renorm_dipole,is_3rd_order,t) 
-        #else:
-            # CURRENTLY NOT IMPLEMENTED!!!!
+        # not finished yet
+        else:
+            HT_func[i,1]=HT_cl_t(freqs_gs,Kmat,Jtrans,Omega_sq,gamma,kbT,dipole_mom,Jdip_deriv,reorg_dipole,total_renorm_dipole,is_3rd_order,t)
         t=t+step_length
 
     return HT_func
 
-def HT_qm_t(freqs_gs,Kmat,Jtrans,Omega_sq,gamma,n,dipole_mom,Jdip_deriv,reorg_dipole,total_renorm_dipole,is_3rd_order,t):
+# HT prefactor for response function for a given value of t if the approximate quantum correlation function constructed
+# from its classical counterpart is used
+#def HT_cl_t(freqs_gs,Kmat,Jtrans,Omega_sq,gamma,kbT,dipole_mom,Jdip_deriv,reorg_dipole,total_renorm_dipole,is_3rd_order,t):
+#    one deriv_term=0.0+0.0*1j
+#    two_deriv_term=0.0+0.0*1j
+    # 2nd order cumulant involves one-phonon terms. So maybe sufficient? 
 
+
+#    if is_3rd_order:
+#       dUdUdmu=0.0+0.0j
+#       dmudUdU=0.0+0.0j
+#       dmudUdmu=0.0+0.0j
+#       total=total_renorm_dipole+one_deriv_term+dUdUdmu+dmudUdU+two_deriv_term+dmudUdmu
+#    else:
+#       total=total_renorm_dipole+one_deriv_term+two_deriv_term
+#
+#    return total
+
+
+
+# HT prefactor for a given value of t if the exact quantum correlation function is used. 
+def HT_qm_t(freqs_gs,Kmat,Jtrans,Omega_sq,gamma,n,dipole_mom,Jdip_deriv,reorg_dipole,total_renorm_dipole,is_3rd_order,t):
     one_deriv_term=0.0+0.0*1j
     for i in range(freqs_gs.shape[0]):
         term_xyz=-2.0*(reorg_dipole[0]*Jdip_deriv[i,0]+reorg_dipole[1]*Jdip_deriv[i,1]+reorg_dipole[2]*Jdip_deriv[i,2]-dipole_mom[0]*Jdip_deriv[i,0]-dipole_mom[1]*Jdip_deriv[i,1]-dipole_mom[2]*Jdip_deriv[i,2])*gamma[i]/(2.0*freqs_gs[i]**2.0)*((n[i]+1)*(1.0-cmath.exp(-1j*freqs_gs[i]*t))+n[i]*(1.0-cmath.exp(1j*freqs_gs[i])*t))

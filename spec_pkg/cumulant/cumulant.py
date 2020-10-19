@@ -627,6 +627,7 @@ def compute_2nd_order_cumulant_from_spectral_dens(spectral_dens,kbT,max_t,steps,
 		counter=counter+1
 	return q_func
 
+# fix limit of x-->0, Sign in imaginary term?
 @jit(fastmath=True)
 def integrant_2nd_order_cumulant_lineshape(spectral_dens,t_val,kbT):
 	integrant=np.zeros((spectral_dens.shape[0],spectral_dens.shape[1]),dtype=np.complex_)
