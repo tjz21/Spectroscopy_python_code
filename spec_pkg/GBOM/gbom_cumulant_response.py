@@ -661,11 +661,9 @@ def full_HT_term(freqs_gs,Kmat,Jmat,Omega_sq,gamma,dipole_mom,dipole_deriv,kbT,m
     # compute the total renormalized dipole moment
     total_renorm_dipole=np.dot(dipole_mom,dipole_mom)-2.0*np.dot(reorg_dipole,dipole_mom)+np.dot(reorg_dipole,reorg_dipole)
 
-    if is_qm:
-        icount = 0
-        while icount < freqs_gs.shape[0]:
-            n_i_vec[icount] = bose_einstein(freqs_gs[icount], kbT)
-            icount = icount + 1
+    # create bose einstein factors
+    for icount in range(freqs_gs.shape[0]):
+        n_i_vec[icount] = bose_einstein(freqs_gs[icount], kbT)
  
     t=0.0
     step_length=max_t/num_points
@@ -673,32 +671,76 @@ def full_HT_term(freqs_gs,Kmat,Jmat,Omega_sq,gamma,dipole_mom,dipole_deriv,kbT,m
         HT_func[i,0]=t
         if is_qm:
             HT_func[i,1]=HT_qm_t(freqs_gs,Kmat,Jtrans,Omega_sq,gamma,n_i_vec,dipole_mom,Jdip_deriv,reorg_dipole,total_renorm_dipole,is_3rd_order,t) 
-        # not finished yet
         else:
-            HT_func[i,1]=HT_cl_t(freqs_gs,Kmat,Jtrans,Omega_sq,gamma,kbT,dipole_mom,Jdip_deriv,reorg_dipole,total_renorm_dipole,is_3rd_order,t)
+            HT_func[i,1]=HT_cl_t(freqs_gs,Kmat,Jtrans,Omega_sq,gamma,n_i_vec,kbT,dipole_mom,Jdip_deriv,reorg_dipole,total_renorm_dipole,is_3rd_order,t)
         t=t+step_length
 
     return HT_func
 
-# HT prefactor for response function for a given value of t if the approximate quantum correlation function constructed
-# from its classical counterpart is used
-#def HT_cl_t(freqs_gs,Kmat,Jtrans,Omega_sq,gamma,kbT,dipole_mom,Jdip_deriv,reorg_dipole,total_renorm_dipole,is_3rd_order,t):
-#    one deriv_term=0.0+0.0*1j
-#    two_deriv_term=0.0+0.0*1j
-    # 2nd order cumulant involves one-phonon terms. So maybe sufficient? 
+def HT_cl_t(freqs_gs,Kmat,Jtrans,Omega_sq,gamma,n,kBT,dipole_mom,Jdip_deriv,reorg_dipole,total_renorm_dipole,is_3rd_order,t):
+    one_deriv_term=0.0+0.0*1j
+    # 2nd order HT term is unchanged from qm version of the same term.
+    for i in range(freqs_gs.shape[0]):
+        term_xyz=-2.0*(reorg_dipole[0]*Jdip_deriv[i,0]+reorg_dipole[1]*Jdip_deriv[i,1]+reorg_dipole[2]*Jdip_deriv[i,2]-dipole_mom[0]*Jdip_deriv[i,0]-dipole_mom[1]*Jdip_deriv[i,1]-dipole_mom[2]*Jdip_deriv[i,2])*gamma[i]/(2.0*freqs_gs[i]**2.0)*((n[i]+1)*(1.0-cmath.exp(-1j*freqs_gs[i]*t))+n[i]*(1.0-cmath.exp(1j*freqs_gs[i])*t))
+        one_deriv_term=one_deriv_term+term_xyz
+
+    two_deriv_term=0.0+1j*0.0
+    for i in range(freqs_gs.shape[0]):
+        term_xyz=(Jdip_deriv[i,0]**2.0+Jdip_deriv[i,1]**2.0+Jdip_deriv[i,2]**2.0)/(2.0*freqs_gs[i])*((n[i]+1.0)*cmath.exp(-1j*freqs_gs[i]*t)+n[i]*cmath.exp(1j*freqs_gs[i]*t))
+        two_deriv_term=two_deriv_term+term_xyz
+
+    if is_3rd_order:
+        # Compute 3rd order cumulant correction
+        dUdUdmu=0.0+0.0j
+        dmudUdU=0.0+0.0j
+        dmudUdmu=0.0+0.0j
+
+        # loop over two phonon terms
+        for i in range(freqs_gs.shape[0]):
+            for j in range(freqs_gs.shape[0]):
+                # start with dmudUdmu
+                omega_m=freqs_gs[i]-freqs_gs[j]
+                omega_p=freqs_gs[i]+freqs_gs[j]
+
+                # absorb the extra minus sign in the prefactor
+                prefac1=-1j*math.pi**2.0*kBT**2.0*(Omega_sq[i,j]+Omega_sq[j,i])*np.dot(Jdip_deriv[i,:],Jdip_deriv[j,:])/(freqs_gs[i]*freqs_gs[j])**2.0
+
+                dmudUdmu=dmudUdmu+HT_fac_dmu_dU_dmu_cl(prefac1,kBT,-omega_m,freqs_gs[i],t)
+                dmudUdmu=dmudUdmu+HT_fac_dmu_dU_dmu_cl(prefac1,kBT,omega_m,-freqs_gs[i],t)
+                dmudUdmu=dmudUdmu+HT_fac_dmu_dU_dmu_cl(prefac1,kBT,-omega_p,freqs_gs[i],t)
+                dmudUdmu=dmudUdmu+HT_fac_dmu_dU_dmu_cl(prefac1,kBT,omega_p,-freqs_gs[i],t)
+
+                # now dUdUdmu
+                prefac2=-(np.dot(Jdip_deriv[i,:],reorg_dipole)-2.0*np.dot(Jdip_deriv[i,:],dipole_mom))*math.pi**2.0*kBT**2.0*(Omega_sq[i,j]+Omega_sq[j,i])*gamma[j]/(freqs_gs[i]*freqs_gs[j])**2.0
+                dUdUdmu=dUdUdmu+HT_fac_dU_dU_dmu_cl(prefac2,kBT,-freqs_gs[i],omega_p,t)
+                dUdUdmu=dUdUdmu+HT_fac_dU_dU_dmu_cl(prefac2,kBT,freqs_gs[i],-omega_p,t)
+                dUdUdmu=dUdUdmu+HT_fac_dU_dU_dmu_cl(prefac2,kBT,-freqs_gs[i],omega_m,t)
+                dUdUdmu=dUdUdmu+HT_fac_dU_dU_dmu_cl(prefac2,kBT,freqs_gs[i],-omega_m,t)
+
+                dUdUdmu=dUdUdmu+HT_fac_dU_dU_dmu_cl(prefac2,kBT,-omega_m,freqs_gs[i],t)
+                dUdUdmu=dUdUdmu+HT_fac_dU_dU_dmu_cl(prefac2,kBT,omega_m,-freqs_gs[i],t)
+                dUdUdmu=dUdUdmu+HT_fac_dU_dU_dmu_cl(prefac2,kBT,-omega_p,freqs_gs[i],t)
+                dUdUdmu=dUdUdmu+HT_fac_dU_dU_dmu_cl(prefac2,kBT,omega_p,-freqs_gs[i],t)
 
 
-#    if is_3rd_order:
-#       dUdUdmu=0.0+0.0j
-#       dmudUdU=0.0+0.0j
-#       dmudUdmu=0.0+0.0j
-#       total=total_renorm_dipole+one_deriv_term+dUdUdmu+dmudUdU+two_deriv_term+dmudUdmu
-#    else:
-#       total=total_renorm_dipole+one_deriv_term+two_deriv_term
-#
-#    return total
+                # now dmudUdU. Slightly different prefactor. 
+                prefac3=-np.dot(Jdip_deriv[i,:],reorg_dipole)*math.pi**2.0*kBT**2.0*(Omega_sq[i,j]+Omega_sq[j,i])*gamma[j]/(freqs_gs[i]*freqs_gs[j])**2.0
+                dmudUdU=dmudUdU+HT_fac_dmu_dU_dU_cl(prefac3,kBT,freqs_gs[i],freqs_gs[j],t)
+                dmudUdU=dmudUdU+HT_fac_dmu_dU_dU_cl(prefac3,kBT,-freqs_gs[i],-freqs_gs[j],t)
+                dmudUdU=dmudUdU+HT_fac_dmu_dU_dU_cl(prefac3,kBT,-freqs_gs[i],freqs_gs[j],t)
+                dmudUdU=dmudUdU+HT_fac_dmu_dU_dU_cl(prefac3,kBT,freqs_gs[i],-freqs_gs[j],t)
+
+                dmudUdU=dmudUdU+HT_fac_dmu_dU_dU_cl(prefac3,kBT,-freqs_gs[i],omega_p,t)
+                dmudUdU=dmudUdU+HT_fac_dmu_dU_dU_cl(prefac3,kBT,freqs_gs[i],-omega_p,t)
+                dmudUdU=dmudUdU+HT_fac_dmu_dU_dU_cl(prefac3,kBT,-freqs_gs[i],omega_m,t)
+                dmudUdU=dmudUdU+HT_fac_dmu_dU_dU_cl(prefac3,kBT,freqs_gs[i],-omega_m,t)
 
 
+        total=total_renorm_dipole+one_deriv_term+two_deriv_term+dUdUdmu+dmudUdU+dmudUdmu
+    else:
+        total=total_renorm_dipole+one_deriv_term+two_deriv_term
+
+    return total
 
 # HT prefactor for a given value of t if the exact quantum correlation function is used. 
 def HT_qm_t(freqs_gs,Kmat,Jtrans,Omega_sq,gamma,n,dipole_mom,Jdip_deriv,reorg_dipole,total_renorm_dipole,is_3rd_order,t):
@@ -726,7 +768,7 @@ def HT_qm_t(freqs_gs,Kmat,Jtrans,Omega_sq,gamma,n,dipole_mom,Jdip_deriv,reorg_di
                 omega_m=freqs_gs[i]-freqs_gs[j]
                 omega_p=freqs_gs[i]+freqs_gs[j]
 
-                # absorb the extra minus sign in the prefactor
+                # absorb the extra minus sign in the prefactor 
                 prefac1=-(Omega_sq[i,j]+Omega_sq[j,i])*np.dot(Jdip_deriv[i,:],Jdip_deriv[j,:])/(4.0*freqs_gs[i]*freqs_gs[j])
                  
                 dmudUdmu=dmudUdmu+prefac1*HT_fac_dmu_dU_dmu((n[i]+1.0)*(n[j]+1.0),-omega_m,freqs_gs[i],t)
@@ -767,6 +809,7 @@ def HT_qm_t(freqs_gs,Kmat,Jtrans,Omega_sq,gamma,n,dipole_mom,Jdip_deriv,reorg_di
     return total
 
 # the factor that arises from performing the time-ordered integral over the dUdUdmu corr func
+@jit
 def HT_fac_dU_dU_dmu(prefac,omega1,omega2,t):
     omega_bar=omega1+omega2
     tiny=10e-16
@@ -785,18 +828,72 @@ def HT_fac_dU_dU_dmu(prefac,omega1,omega2,t):
 
     return term*prefac
 
+
+# unlike for the normal response function, we do not have to account for the w1,w2=0 term as there are no 
+# 0 frequency modes
+@jit
+def HT_fac_dU_dU_dmu_cl(prefac,kBT,omega1,omega2,t):
+    omega_bar=omega1+omega2
+    tiny=10e-16
+    term=0.0+1j*0.0
+    
+    if abs(omega_bar)<tiny:
+        num=(np.exp(1j*omega1*t)-1j*omega1*t-1.0)
+        denom=8.0*kBT**2.0*math.pi**2.0*(1.0-np.exp(omega1/kBT)+omega1/kBT)
+        term=num/denom
+    elif abs(omega1)<tiny:
+        num=np.exp(omega2/kBT)*np.exp(-1j*omega2*t)*(np.exp(1j*omega2*t)-1j*omega2*t-1.0)
+        denom=8.0*kBT**2.0*math.pi**2.0*(1.0-np.exp(omega2/kBT)+omega2/kBT)
+        term=num/denom
+    elif abs(omega2)<tiny:
+        num=np.exp(omega1/kBT)*np.exp(-1j*omega1*t)*(np.exp(1j*omega1*t)*(1.0-1j*omega1*t)-1.0)
+        denom=8.0*kBT**2.0*math.pi**2.0*(1.0+np.exp(omega1/kBT)*(omega1/kBT-1.0))
+        term=num/denom
+    else:
+        num=omega_bar*omega2*((1.0-np.exp(-1j*omega_bar*t))/omega_bar-(1.0-np.exp(-1j*omega2*t))/omega2)
+        denom=8.0*kBT**2.0*math.pi**2.0*(omega2*np.exp(-omega_bar/kBT)-omega_bar*np.exp(-omega2/kBT)+omega1)
+        term=num/denom
+
+    return term*prefac
+
+@jit
 def HT_fac_dmu_dU_dmu(prefac,omega1,omega2,t):
     omega_bar=omega1+omega2
     tiny=10e-16
     term=0.0+1j*0.0
 
     if abs(omega1)<tiny:
-       term=1j*t*cmath.exp(-1j*omega_bar*t)
+       term=1j*t*cmath.exp(-1j*omega2*t)
     else:
        term=(cmath.exp(-1j*omega2*t)-cmath.exp(-1j*omega_bar*t))/omega1
 
     return term*prefac
 
+@jit
+def HT_fac_dmu_dU_dmu_cl(prefac,kBT,omega1,omega2,t):
+    omega_bar=omega1+omega2
+    tiny=10e-16
+    term=0.0+1j*0.0
+   
+    if abs(omega_bar)<tiny:
+       num=1j*omega1*(np.exp(1j*omega1*t)-1.0)	
+       denom=8.0*kBT**2.0*math.pi**2.0*(1.0-np.exp(omega1/kBT)-omega1/kBT)
+       term=num/denom
+    elif abs(omega1)<tiny:
+       num=omega2**2.0*t*np.exp(omega2/kBT)*np.exp(-1j*omega2*t)
+       denom=8.0*kBT**2.0*math.pi**2.0*(np.exp(omega2/kBT)-omega2/kBT-1.0)
+       term=num/denom
+    elif abs(omega2)<tiny:
+       num=-1j*omega1*np.exp(omega1/kBT)*np.exp(-1j*omega1*t)*(np.exp(1j*omega1*t)-1.0)
+       denom=8.0*kBT**2.0*math.pi**2.0*(1.0+np.exp(omega1/kBT)*(omega1/kBT-1.0))
+       term=num/denom
+    else:
+       num=-1j*omega_bar*omega2*(np.exp(-1j*omega2*t)-np.exp(-1j*omega_bar*t))
+       denom=8.0*kBT**2.0*math.pi**2.0*(omega2*np.exp(-omega_bar/kBT)-omega_bar*np.exp(-omega2/kBT)+omega1)
+       term=num/denom
+    return term*prefac
+
+@jit
 def HT_fac_dmu_dU_dU(prefac,omega1,omega2,t):
     omega_bar=omega1+omega2
     tiny=10e-16
@@ -813,6 +910,29 @@ def HT_fac_dmu_dU_dU(prefac,omega1,omega2,t):
     
     return prefac*term
 
+@jit
+def HT_fac_dmu_dU_dU_cl(prefac,kBT,omega1,omega2,t):
+    omega_bar=omega1+omega2
+    tiny=10e-16
+    term=0.0+1j*0.0
+
+    if abs(omega1)<tiny:
+         num=np.exp(omega2/kBT)*np.exp(-1j*omega2*t)*(np.exp(1j*omega2*t)-1j*omega2*t-1.0)
+         denom=8.0*math.pi**2.0*kBT**2.0*(np.exp(omega2/kBT)-omega2/kBT-1.0)
+         term=num/denom
+    elif abs(omega2)<tiny:
+         num=np.exp(omega1/kBT)*(np.exp(-1j*omega1*t)+1j*omega1*t-1.0)
+         denom=8.0*math.pi**2.0*kBT**2.0*(1.0+np.exp(omega1/kBT)*(omega1/kBT)-1.0)
+         term=num/denom
+    elif abs(omega_bar)<tiny:
+         num=(np.exp(1j*omega1*t)-1j*omega1*t-1.0)
+         denom=8.0*math.pi**2.0*kBT**2.0*(np.exp(omega1/kBT)-omega1/kBT-1.0)
+         term=num/denom
+    else:
+         num=omega1*omega2*np.exp(-1j*omega2*t)*((np.exp(1j*omega2*t)-1.0)/omega2+(np.exp(-1j*omega1*t)-1.0)/omega1)
+         denom=8.0*kBT**2.0*math.pi**2.0*(omega2*np.exp(-omega_bar/kBT)-omega_bar*np.exp(-omega2/kBT)+omega1)
+         term=num/denom
+    return prefac*term
 
 # g2 as derived from either the exact classical correlation function or the exact QM correlation function
 def full_2nd_order_lineshape(

@@ -69,6 +69,7 @@ class params:
 		self.exact_corr=True
 		self.qm_wigner_dist=False  # Whether nuclei in ensemble appraoch are sampled with QM 
 					   # wigner distribution. Only relevant for GBOM and ensemble method
+		self.gs_reference_dipole=True  # Take the ground state as a reference in MD calculations with HT effects
 		self.third_order=False
 		self.is_solvent=False
 		self.no_dusch=False
@@ -130,6 +131,11 @@ class params:
 									    # this will be extended to other supported codes
 
 		# dealt with keywords that were names. Now deal with variables
+		par=get_param(filepath,'GS_REFERENCE_DIPOLE')
+		if par=='TRUE':
+			self.gs_reference_dipole=True
+		else:
+			self.gs_reference_dipole=False
 		par=get_param(filepath,'ADD_EMISSION_SHIFT')
 		if par=='TRUE':
 			self.add_emission_shift=True

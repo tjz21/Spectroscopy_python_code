@@ -47,9 +47,13 @@ def extract_normal_mode_freqs(filename,num_modes):
                 linefile=open(filename,"r")
                 lines=linefile.readlines()
 		current_line=lines[freq_line].split()
-		total_num_atoms=(int(current_line[3])+6)/3
-
-		frozen_atoms=total_num_atoms-num_atoms_chromophore
+		if int(current_line[3])<num_modes: # no frozen atoms
+ 			num_atoms_chromophore=(num_modes+6)/3
+			frozen_atoms=0
+			total_num_atoms=num_atoms_chromophore
+		else:   # frozen atoms
+			total_num_atoms=(int(current_line[3])+6)/3
+			frozen_atoms=total_num_atoms-num_atoms_chromophore
 	# Done
 
 	searchfile = open(filename,"r")
@@ -72,7 +76,7 @@ def extract_normal_mode_freqs(filename,num_modes):
 		current_line=lines[freq_line].split()
 		if len(current_line) == 5:
 			freqs_per_row=3
-
+		
 			lines_between_freq_rows=int(num_atoms_chromophore)+7
 
 			num_freq_loops=int(num_modes/3)
@@ -80,7 +84,7 @@ def extract_normal_mode_freqs(filename,num_modes):
 		elif len(current_line) == 7:
 			freqs_per_row=5
 			if frozen_atoms == 0:
-				lines_between_freq_rows=int(num_modes+6)+7 
+				lines_between_freq_rows=int(num_modes+6)+7
 			else:
 				lines_between_freq_rows=int(num_modes+3*frozen_atoms)+7
 

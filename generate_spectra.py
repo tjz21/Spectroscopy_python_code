@@ -720,7 +720,7 @@ def compute_MD_absorption(param_list,MDtraj,solvent,is_emission):
 				print(param_list.herzberg_teller)
 				if param_list.herzberg_teller:
 						print('COMPUTING HERZBERG TELLER TERM')
-						MDtraj.calc_ht_correction(param_list.temperature,param_list.max_t,param_list.num_steps,param_list.corr_length_3rd,param_list.low_freq_cutoff,param_list.third_order,param_list.stdout)
+						MDtraj.calc_ht_correction(param_list.temperature,param_list.max_t,param_list.num_steps,param_list.corr_length_3rd,param_list.low_freq_cutoff,param_list.third_order,param_list.gs_reference_dipole,param_list.stdout)
 						print('Renormalized dipole mom vs standard dipole mom:')
 						print(np.dot(MDtraj.dipole_mom_av,MDtraj.dipole_mom_av),MDtraj.dipole_renorm**2.0, np.dot(MDtraj.dipole_reorg,MDtraj.dipole_reorg))
 

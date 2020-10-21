@@ -196,7 +196,7 @@ class MDtrajs:
 
 
 	# currently only works for 2nd order
-	def calc_ht_correction(self,temp,max_t,num_steps,corr_length,low_freq_filter,third_order,stdout):
+	def calc_ht_correction(self,temp,max_t,num_steps,corr_length,low_freq_filter,third_order,gs_dipole_ref,stdout):
 		kbT=temp*const.kb_in_Ha
 		sampling_rate=1.0/self.time_step*math.pi*2.0
 		sampling_rate_in_fs=1.0/(self.time_step*const.fs_to_Ha)
@@ -214,8 +214,13 @@ class MDtrajs:
 		np.savetxt('Dipole_energy_cross_spectral_density_z.dat',sd)
 
 		# now compute dipole reorganization and the renormalized dipole moment
-		self.dipole_reorg=ht.compute_dipole_reorg(self.corr_func_cross_cl, kbT,sampling_rate, self.time_step)
-		self.dipole_renorm=np.sqrt(np.dot(self.dipole_mom_av,self.dipole_mom_av)-2.0*np.dot(self.dipole_mom_av,self.dipole_reorg)+np.dot(self.dipole_reorg,self.dipole_reorg))
+		if gs_dipole_ref:   # We take the ground state as the reference for dipole moment fluctuations.
+			self.dipole_reorg=np.zeros(3)
+			self.dipole_renorm=np.sqrt(np.dot(self.dipole_mom_av,self.dipole_mom_av))
+		else:
+			# We take the excited state as a reference for dipole moment fluctuations, like it is done in the GBOM
+			self.dipole_reorg=ht.compute_dipole_reorg(self.corr_func_cross_cl, kbT,sampling_rate, self.time_step)
+			self.dipole_renorm=np.sqrt(np.dot(self.dipole_mom_av,self.dipole_mom_av)-2.0*np.dot(self.dipole_mom_av,self.dipole_reorg)+np.dot(self.dipole_reorg,self.dipole_reorg))
 
 		# now construct correlation functions in the frequency domain:
 		corr_func_cross_freq=ht.compute_cross_corr_func_freq(self.corr_func_cross_cl,sampling_rate,self.time_step)
