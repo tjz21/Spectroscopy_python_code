@@ -71,6 +71,7 @@ class params:
 					   # wigner distribution. Only relevant for GBOM and ensemble method
 		self.gs_reference_dipole=True  # Take the ground state as a reference in MD calculations with HT effects
 		self.third_order=False
+		self.g3_cutoff=-1.0
 		self.is_solvent=False
 		self.no_dusch=False
 		self.solvent_reorg=0.0001
@@ -178,6 +179,9 @@ class params:
 		par=get_param(filepath,'MAX_T')
 		if par != '':
 			self.max_t=(float(par)/const.fs_to_Ha)
+		par=get_param(filepath,'G3_CUTOFF')
+		if par != '':
+			self.g3_cutoff=(float(par)/const.fs_to_Ha)
 		par=get_param(filepath,'LOW_FREQ_CUTOFF')
 		if par != '':
 			self.low_freq_cutoff=(float(par)/const.Ha_to_cm)

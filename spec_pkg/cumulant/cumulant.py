@@ -135,7 +135,7 @@ def construct_corr_func_3rd_qm(corr_func,kbT,sampling_rate_in_fs,low_freq_filter
 
 
 # function constructing the complete 3rd order lineshape function from a correlation function
-def compute_lineshape_func_3rd(corr_func,kbT,sampling_rate_in_fs,max_t,steps,low_freq_filter,stdout):
+def compute_lineshape_func_3rd(corr_func,kbT,sampling_rate_in_fs,max_t,steps,low_freq_filter,g3_cutoff,stdout):
 	stdout.write('\n'+"Computing third order cumulant lineshape function."+'\n')
 	if low_freq_filter>0.0:
 		 stdout.write("Applying a low pass frequency filter of "+str(low_freq_filter*const.Ha_to_cm)+' cm^(-1)'+'\n')
@@ -193,7 +193,12 @@ def compute_lineshape_func_3rd(corr_func,kbT,sampling_rate_in_fs,max_t,steps,low
 		t_current=counter*step_length
 		g_func[counter,0]=t_current
 		integrant=integrant_3rd_order_cumulant_lineshape(corr_func_freq,freq_list,t_current,kbT)
-		g_func[counter,1]=simpson_integral_2D(integrant)   #  give x and y axis
+		# if Necessary, apply a cutoff to the 3rd order correlation function to tame 
+		# long timescale divergences
+		if g3_cutoff>0.0:
+			g_func[counter,1]=np.exp(-t_current/g3_cutoff)*simpson_integral_2D(integrant)
+		else:
+			g_func[counter,1]=simpson_integral_2D(integrant)   #  give x and y axis
 		stdout.write("%5d      %10.4f          %10.4e           %10.4e" % (counter,t_current*const.fs_to_Ha, np.real(g_func[counter,1]), np.imag(g_func[counter,1]))+'\n')
 		counter=counter+1
 	return g_func

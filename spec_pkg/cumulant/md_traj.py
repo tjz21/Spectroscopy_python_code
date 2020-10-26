@@ -273,10 +273,10 @@ class MDtrajs:
 		self.corr_func_3rd_qm=cumulant.construct_corr_func_3rd_qm(self.corr_func_3rd_cl,kbT,sampling_rate_in_fs,low_freq_filter)
 
 
-	def calc_g3(self,temp,max_t,num_steps,low_freq_filter,stdout):
+	def calc_g3(self,temp,max_t,num_steps,low_freq_filter,g3_cutoff,stdout):
 		kbT=temp*const.kb_in_Ha
 		sampling_rate_in_fs=1.0/(self.time_step*const.fs_to_Ha)
-		self.g3=cumulant.compute_lineshape_func_3rd(self.corr_func_3rd_cl,kbT,sampling_rate_in_fs,max_t,num_steps,low_freq_filter,stdout)
+		self.g3=cumulant.compute_lineshape_func_3rd(self.corr_func_3rd_cl,kbT,sampling_rate_in_fs,max_t,num_steps,low_freq_filter,g3_cutoff,stdout)
 
 	def calc_h1(self,max_t,num_steps):
 		self.h1=cumulant.compute_h1_func(self.corr_func_3rd_qm_freq,max_t,num_steps)

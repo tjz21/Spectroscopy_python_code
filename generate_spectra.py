@@ -240,7 +240,7 @@ def compute_GBOM_absorption(param_list,GBOM_chromophore,solvent,is_emission):
 
 						# only compute third order cumulant if needed
 						if param_list.third_order:
-								GBOM_chromophore.calc_g3_qm(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.four_phonon_term,param_list.stdout)
+								GBOM_chromophore.calc_g3_qm(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.four_phonon_term,param_list.g3_cutoff,param_list.stdout)
 
 				else:
 						GBOM_chromophore.calc_spectral_dens(param_list.temperature,param_list.max_t,param_list.num_steps,param_list.decay_length,True,is_emission)
@@ -248,7 +248,7 @@ def compute_GBOM_absorption(param_list,GBOM_chromophore,solvent,is_emission):
 						GBOM_chromophore.calc_g2_cl(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.stdout)
 
 						if param_list.third_order:
-								GBOM_chromophore.calc_g3_cl(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.four_phonon_term,param_list.stdout)
+								GBOM_chromophore.calc_g3_cl(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.four_phonon_term,param_list.g3_cutoff,param_list.stdout)
 
 
 				# Check if I need HT term:
@@ -290,13 +290,13 @@ def compute_GBOM_absorption(param_list,GBOM_chromophore,solvent,is_emission):
 						GBOM_chromophore.calc_g2_qm(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.stdout)
 						# only compute third order cumulant if needed
 						if param_list.third_order:
-								GBOM_chromophore.calc_g3_qm(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.four_phonon_term,param_list.stdout)
+								GBOM_chromophore.calc_g3_qm(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.four_phonon_term,param_list.g3_cutoff,param_list.stdout)
 				else:
 						GBOM_chromophore.calc_spectral_dens(param_list.temperature,param_list.max_t,param_list.num_steps,param_list.decay_length,True,is_emission)
 						np.savetxt(param_list.GBOM_root+'_spectral_density_harmonic_qcf.dat', GBOM_chromophore.spectral_dens)
 						GBOM_chromophore.calc_g2_cl(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.stdout)
 						if param_list.third_order:
-								GBOM_chromophore.calc_g3_cl(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.four_phonon_term,param_list.stdout)
+								GBOM_chromophore.calc_g3_cl(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.four_phonon_term,param_list,g3_cutoff,param_list.stdout)
 				GBOM_chromophore.calc_cumulant_response(param_list.third_order,param_list.exact_corr, is_emission)		
 				spectrum=linear_spectrum.full_spectrum(GBOM_chromophore.cumulant_response,solvent.solvent_response,param_list.num_steps,E_start,E_end,True,is_emission,param_list.stdout)
 
@@ -364,13 +364,13 @@ def compute_GBOM_batch_absorption(param_list,GBOM_batch,solvent,is_emission):
 
 								# only compute third order cumulant if needed
 								if param_list.third_order:
-										GBOM_batch.gboms[icount].calc_g3_qm(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.four_phonon_term,param_list.stdout)
+										GBOM_batch.gboms[icount].calc_g3_qm(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.four_phonon_term,param_list.g3_cutoff,param_list.stdout)
 
 						else:
 								GBOM_batch.gboms[icount].calc_g2_cl(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.stdout)
 
 								if param_list.third_order:
-										GBOM_batch.gboms[icount].calc_g3_cl(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.four_phonon_term,param_list.stdout)
+										GBOM_batch.gboms[icount].calc_g3_cl(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.four_phonon_term,param_list.g3_cutoff,param_list.stdout)
 
 						GBOM_batch.gboms[icount].calc_spectral_dens(param_list.temperature,param_list.max_t,param_list.num_steps,param_list.decay_length,param_list.exact_corr,is_emission)
 
@@ -464,14 +464,14 @@ def compute_GBOM_batch_absorption(param_list,GBOM_batch,solvent,is_emission):
 
 								# only compute third order cumulant if needed
 								if param_list.third_order:
-										GBOM_batch.gboms[icount].calc_g3_qm(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.four_phonon_term,param_list.stdout)
+										GBOM_batch.gboms[icount].calc_g3_qm(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.four_phonon_term,param_list.g3_cutoff,param_list.stdout)
 
 						else:
 
 								GBOM_batch.gboms[icount].calc_g2_cl(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.stdout)
 
 								if param_list.third_order:
-										GBOM_batch.gboms[icount].calc_g3_cl(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.four_phonon_term,param_list.stdout)
+										GBOM_batch.gboms[icount].calc_g3_cl(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.four_phonon_term,param_list.g3_cutoff,param_list.stdout)
 						# build average response function:
 						for j in range(average_response.shape[0]):
 							if param_list.exact_corr:
@@ -556,7 +556,7 @@ def compute_hybrid_GBOM_batch_MD_absorption(param_list,MDtraj,GBOM_batch,solvent
                                                 MDtraj.calc_3rd_order_corr(param_list.corr_length_3rd,param_list.stdout)
                                                 # technically, in 3rd order cumulant, can have 2 different temperatures again. one at
                                                 # which the MD was performed and one at wich the spectrum is simulated. Fix this...
-                                                MDtraj.calc_g3(param_list.temperature,param_list.max_t,param_list.num_steps,param_list.low_freq_cutoff,param_list.stdout)
+                                                MDtraj.calc_g3(param_list.temperature,param_list.max_t,param_list.num_steps,param_list.low_freq_cutoff,param_list.g3_cutoff,param_list.stdout)
                                                 MDtraj.calc_cumulant_response(True,is_emission,False)
                                 else:
                                                 MDtraj.calc_cumulant_response(False,is_emission,False)
@@ -573,7 +573,7 @@ def compute_hybrid_GBOM_batch_MD_absorption(param_list,MDtraj,GBOM_batch,solvent
                                                         GBOM_batch.gboms[i].calc_g2_qm(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.stdout)
                                                         # check if this is a 3rd order cumulant calculation
                                                         if param_list.third_order:
-                                                                GBOM_batch.gboms[i].calc_g3_qm(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.four_phonon_term,param_list.stdout)
+                                                                GBOM_batch.gboms[i].calc_g3_qm(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.four_phonon_term,param_list.g3_cutoff,param_list.stdout)
 
                                 else:
                                                 for i in range(param_list.num_gboms):
@@ -581,7 +581,7 @@ def compute_hybrid_GBOM_batch_MD_absorption(param_list,MDtraj,GBOM_batch,solvent
                                                         #np.savetxt(param_list.GBOM_root+'_spectral_density_exact_corr.dat', GBOM_chromophore.spectral_dens)
                                                         GBOM_batch.gboms[i].calc_g2_cl(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.stdout)
                                                         if param_list.third_order:
-                                                                GBOM_batch.gboms[i].calc_g3_cl(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.four_phonon_term,param_list.stdout)
+                                                                GBOM_batch.gboms[i].calc_g3_cl(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.four_phonon_term,param_list.g3_cutoff,param_list.stdout)
 
                                 # calculate FC and 2nd order cumulant response functions for GBOM
                                 for i in range(param_list.num_gboms):
@@ -655,7 +655,7 @@ def compute_hybrid_GBOM_MD_absorption(param_list,MDtraj,GBOM_chromophore,solvent
                                                 MDtraj.calc_3rd_order_corr(param_list.corr_length_3rd,param_list.stdout)
                                                 # technically, in 3rd order cumulant, can have 2 different temperatures again. one at
                                                 # which the MD was performed and one at wich the spectrum is simulated. Fix this...
-                                                MDtraj.calc_g3(param_list.temperature,param_list.max_t,param_list.num_steps,param_list.low_freq_cutoff,param_list.stdout)
+                                                MDtraj.calc_g3(param_list.temperature,param_list.max_t,param_list.num_steps,param_list.low_freq_cutoff,param_list.g3_cutoff,param_list.stdout)
                                                 MDtraj.calc_cumulant_response(True,is_emission,False)
                                 else:
                                                 MDtraj.calc_cumulant_response(False,is_emission,False)
@@ -668,14 +668,14 @@ def compute_hybrid_GBOM_MD_absorption(param_list,MDtraj,GBOM_chromophore,solvent
                                                 np.savetxt(param_list.GBOM_root+'_spectral_density_exact_corr.dat', GBOM_chromophore.spectral_dens)
                                                 GBOM_chromophore.calc_g2_qm(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.stdout)
                                                 if param_list.third_order:
-                                                                GBOM_chromophore.calc_g3_qm(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.four_phonon_term,param_list.stdout)
+                                                                GBOM_chromophore.calc_g3_qm(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.four_phonon_term,param_list.g3_cutoff,param_list.stdout)
 	
                                 else:
                                                 GBOM_chromophore.calc_spectral_dens(param_list.temperature,param_list.max_t,param_list.num_steps,param_list.decay_length,True,is_emission)
                                                 np.savetxt(param_list.GBOM_root+'_spectral_density_exact_corr.dat', GBOM_chromophore.spectral_dens)
                                                 GBOM_chromophore.calc_g2_cl(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.stdout)
                                                 if param_list.third_order:
-                                                                GBOM_chromophore.calc_g3_qm(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.four_phonon_term,param_list.stdout)
+                                                                GBOM_chromophore.calc_g3_qm(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.four_phonon_term,param_list.g3_cutoff,param_list.stdout)
 
 				# calculate FC and 2nd order cumulant response functions for GBOM
                                 GBOM_chromophore.calc_cumulant_response(param_list.third_order,param_list.exact_corr,is_emission,param_list.herzberg_teller)
@@ -728,7 +728,7 @@ def compute_MD_absorption(param_list,MDtraj,solvent,is_emission):
 						MDtraj.calc_3rd_order_corr(param_list.corr_length_3rd,param_list.stdout)
 						# technically, in 3rd order cumulant, can have 2 different temperatures again. one at
 						# which the MD was performed and one at wich the spectrum is simulated. Fix this...
-						MDtraj.calc_g3(param_list.temperature,param_list.max_t,param_list.num_steps,param_list.low_freq_cutoff,param_list.stdout)
+						MDtraj.calc_g3(param_list.temperature,param_list.max_t,param_list.num_steps,param_list.low_freq_cutoff,param_list.g3_cutoff,param_list.stdout)
 						MDtraj.calc_cumulant_response(True,is_emission,param_list.herzberg_teller)
 				else:
 						MDtraj.calc_cumulant_response(False,is_emission,param_list.herzberg_teller)
@@ -1238,7 +1238,7 @@ elif param_set.task=='2DES':
 
 						# if it is a 3rd order cumulant calculation, compute g3 and auxilliary functions h1 and h2
 						if param_set.third_order:
-								GBOM.calc_g3_qm(param_set.temperature,param_set.num_steps,param_set.max_t,False,param_set.four_phonon_term,param_set.stdout)
+								GBOM.calc_g3_qm(param_set.temperature,param_set.num_steps,param_set.max_t,False,param_set.four_phonon_term,param_set.g3_cutoff,param_set.stdout)
 
 								if os.path.exists('h1_real.dat') and os.path.exists('h1_imag.dat') and os.path.exists('h2_real.dat') and os.path.exists('h2_imag.dat') and os.path.exists('h4_real.dat') and os.path.exists('h4_imag.dat') and os.path.exists('h5_real.dat') and os.path.exists('h5_imag.dat'):
 										# read in all files:
@@ -1305,7 +1305,7 @@ elif param_set.task=='2DES':
 
 						# if it is a 3rd order cumulant calculation, compute g3 and auxilliary functions h1 and h2
 						if param_set.third_order:
-								GBOM.calc_g3_cl(param_set.temperature,param_set.num_steps,param_set.max_t,False,param_set.four_phonon_term,param_set.stdout)
+								GBOM.calc_g3_cl(param_set.temperature,param_set.num_steps,param_set.max_t,False,param_set.four_phonon_term,param_set.g3_cutoff,param_set.stdout)
 								if os.path.exists('h1_real.dat') and os.path.exists('h1_imag.dat') and os.path.exists('h2_real.dat') and os.path.exists('h2_imag.dat') and os.path.exists('h4_real.dat') and os.path.exists('h4_imag.dat') and os.path.exists('h5_real.dat') and os.path.exists('h5_imag.dat'):
 										# read in all files:
 										GBOM.h1_cl=twoDES.read_2D_spectrum('h1_real.dat',param_set.num_steps)
@@ -1576,7 +1576,7 @@ elif param_set.task=='2DES':
 						MDtraj.calc_3rd_order_corr(param_set.corr_length_3rd,param_set.stdout)
 						# technically, in 3rd order cumulant, can have 2 different temperatures again. one at
 						# which the MD was performed and one at wich the spectrum is simulated. Fix this...
-						MDtraj.calc_g3(param_set.temperature,param_set.max_t,param_set.num_steps,param_set.low_freq_cutoff,param_set.stdout)
+						MDtraj.calc_g3(param_set.temperature,param_set.max_t,param_set.num_steps,param_set.low_freq_cutoff,param_set.g3_cutoff,param_set.stdout)
 						MDtraj.calc_corr_func_3rd_qm_freq(param_set.temperature_MD,param_set.low_freq_cutoff)
 						# Check if h1 and h2 are already computed and stored. computational savings...
 						if os.path.exists('h1_real.dat') and os.path.exists('h1_imag.dat') and os.path.exists('h2_real.dat') and os.path.exists('h2_imag.dat') and os.path.exists('h4_real.dat') and os.path.exists('h4_imag.dat') and os.path.exists('h5_real.dat') and os.path.exists('h5_imag.dat'):

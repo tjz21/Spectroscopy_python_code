@@ -257,19 +257,19 @@ class gbom:
 			self.g2_cl=gbom_cumulant_response.full_2nd_order_lineshape(self.freqs_gs,self.freqs_ex,self.K,self.J,self.gamma,self.Omega_sq,kbT,self.omega_av_cl,max_time,num_points,True,is_emission,self.E_adiabatic,stdout)
 
 
-	def calc_g3_cl(self,temp,num_points,max_time,is_emission,four_phonon_term,stdout):
+	def calc_g3_cl(self,temp,num_points,max_time,is_emission,four_phonon_term,g3_cutoff,stdout):
 		kbT=const.kb_in_Ha*temp
 		if is_emission:
-			self.g3_cl=gbom_cumulant_response.full_third_order_lineshape(self.freqs_gs_emission,self.Omega_sq,self.gamma,kbT,max_time,num_points,True,four_phonon_term,stdout)
+			self.g3_cl=gbom_cumulant_response.full_third_order_lineshape(self.freqs_gs_emission,self.Omega_sq,self.gamma,kbT,max_time,num_points,True,four_phonon_term,g3_cutoff,stdout)
 		else:
-			self.g3_cl=gbom_cumulant_response.full_third_order_lineshape(self.freqs_gs,self.Omega_sq,self.gamma,kbT,max_time,num_points,True,four_phonon_term,stdout)
+			self.g3_cl=gbom_cumulant_response.full_third_order_lineshape(self.freqs_gs,self.Omega_sq,self.gamma,kbT,max_time,num_points,True,four_phonon_term,g3_cutoff,stdout)
 
-	def calc_g3_qm(self,temp,num_points,max_time,is_emission,four_phonon_term,stdout):
+	def calc_g3_qm(self,temp,num_points,max_time,is_emission,four_phonon_term,g3_cutoff,stdout):
 		kbT=const.kb_in_Ha*temp
 		if is_emission:
-			self.g3_exact=gbom_cumulant_response.full_third_order_lineshape(self.freqs_gs_emission,self.Omega_sq,self.gamma,kbT,max_time,num_points,False,four_phonon_term,stdout)
+			self.g3_exact=gbom_cumulant_response.full_third_order_lineshape(self.freqs_gs_emission,self.Omega_sq,self.gamma,kbT,max_time,num_points,False,four_phonon_term,g3_cutoff,stdout)
 		else:
-			self.g3_exact=gbom_cumulant_response.full_third_order_lineshape(self.freqs_gs,self.Omega_sq,self.gamma,kbT,max_time,num_points,False,four_phonon_term,stdout)
+			self.g3_exact=gbom_cumulant_response.full_third_order_lineshape(self.freqs_gs,self.Omega_sq,self.gamma,kbT,max_time,num_points,False,four_phonon_term,g3_cutoff,stdout)
 
 	def calc_h4_qm(self,temp,num_points,max_time,no_dusch,four_phonon_term):
 		kbT=const.kb_in_Ha*temp

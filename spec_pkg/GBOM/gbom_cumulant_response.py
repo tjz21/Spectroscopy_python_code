@@ -992,7 +992,7 @@ stdout):
 # third order cumulant lineshape
 def full_third_order_lineshape(
     freqs_gs, Omega_sq, gamma, kbT, max_t, num_points, is_cl, four_phonon_term
-,stdout):
+,g3_cutoff,stdout):
     stdout.write('\n'+"Computing third order cumulant lineshape function."+'\n')
     stdout.write('\n'+'  Step       Time (fs)          Re[g_3]         Im[g_3]'+'\n')
     lineshape_func = np.zeros((num_points, 2), dtype=complex)
@@ -1016,6 +1016,10 @@ def full_third_order_lineshape(
             lineshape_func[count1, 1] = third_order_lineshape_qm_t(
                 freqs_gs, Omega_sq, n_i_vec, gamma, kbT, t, four_phonon_term
             )
+        # apply cutoff to tame divergences for long t in 3rd order cumulant lineshape func
+        if g3_cutoff>0.0:
+                lineshape_func[count1,1]=lineshape_func[count1,1]*np.exp(-t/g3_cutoff)
+
         count1 = count1 + 1
         stdout.write("%5d      %10.4f          %10.4e       %10.4e" % (count1,t*const.fs_to_Ha, np.real(lineshape_func[count1-1,1]), np.imag(lineshape_func[count1-1,1]))+'\n')
         t = t + step_length
