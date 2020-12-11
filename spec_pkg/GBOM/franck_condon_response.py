@@ -272,9 +272,7 @@ def calc_HT_correction(Dinv,Cmat,V,dipole_mom,dipole_deriv,freq_gs):
 
     HT=np.dot(np.dot(du_x,sigma2),du_x)+np.dot(np.dot(du_y,sigma2),du_y)+np.dot(np.dot(du_z,sigma2),du_z)
 
-    #correction=dsqu+2.0*FC_HT+HT
-
-    correction=HT 
+    correction=dsqu+2.0*FC_HT+HT
 
     return correction
 
