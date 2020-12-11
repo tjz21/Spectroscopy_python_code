@@ -18,16 +18,58 @@ from ..constants import constants as const
 #  modes.                                                             #
 #######################################################################
 
-def construct_freqs_J_K(coords_gs,coords_ex,hessian_gs,hessian_ex,atomic_masses,frozen_atoms,frozen_atom_list):
+def construct_freqs_J_K(coords_gs,coords_ex,hessian_gs,hessian_ex,dipole_mom,dipole_deriv,atomic_masses,frozen_atoms,frozen_atom_list):
 	gs_freqs,gs_nm=freqs_NM_from_hessian(hessian_gs, coords_gs,atomic_masses,frozen_atoms,frozen_atom_list)
 	ex_freqs,ex_nm=freqs_NM_from_hessian(hessian_ex, coords_ex,atomic_masses,frozen_atoms,frozen_atom_list)
 	if frozen_atoms>0:
-		J,K=construct_J_K(gs_nm,ex_nm,coords_gs,coords_ex,atomic_masses,True)
+		print(frozen_atoms)
+		J,K,dipole_transformed,dipole_deriv_nm=construct_J_K(gs_nm,ex_nm,coords_gs,coords_ex,dipole_mom,dipole_deriv,atomic_masses,True)
 	else:
-		J,K=construct_J_K(gs_nm,ex_nm,coords_gs,coords_ex,atomic_masses,True)
-	return gs_freqs,ex_freqs,J,K
+		print(frozen_atoms)
+		J,K,dipole_transformed,dipole_deriv_nm=construct_J_K(gs_nm,ex_nm,coords_gs,coords_ex,dipole_mom,dipole_deriv,atomic_masses,False)
 
-def construct_J_K(nm_gs,nm_ex,coords_gs,coords_ex,atomic_masses,is_atom_constraint):
+
+	# STUPID TEST: zero out low freqs
+#	for i in range(gs_freqs.shape[0]):
+#		if gs_freqs[i]<0.00045569: # 100cm-1 in ha
+#			print gs_freqs[i]
+#			ex_freqs[i]=gs_freqs[i]
+#			K[i]=0.0
+#			J[i,:]=0.0
+#			J[:,i]=0.0
+#			J[i,i]=1.0   # remove all coupling to these modes
+	# Sanity check. simply get rid of negative freqs:
+       
+	for i in range(gs_freqs.shape[0]):
+		if gs_freqs[i]<0.0:
+			print('Warning: Negative ground state frequency detected. Removing:')
+			gs_freqs[i]=abs(gs_freqs[i])
+		if ex_freqs[i]<0.0:
+			print('Warning: Negative excited state frequency detected. Removing:')
+			ex_freqs[i]=abs(ex_freqs[i])
+	
+
+	return gs_freqs,ex_freqs,J,K,dipole_transformed,dipole_deriv_nm
+
+
+
+        # dipole_deriv_cartesian has dimensions of (3,3*natoms) since it is a vector quantity 
+def construct_dipole_deriv_nm(dipole_deriv_cartesian,nm_ex,atomic_masses):
+	dipole_deriv_nm=np.zeros((dipole_deriv_cartesian.shape[0],nm_ex.shape[1])) # dipole deriv normal mode has dimension of 3,3N-6
+	for i in range(atomic_masses.shape[0]):
+		dipole_deriv_cartesian[:,i*3]=dipole_deriv_cartesian[:,i*3]/np.sqrt(atomic_masses[i])
+		dipole_deriv_cartesian[:,i*3+1]=dipole_deriv_cartesian[:,i*3+1]/np.sqrt(atomic_masses[i])
+		dipole_deriv_cartesian[:,i*3+2]=dipole_deriv_cartesian[:,i*3+2]/np.sqrt(atomic_masses[i])			
+
+	dipole_deriv_nm[0,:]=np.sqrt(const.emass_in_au)*np.dot(dipole_deriv_cartesian[0,:],nm_ex)
+	dipole_deriv_nm[1,:]=np.sqrt(const.emass_in_au)*np.dot(dipole_deriv_cartesian[1,:],nm_ex)
+	dipole_deriv_nm[2,:]=np.sqrt(const.emass_in_au)*np.dot(dipole_deriv_cartesian[2,:],nm_ex) 
+
+	# I think we want the dipole derivative in the format (Nnormal_modes,3), since this is what we 
+	# have been assuming in other parts of the code
+	return np.transpose(dipole_deriv_nm)
+
+def construct_J_K(nm_gs,nm_ex,coords_gs,coords_ex,dipole_mom,dipole_deriv,atomic_masses,is_atom_constraint):
 	# nm matrix is a matrix of Natoms*3,Natoms*3-Nconstraints
 	# full Duschinsky matrix acts in normal mode space, thus needs to have 3N-Nconstraints,3N-Nconstraints 
 	# dimensions nm^T*nm has the correct dimensions
@@ -67,16 +109,34 @@ def construct_J_K(nm_gs,nm_ex,coords_gs,coords_ex,atomic_masses,is_atom_constrai
 		sym_a=np.dot(amat,np.transpose(amat))
 		inv_a=np.linalg.inv(amat)
 		evals,evecs=np.linalg.eig(sym_a)
-		# create dmat, the diagonal matrix of sqrts 
-		Dmat=np.zeros((3,3))
-		for i in range(3):
-			Dmat[i,i]=np.sqrt(evals[i])
-		# now build rotation matrix U
-		temp_mat=np.dot(Dmat,np.transpose(evecs))
-		temp_mat2=np.dot(evecs,temp_mat)
-		Tmat=np.dot(inv_a,temp_mat2)
+		# Check for negative eigenvalues. These can happen due to numerical issues if eval is very small
+		# Very small eval might mean linear dependence--> should set Eckart rotation matrix to the identity 
+		# matrix
+		print('Eckart Evals')
+		print(evals)
+		linear_dependence=False
+		for i in range(evals.shape[0]):
+			if evals[i]<0.0 or abs(evals[i])<1.0e-10: # Check for small evals/linear dependence  
+				linear_dependence=True
+
+		if not linear_dependence:
+
+			# create dmat, the diagonal matrix of sqrts 
+			Dmat=np.zeros((3,3))
+			for i in range(3):
+				Dmat[i,i]=np.sqrt(evals[i])
+			# now build rotation matrix U
+			temp_mat=np.dot(Dmat,np.transpose(evecs))
+			temp_mat2=np.dot(evecs,temp_mat)
+			Tmat=np.dot(inv_a,temp_mat2)
+		else: # if linear dependence, set Tmat to the identity matrix:
+			Tmat=np.zeros((3,3))
+			for i in range(Tmat.shape[0]):
+				Tmat[i,i]=1.0
+
 		print('Rotation matrix T for Eckart conditions:')
 		print(Tmat)
+
 		# successfully built Eckart rotation matrix. Now rotate both coords_ex and nm_ex. 
 		coords_ex_rotated=np.zeros((coords_ex.shape[0],coords_ex.shape[1]))	
 		nm_ex_rotated=np.zeros((nm_ex.shape[0],nm_ex.shape[1]))	
@@ -102,6 +162,21 @@ def construct_J_K(nm_gs,nm_ex,coords_gs,coords_ex,atomic_masses,is_atom_constrai
 		nm_ex=nm_ex_rotated
 		coords_ex=coords_ex_rotated
 
+		# if this is not a frozen atom calculation, need to also rotate the transition
+		# dipole moment and its derivative into the Eckart frame
+		dipole_rotated=np.dot(Tmat,dipole_mom)
+		dipole_deriv_rotated=np.zeros((dipole_deriv.shape[0],dipole_deriv.shape[1]))
+		for i in range(dipole_deriv.shape[1]):
+			current_dipole=dipole_deriv[:,i]
+			dipole_deriv_rotated[:,i]=np.dot(Tmat,current_dipole)
+		print('Dipole before rotation')
+		print(dipole_mom)
+		print('Dipole after rotation:')
+		print(dipole_rotated)
+			
+		dipole_mom=dipole_rotated
+		dipole_deriv=dipole_deriv_rotated
+
 	Jmat=np.dot(np.transpose(nm_gs),nm_ex)  # This is Jmat as defined in Baiardi,Barone. 	
 
 	coord_diff=np.zeros(3*coords_ex.shape[0])
@@ -112,8 +187,12 @@ def construct_J_K(nm_gs,nm_ex,coords_gs,coords_ex,atomic_masses,is_atom_constrai
 		coord_diff[3*i+2]=np.sqrt(atomic_masses[i])*(coords_ex[i,2]-coords_gs[i,2])
 		
 	# now build Kvector.
-	Kvec=np.sqrt(1.0/const.emass_in_au)*np.dot(np.transpose(nm_gs),coord_diff) # This again follows the Barone definition. 
-	return Jmat,Kvec
+	Kvec=np.sqrt(1.0/const.emass_in_au)*np.dot(np.transpose(nm_gs),coord_diff) # This again follows the Barone definition.
+
+	# now just need to construct the dipole derivative in NM coordnates needed for HT calcs
+	dipole_deriv_nm=construct_dipole_deriv_nm(dipole_deriv,nm_ex,atomic_masses) 
+
+	return Jmat,Kvec, dipole_mom,dipole_deriv_nm
 
 def moments_of_inertia(coords,atomic_masses):
 	natoms=atomic_masses.shape[0]

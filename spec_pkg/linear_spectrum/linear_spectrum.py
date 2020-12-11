@@ -7,32 +7,32 @@ import math
 from ..constants import constants as const
 
 # analysis routines for linear spectrum
-def compute_mean_sd_skew(spectrum): 
+def compute_mean_sd_skew(spec):
 	# first make sure spectrum has no negative data points:
 	counter=0
-	while counter<spectrum.shape[0]:
-		if spectrum[counter,1]<0.0:
-			spectrum[counter,1]=0.0
+	while counter<spec.shape[0]:
+		if spec[counter,1]<0.0:
+			spec[counter,1]=0.0
 		counter=counter+1
-	step=spectrum[1,0]-spectrum[0,0]
+	step=spec[1,0]-spec[0,0]
 
 	# now compute normlization factor
 	norm=0.0
-	for x in spectrum:
+	for x in spec:
                 norm=norm+x[1]*step
 
 	mean=0.0
-	for x in spectrum:
+	for x in spec:
 		mean=mean+x[0]*x[1]*step
 	mean=mean/norm
 
 	sd=0.0
-	for x in spectrum:
+	for x in spec:
 		sd=sd+(x[0]-mean)**2.0*x[1]*step
 	sd=math.sqrt(sd)/norm
 
 	skew=0.0
-	for x in spectrum:
+	for x in spec:
 		skew=skew+(x[0]-mean)**3.0*x[1]*step
 	skew=skew/(sd**3.0)
 	skew=skew/norm
@@ -77,13 +77,16 @@ def full_spectrum(response_func,solvent_response_func,steps_spectrum,start_val,e
 		spectrum[counter,1]=prefac*(integrate.simps(integrant,dx=response_func[1,0].real-response_func[0,0].real))
 		stdout.write("%2.5f          %10.4e" % (spectrum[counter,0], spectrum[counter,1])+'\n') 
 		counter=counter+1
-	
+
+	# Dont do it
 	# compute mean, skew and SD of spectrum
-	temp_spec=spectrum
-	mean,sd,skew=compute_mean_sd_skew(temp_spec)
-	stdout.write('\n'+'Mean of spectrum: '+str(mean)+' Ha, SD: '+str(sd)+' Ha, Skew: '+str(skew)+'\n')
-	
-	# unit conversion: Print X-Axis in eV
+#	temp_spec=spectrum
+#	print(spectrum)
+#	mean,sd,skew=compute_mean_sd_skew(temp_spec)
+#	print('Spectrum positive?')
+#	stdout.write('\n'+'Mean of spectrum: '+str(mean)+' Ha, SD: '+str(sd)+' Ha, Skew: '+str(skew)+'\n')
+#	print(spectrum)
+#	# unit conversion: Print X-Axis in eV
 	spectrum[:,0]=spectrum[:,0]*const.Ha_to_eV	
 
 	return spectrum

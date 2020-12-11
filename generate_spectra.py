@@ -17,6 +17,7 @@ from spec_pkg.linear_spectrum import linear_spectrum
 from spec_pkg.nonlinear_spectrum import twoDES
 from spec_pkg.solvent_model import solvent_model
 from spec_pkg.cumulant import md_traj
+from spec_pkg.cumulant import extract_MD_params_terachem as terachem_params_MD 
 from spec_pkg.params import params
 from spec_pkg.Morse import morse
 from spec_pkg.Morse import morse_2DES
@@ -105,11 +106,11 @@ def compute_coupled_morse_absorption(param_list,coupled_morse,solvent,is_emissio
                 # exact solution to the morse oscillator
                 if param_list.method=='EXACT':
                         coupled_morse.compute_exact_response(param_list.temperature,param_list.max_t,param_list.num_steps)
-                        spectrum=linear_spectrum.full_spectrum(coupled_morse.exact_response_func,solvent.solvent_response,param_list.dipole_mom,param_list.num_steps,E_start,E_end,True,is_emission,param_list.stdout)
+                        spectrum=linear_spectrum.full_spectrum(coupled_morse.exact_response_func,solvent.solvent_response,param_list.num_steps,E_start,E_end,True,is_emission,param_list.stdout)
                         np.savetxt('Morse_Duschinsky_coupled_exact_spectrum.dat', spectrum, header='Energy (eV)      Intensity (arb. units)')
                 elif param_list.method=='FC_HARMONIC':
-                        coupled_morse.compute_harmonic_FC_response_func(param_list.temperature,param_list.max_t,param_list.num_steps,False,param_list.stdout)
-                        spectrum=linear_spectrum.full_spectrum(coupled_morse.harmonic_fc_response_func,solvent.solvent_response,param_list.dipole_mom,param_list.num_steps,E_start,E_end,True,is_emission,param_list.stdout)
+                        coupled_morse.compute_harmonic_FC_response_func(param_list.temperature,param_list.max_t,param_list.num_steps,False,False,param_list.stdout)
+                        spectrum=linear_spectrum.full_spectrum(coupled_morse.harmonic_fc_response_func,solvent.solvent_response,param_list.num_steps,E_start,E_end,True,is_emission,param_list.stdout)
                         np.savetxt('Morse_Duschinsky_harmonic_fc_spectrum.dat', spectrum,header='Energy (eV)      Intensity (arb. units)')
 
                 # cumulant based approach:
@@ -122,7 +123,7 @@ def compute_coupled_morse_absorption(param_list,coupled_morse,solvent,is_emissio
                         coupled_morse.compute_spectral_dens()
                         np.savetxt('Morse_duschinsky_spectral_dens.dat',coupled_morse.spectral_dens)
                         coupled_morse.compute_2nd_order_cumulant_response(param_list.temperature,param_list.max_t,param_list.num_steps)
-                        spectrum=linear_spectrum.full_spectrum(coupled_morse.cumulant_response_func,solvent.solvent_response,param_list.dipole_mom,param_list.num_steps,E_start,E_end,True,is_emission,param_list.stdout)
+                        spectrum=linear_spectrum.full_spectrum(coupled_morse.cumulant_response_func,solvent.solvent_response,param_list.num_steps,E_start,E_end,True,is_emission,param_list.stdout)
                         np.savetxt('Morse_Duschinsky_second_order_cumulant_spectrum.dat', spectrum, header='Energy (eV)      Intensity (arb. units)')
 
                 else:
@@ -225,7 +226,7 @@ def compute_GBOM_absorption(param_list,GBOM_chromophore,solvent,is_emission):
 				spectrum=linear_spectrum.full_spectrum(GBOM_chromophore.fc_response,solvent.solvent_response,param_list.num_steps,E_start,E_end,True,is_emission,param_list.stdout)
 				np.savetxt(param_list.GBOM_root+'_FC_spectrum.dat', spectrum, header='Energy (eV)      Intensity (arb. units)')
 		elif param_list.method=='EZTFC':
-				GBOM_chromophore.calc_eztfc_response(param_list.temperature,param_list.num_steps,param_list.max_t,param_list.qm_wigner_dist,is_emission,param_list.stdout)
+				GBOM_chromophore.calc_eztfc_response(param_list.temperature,param_list.num_steps,param_list.max_t,param_list.qm_wigner_dist,is_emission,param_list.herzberg_teller,param_list.stdout)
 				spectrum=linear_spectrum.full_spectrum(GBOM_chromophore.eztfc_response,solvent.solvent_response,param_list.num_steps,E_start,E_end,True,is_emission,param_list.stdout)
 				if param_list.qm_wigner_dist:
 						np.savetxt(param_list.GBOM_root+'_EZTFC_spectrum_qm_wigner_dist.dat', spectrum, header='Energy (eV)      Intensity (arb. units)')
@@ -253,7 +254,7 @@ def compute_GBOM_absorption(param_list,GBOM_chromophore,solvent,is_emission):
 
 				# Check if I need HT term:
 				if param_list.herzberg_teller:
-					GBOM_chromophore.compute_HT_term(param_list.temperature,param_list.num_steps,param_list.max_t,param_list.exact_corr,param_list.third_order,param_list.stdout)
+					GBOM_chromophore.compute_HT_term(param_list.temperature,param_list.num_steps,param_list.max_t,param_list.decay_length,param_list.exact_corr,param_list.third_order,param_list.stdout)
 
 				GBOM_chromophore.calc_cumulant_response(param_list.third_order,param_list.exact_corr,is_emission,param_list.herzberg_teller)		
 				spectrum=linear_spectrum.full_spectrum(GBOM_chromophore.cumulant_response,solvent.solvent_response,param_list.num_steps,E_start,E_end,True,is_emission,param_list.stdout)
@@ -266,7 +267,7 @@ def compute_GBOM_absorption(param_list,GBOM_chromophore,solvent,is_emission):
 		# quantum correlation functions for the cumulant approach
 		elif param_list.method=='ALL':
 				GBOM_chromophore.calc_ensemble_response(param_list.temperature,param_list.num_steps,param_list.max_t,param_list.qm_wigner_dist,is_emission,param_list.stdout)
-				spectrum=linear_spectrum.full_spectrum(GBOM_chromophore.ensemble_response,solvent.solvent_response,param_list.dipole_mom,param_list.num_steps,E_start,E_end,True,is_emission,param_list.stdout)
+				spectrum=linear_spectrum.full_spectrum(GBOM_chromophore.ensemble_response,solvent.solvent_response,param_list.num_steps,E_start,E_end,True,is_emission,param_list.stdout)
 				if param_list.qm_wigner_dist:
 						np.savetxt(param_list.GBOM_root+'_ensemble_spectrum_qm_wigner_dist.dat', spectrum, header='Energy (eV)      Intensity (arb. units)')
 				else:
@@ -275,7 +276,7 @@ def compute_GBOM_absorption(param_list,GBOM_chromophore,solvent,is_emission):
 				GBOM_chromophore.calc_fc_response(param_list.temperature,param_list.num_steps,param_list.max_t, is_emission,param_list.herzberg_teller,param_list.stdout)
 				spectrum=linear_spectrum.full_spectrum(GBOM_chromophore.fc_response,solvent.solvent_response,param_list.num_steps,E_start,E_end,True,is_emission,param_list.stdout)
 				np.savetxt(param_list.GBOM_root+'_FC_spectrum.dat', spectrum, header='Energy (eV)      Intensity (arb. units)')
-				GBOM_chromophore.calc_eztfc_response(param_list.temperature,param_list.num_steps,param_list.max_t,param_list.qm_wigner_dist,is_emission,param_list.stdout)
+				GBOM_chromophore.calc_eztfc_response(param_list.temperature,param_list.num_steps,param_list.max_t,param_list.qm_wigner_dist,is_emission,param_list.herzberg_teller,param_list.stdout)
 				spectrum=linear_spectrum.full_spectrum(GBOM_chromophore.eztfc_response,solvent.solvent_response,param_list.num_steps,E_start,E_end,True,is_emission,param_list.stdout)
 
 				if param_list.qm_wigner_dist:
@@ -297,7 +298,7 @@ def compute_GBOM_absorption(param_list,GBOM_chromophore,solvent,is_emission):
 						GBOM_chromophore.calc_g2_cl(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.stdout)
 						if param_list.third_order:
 								GBOM_chromophore.calc_g3_cl(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.four_phonon_term,param_list,g3_cutoff,param_list.stdout)
-				GBOM_chromophore.calc_cumulant_response(param_list.third_order,param_list.exact_corr, is_emission)		
+				GBOM_chromophore.calc_cumulant_response(param_list.third_order,param_list.exact_corr, is_emission,param_list.herzberg_teller)		
 				spectrum=linear_spectrum.full_spectrum(GBOM_chromophore.cumulant_response,solvent.solvent_response,param_list.num_steps,E_start,E_end,True,is_emission,param_list.stdout)
 
 				if param_list.exact_corr:
@@ -798,31 +799,46 @@ if param_set.model=='GBOM' or param_set.model=='MD_GBOM':
 				if param_set.GBOM_root!='':				
 						if param_set.GBOM_input_code=='GAUSSIAN':
 								# build list of frozen atoms:
-								param_set.stdout.write('Attempting to compute GBOM model from the following Gaussian output files: '+'\n')
-								param_set.stdout.write(param_set.GBOM_root+'_gs.log'+'\t'+param_set.GBOM_root+'_ex.log'+'\t'+param_set.GBOM_root+'_vibronic.log'+'\t'+'\n')
-								freqs_gs=gaussian_params.extract_normal_mode_freqs(param_set.GBOM_root+'_gs.log',param_set.num_modes)
-								freqs_ex=gaussian_params.extract_normal_mode_freqs(param_set.GBOM_root+'_ex.log',param_set.num_modes)
-								K=gaussian_params.extract_Kmat(param_set.GBOM_root+'_vibronic.log',param_set.num_modes)
-								J=np.zeros((freqs_gs.shape[0],freqs_gs.shape[0]))
-								if param_set.no_dusch:
+								# CURRENTLY ONLY IMPLEMENTED FOR GAUSSIAN WITH HPMODES, NO HT EFFECTS AND SINGLE GBOM
+								if param_set.is_vertical_gradient:
+									param_set.stdout.write('Attempting to compute vertical gradinet GBOM model from the following Gaussian output files: '+'\n')
+									param_set.stdout.write(param_set.GBOM_root+'_gs.log'+'\t'+'\t'+param_set.GBOM_root+'_grad.log'+'\t'+'\n')
+									freqs_gs,freqs_ex,K,J=gaussian_params.construct_vertical_gradient_model(param_set.GBOM_root+'_gs.log',param_set.GBOM_root+'_grad.log',param_set.num_modes)
+
+								else:								
+									param_set.stdout.write('Attempting to compute GBOM model from the following Gaussian output files: '+'\n')
+									param_set.stdout.write(param_set.GBOM_root+'_gs.log'+'\t'+param_set.GBOM_root+'_ex.log'+'\t'+param_set.GBOM_root+'_vibronic.log'+'\t'+'\n')
+									freqs_gs=gaussian_params.extract_normal_mode_freqs(param_set.GBOM_root+'_gs.log',param_set.num_modes)
+									freqs_ex=gaussian_params.extract_normal_mode_freqs(param_set.GBOM_root+'_ex.log',param_set.num_modes)
+									K=gaussian_params.extract_Kmat(param_set.GBOM_root+'_vibronic.log',param_set.num_modes)
+									J=np.zeros((freqs_gs.shape[0],freqs_gs.shape[0]))
+									if param_set.no_dusch:
 										counter=0
 										while counter<freqs_ex.shape[0]:
 												J[counter,counter]=1.0
 												counter=counter+1
-								else:
+									else:
 										J=gaussian_params.extract_duschinsky_mat(param_set.GBOM_root+'_vibronic.log',param_set.num_modes)
 
-								param_set.dipole_mom=gaussian_params.extract_transition_dipole(param_set.GBOM_root+'_ex.log',param_set.target_excited_state)
-								param_set.E_adiabatic=gaussian_params.extract_adiabatic_freq(param_set.GBOM_root+'_vibronic.log')
+									param_set.dipole_mom=gaussian_params.extract_transition_dipole(param_set.GBOM_root+'_ex.log',param_set.target_excited_state)
+									param_set.E_adiabatic=gaussian_params.extract_adiabatic_freq(param_set.GBOM_root+'_vibronic.log')
 
 								GBOM=gbom.gbom(freqs_gs,freqs_ex,J,K,param_set.E_adiabatic,param_set.dipole_mom,param_set.stdout)
 
 								if param_set.herzberg_teller:
 									GBOM.dipole_deriv=np.genfromtxt(param_set.GBOM_root+'_dipole_deriv.dat')
-									# HACK! TRY AND SCALE MASSES
+									# First work out units
+									GBOM.dipole_deriv=GBOM.dipole_deriv*const.gaussian_to_debye*const.debye_in_au/const.ang_to_bohr
+									# now units should be in a.u/(amu)*0.5
+									# convert from AMU to hartree...
+									GBOM.dipole_deriv=GBOM.dipole_deriv*np.sqrt(const.emass_in_au)
+									print(GBOM.dipole_deriv)
+									# HACK! TRY AND SCALE MASSES. DONT THINK THAT's correct? 
 									reduced_masses=np.genfromtxt(param_set.GBOM_root+'_reduced_masses.dat')
 									for i in range(GBOM.dipole_deriv.shape[0]):
-										GBOM.dipole_deriv[i,:]=GBOM.dipole_deriv[i,:]*np.sqrt(reduced_masses[i]*const.emass_in_au)
+										# HACK: Try and scale by excited state freq squared?
+										GBOM.dipole_deriv[i,:]=GBOM.dipole_deriv[i,:]*freqs_ex[i]**2.0  # scale by square of ex freq
+										#GBOM.dipole_deriv[i,:]=GBOM.dipole_deriv[i,:]*np.sqrt(reduced_masses[i]*const.emass_in_au)
 
 						elif param_set.GBOM_input_code=='TERACHEM':
 								# first obtain coordinates and Hessian. Check if we have frozen atoms.
@@ -837,8 +853,15 @@ if param_set.model=='GBOM' or param_set.model=='MD_GBOM':
 										if os.path.exists(param_set.frozen_atom_path):
 												frozen_atom_list=np.genfromtxt(param_set.frozen_atom_path)
 										else:
-												param_set.stdout.write('Error: Trying to perform Terachem calculation with frozen atoms but frozen atom list does not exist!')
-												sys.exit('Error: Trying to perform Terachem calculation with frozen atoms but frozen atom list does not exist!')
+												# assume the frozen atoms are all at the end of file
+												for i in range(frozen_atom_list.shape[0]):
+													if i<param_set.num_atoms-param_set.num_frozen_atoms:
+														frozen_atom_list[i]=0  # unfrozen
+													else:
+														frozen_atom_list[i]=1 # frozen												
+
+												#param_set.stdout.write('Error: Trying to perform Terachem calculation with frozen atoms but frozen atom list does not exist!')
+												#sys.exit('Error: Trying to perform Terachem calculation with frozen atoms but frozen atom list does not exist!')
 								
 								# now obtain Hessians and other params.
 								masses,gs_geom=terachem_params.get_masses_geom_from_terachem(param_set.GBOM_root+'_gs.log', param_set.num_atoms)		
@@ -847,8 +870,12 @@ if param_set.model=='GBOM' or param_set.model=='MD_GBOM':
 								ex_hessian=terachem_params.get_hessian_from_terachem(param_set.GBOM_root+'_ex.log',frozen_atom_list,param_set.num_frozen_atoms)
 								dipole_mom,E_adiabatic=terachem_params.get_e_adiabatic_dipole(param_set.GBOM_root+'_gs.log',param_set.GBOM_root+'_ex.log',param_set.target_excited_state)
 
+								dipole_deriv_cart=terachem_params.get_dipole_deriv_from_terachem(param_set.GBOM_root+'_ex.log',frozen_atom_list,param_set.num_frozen_atoms,param_set.target_excited_state)
+
 								# now construct frequencies, J and K from these params. 
-								freqs_gs,freqs_ex,J,K=hess_to_gbom.construct_freqs_J_K(gs_geom,ex_geom,gs_hessian,ex_hessian,masses,param_set.num_frozen_atoms,frozen_atom_list)
+								# also construct new transition dipole moment in Eckart frame and 
+								# the dipole derivative with respect to mass weighted normal modes
+								freqs_gs,freqs_ex,J,K,dipole_transformed,dipole_deriv_nm=hess_to_gbom.construct_freqs_J_K(gs_geom,ex_geom,gs_hessian,ex_hessian,dipole_mom,dipole_deriv_cart,masses,param_set.num_frozen_atoms,frozen_atom_list)
 
 								# Check if we are artificially switching off the Duschinsky rotation
 								if param_set.no_dusch:
@@ -862,7 +889,9 @@ if param_set.model=='GBOM' or param_set.model=='MD_GBOM':
 								E_0_0=(E_adiabatic+0.5*(np.sum(freqs_ex)-np.sum(freqs_gs)))
 
 								# construct GBOM
-								GBOM=gbom.gbom(freqs_gs,freqs_ex,J,K,E_0_0,dipole_mom,param_set.stdout)
+								GBOM=gbom.gbom(freqs_gs,freqs_ex,J,K,E_0_0,dipole_transformed,param_set.stdout)
+								if param_set.herzberg_teller:
+									GBOM.dipole_deriv=dipole_deriv_nm
 
 						# unsupported input code
 						else:
@@ -901,6 +930,7 @@ if param_set.model=='GBOM' or param_set.model=='MD_GBOM':
 				Kbatch=np.zeros((param_set.num_gboms,param_set.num_modes))
 				E_batch=np.zeros((param_set.num_gboms))
 				dipole_batch=np.zeros((param_set.num_gboms,3))
+				dipole_deriv_batch=np.zeros((param_set.num_gboms,param_set.num_modes,3))
 
 				while batch_count<param_set.num_gboms+1:
 						if param_set.GBOM_root!='':
@@ -949,9 +979,10 @@ if param_set.model=='GBOM' or param_set.model=='MD_GBOM':
 										masses,ex_geom=terachem_params.get_masses_geom_from_terachem(param_set.GBOM_root+str(batch_count)+'_ex.log', num_atoms_snapshot)
 										ex_hessian=terachem_params.get_hessian_from_terachem(param_set.GBOM_root+str(batch_count)+'_ex.log',frozen_atom_list,frozen_atoms_snapshot)
 										dipole_mom,E_adiabatic=terachem_params.get_e_adiabatic_dipole(param_set.GBOM_root+str(batch_count)+'_gs.log',param_set.GBOM_root+str(batch_count)+'_ex.log',param_set.target_excited_state)
+										dipole_deriv_cart=terachem_params.get_dipole_deriv_from_terachem(param_set.GBOM_root+str(batch_count)+'_ex.log',frozen_atom_list,frozen_atoms_snapshot,param_set.target_excited_state)
 
 										# now construct frequencies, J and K from these params. 
-										freqs_gs,freqs_ex,J,K=hess_to_gbom.construct_freqs_J_K(gs_geom,ex_geom,gs_hessian,ex_hessian,masses,frozen_atoms_snapshot,frozen_atom_list)
+										freqs_gs,freqs_ex,J,K,dipole_transformed,dipole_deriv_nm=hess_to_gbom.construct_freqs_J_K(gs_geom,ex_geom,gs_hessian,ex_hessian,dipole_mom,dipole_deriv_cart,masses,frozen_atoms_snapshot,frozen_atom_list)
 
 										# Check if we are artificially switching off the Duschinsky rotation
 										if param_set.no_dusch:
@@ -970,7 +1001,8 @@ if param_set.model=='GBOM' or param_set.model=='MD_GBOM':
 										Jbatch[batch_count-1,:,:]=J
 										Kbatch[batch_count-1,:]=K
 										E_batch[batch_count-1]=E_0_0
-										dipole_batch[batch_count-1]=dipole_mom
+										dipole_batch[batch_count-1,:]=dipole_transformed
+										dipole_deriv_batch[batch_count-1,:,:]=dipole_deriv_nm
 								else:
 										sys.exit('Error: Currently only support GBOM_INPUT_CODE=GAUSSIAN or TERACHEM!')
 
@@ -1006,6 +1038,8 @@ if param_set.model=='GBOM' or param_set.model=='MD_GBOM':
 						batch_count=batch_count+1
 				# now construct the model
 				GBOM_batch=gbom.gbom_list(freqs_gs_batch,freqs_ex_batch,Jbatch,Kbatch,E_batch,dipole_batch,param_set.num_gboms,param_set.stdout)
+				
+
 		param_set.stdout.write('Successfully set up a GBOM model!'+'\n')
 
 # Morse oscillator model
@@ -1036,7 +1070,7 @@ elif param_set.model=='MORSE':
 # Morse oscillator model
 elif param_set.model=='COUPLED_MORSE':
                 if param_set.morse_gs_path!='' and param_set.morse_ex_path!='' and param_set.Jpath!='':
-                                                if param_set.dipole_mom==0.0 and param_set.E_adiabatic==0.0:
+                                                if np.dot(param_set.dipole_mom,param_set.dipole_mom)==0.0 and param_set.E_adiabatic==0.0:
                                                                 sys.exit('Error: Did not provide dipole moment or adiabatic energy gap for Morse oscillator!')
                                                 # create effective morse oscillator from input values
                                                 else:
@@ -1064,6 +1098,34 @@ elif param_set.model=='COUPLED_MORSE':
 
 # pure MD model
 elif param_set.model=='MD':
+	if param_set.MD_input_code=='TERACHEM':   # Read directly from a TeraChem input file 
+		# currently only works for a single traj. 
+		traj_count=1
+		if os.path.exists(param_set.MD_root+'traj'+str(traj_count)+'.out') and os.path.exists(param_set.MD_root+'traj'+str(traj_count)+'.xyz'):  # make sure the out
+			param_set.stdout.write('Reading in MD trajectory '+str(traj_count)+'  from TeraChem output file '+param_set.MD_root+'traj'+str(traj_count)+'.dat'+'\n')
+
+			traj_dipole=terachem_params_MD.get_full_energy_dipole_moms_from_MD(param_set.MD_root+'traj'+str(traj_count)+'.out',param_set.MD_root+'traj'+str(traj_count)+'.xyz',param_set.num_atoms,param_set.target_excited_state,param_set.md_num_frames,param_set.md_skip_frames)
+
+			np.savetxt('full_traj_dipole_from_terachem.dat',traj_dipole)
+
+			if traj_count==1:
+				traj_batch=np.zeros((traj_dipole.shape[0],param_set.num_trajs))
+				dipole_batch=np.zeros((traj_dipole.shape[0],param_set.num_trajs,3))
+
+			traj_batch[:,traj_count-1]=traj_dipole[:,0]
+			dipole_batch[:,traj_count-1,0]=traj_dipole[:,2]
+			dipole_batch[:,traj_count-1,1]=traj_dipole[:,3]
+			dipole_batch[:,traj_count-1,2]=traj_dipole[:,4]
+
+		else:
+			param_set.stdout.write('Error: Trajectory and coordinate file names necessary for MD-based model does not exist!')
+			sys.exit('Error: Trajectory and coordinate file names necessary for MD-based model does not exist!')
+
+		MDtraj=md_traj.MDtrajs(traj_batch,dipole_batch,param_set.decay_length,param_set.num_trajs,param_set.md_step,param_set.stdout)   
+		param_set.stdout.write('Successfully read in MD trajectory data of energy gap fluctuations!'+'\n')
+
+
+	else:
 		traj_count=1
 		while traj_count<param_set.num_trajs+1:
 				# if this is not a HT calculation, we expect the data to be in two colums: Energy and oscillator strength

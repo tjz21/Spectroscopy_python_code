@@ -229,17 +229,22 @@ def calc_HT_correction_Souza(Dinv,Emat,dipole_mom,dipole_deriv):
     eff_dipole_deriv=np.zeros((sigma.shape[0],3))
     for i in range(dipole_deriv.shape[0]):
         eff_dipole_deriv[i,:]=dipole_deriv[i,:]
-        eff_dipole_deriv[i+dipole_deriv.shape[0],:]=dipole_deriv[i,:]
+	# only fill the first Nnormal_modes elements of the vector with the dipole derivatives. The rest is zero
 
     du_x=eff_dipole_deriv[:,0]
     du_y=eff_dipole_deriv[:,1]
     du_z=eff_dipole_deriv[:,2]
 
-    FC_HT=np.dot(sigma,du_x)*dipole_mom[0]+np.dot(sigma,du_y)*dipole_mom[1]+np.dot(sigma,du_z)*dipole_mom[2]
+#    FC_HT=0.5*(np.dot(sigma,du_x)*dipole_mom[0]+np.dot(sigma,du_y)*dipole_mom[1]+np.dot(sigma,du_z)*dipole_mom[2]) 
+    FC_HT=(np.dot(sigma,du_x)*dipole_mom[0]+np.dot(sigma,du_y)*dipole_mom[1]+np.dot(sigma,du_z)*dipole_mom[2])
+    # the effective dipole derivative matrix is twice the size of the correct dipole derivative matrix. To compensate
+    # we need to divide by 2 in the FC_HT term and by 4 in the HT term --> However, this is already accounted for by 
+    # setting the dipole derivative terms to zero for elements beyond Nnormal modes
 
-    HT=np.dot(np.dot(du_x,sigma2),du_x)+np.dot(np.dot(du_y,sigma2),du_y)+np.dot(np.dot(du_z,sigma2),du_z)
+#    HT=0.25*(np.dot(np.dot(du_x,sigma2),du_x)+np.dot(np.dot(du_y,sigma2),du_y)+np.dot(np.dot(du_z,sigma2),du_z))
+    HT=(np.dot(np.dot(du_x,sigma2),du_x)+np.dot(np.dot(du_y,sigma2),du_y)+np.dot(np.dot(du_z,sigma2),du_z))
 
-    correction=dsqu-2.0*FC_HT+HT
+    correction=dsqu+2.0*FC_HT+HT
 
     return correction
 
@@ -249,10 +254,6 @@ def calc_HT_correction(Dinv,Cmat,V,dipole_mom,dipole_deriv,freq_gs):
     dsqu=np.dot(dipole_mom,dipole_mom)
     Cinv=np.linalg.inv(Cmat)
     Vconj=np.conjugate(V)
-    # scale by sqrt of gs frequencies to ensure the correct units!
-    #du_x=dipole_deriv[:,0]*np.sqrt(freq_gs[:])
-    #du_y=dipole_deriv[:,1]*np.sqrt(freq_gs[:])
-    #du_z=dipole_deriv[:,2]*np.sqrt(freq_gs[:])
     du_x=dipole_deriv[:,0]
     du_y=dipole_deriv[:,1]
     du_z=dipole_deriv[:,2]
@@ -260,16 +261,20 @@ def calc_HT_correction(Dinv,Cmat,V,dipole_mom,dipole_deriv,freq_gs):
 
     FC_HT=0.0
     HT=0.0
-    temp=(np.dot(Dinv,V)+np.dot(Dinv,Vconj))
+    temp=(np.dot(Dinv,V)+np.transpose(np.dot(np.transpose(Vconj),Dinv)))
     sigma=-0.5*temp
-    #sigma2=-0.5*Cinv+0.25*(np.outer(temp,temp)+Dinv+np.transpose(Dinv))  # TEST: Double Cinv term
-    sigma2=-0.25*(Cinv+(np.conj(Cinv)))
+    sigma2=-0.5*Cinv+0.25*(np.outer(temp,temp)+Dinv+np.transpose(Dinv))
+
+    # What happens if we have the wrong sigma, that doesn't contain temp?
+    sigma2=-0.5*(Cinv)  # What happens if we halve Cinv?
 
     FC_HT=np.dot(sigma,du_x)*dipole_mom[0]+np.dot(sigma,du_y)*dipole_mom[1]+np.dot(sigma,du_z)*dipole_mom[2]
 
     HT=np.dot(np.dot(du_x,sigma2),du_x)+np.dot(np.dot(du_y,sigma2),du_y)+np.dot(np.dot(du_z,sigma2),du_z)
 
-    correction=dsqu+2.0*FC_HT+HT
+    #correction=dsqu+2.0*FC_HT+HT
+
+    correction=HT 
 
     return correction
 
@@ -306,7 +311,7 @@ def calc_chi_for_given_time_Souza(freq_gs, freq_ex, Jmat, Kmat, dipole_mom,dipol
     total_val=1j*(temp1-temp2/2.0)
 
     if is_HT:
-        dipole_prefac=calc_HT_correction_Souza(Dinv,Emat,dipole_mom,dipole_deriv)
+        dipole_prefac=calc_HT_correction_Souza(Dinv,Emat,dipole_mom,dipole_deriv.astype(np.complex_))
     else:
         dipole_prefac=np.dot(dipole_mom,dipole_mom)
 
@@ -349,7 +354,7 @@ def calc_chi_for_given_time(freq_gs, freq_ex, Jmat, Kmat, dipole_mom,dipole_deri
 
     if is_HT:
         Cmat=get_cmat_barone(freq_gs,freq_ex,Jmat.astype(np.complex_),kBT,time)
-        dipole_prefac=calc_HT_correction(Dinv,Cmat,V,dipole_mom,dipole_deriv,freq_gs)
+        dipole_prefac=calc_HT_correction(Dinv,Cmat,V,dipole_mom,dipole_deriv.astype(np.complex_),freq_gs)
     else:
         dipole_prefac=np.dot(dipole_mom,dipole_mom)
 
@@ -367,7 +372,7 @@ def calc_lineshape_for_given_time_Souza(freq_gs, freq_ex, Jmat, Kmat, kBT, time)
     Bmat = get_Bmat(b_gs, b_ex, Jmat.astype(np.complex_))
     Cmat = get_Cmat(b_gs,a_gs)
     Dmat = get_Dmat_souza(Amat,Bmat)
-    Emat = get_Emat(Kmat,Jmat,Cmat)
+    Emat = get_Emat(Kmat.astype(np.complex_),Jmat.astype(np.complex_),Cmat)
     Pmat = get_Pmat(freq_gs, kBT)
 
 

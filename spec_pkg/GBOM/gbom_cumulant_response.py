@@ -5,6 +5,7 @@ import math
 from numba import jit, njit, prange
 import cmath
 from spec_pkg.constants import constants as const
+from scipy import integrate 
 
 # check whether this is an absorption or an emission calculation
 # also include HT capabilities
@@ -645,10 +646,175 @@ def bose_einstein(freq, kbT):
     return 1.0 / n
 
 
-def full_HT_term(freqs_gs,Kmat,Jmat,Omega_sq,gamma,dipole_mom,dipole_deriv,kbT,max_t,num_points,is_qm,is_3rd_order,stdout):
+#  TEST: COMPUTE DIPOLE ENERGY AND DIPOLE DIPOLE CORR FUNC:
+#  computing classical correlation funcs, then FFT to build SD
+def compute_spectral_dens_dipole(freqs_gs,Jmat,gamma,dipole_deriv,dipole_mom,kbT,decay_length,max_t,num_points):
+    num_points=num_points*10
+    max_t=max_t*10.0 
+    dipole_dipole=np.zeros((num_points*2-1,2),dtype=complex) 
+    dipole_energy=np.zeros((num_points*2-1,2),dtype=complex) # dipole energy corr func is computed by forming the dot product with the dipole mom 
+
+    n_i=np.zeros(freqs_gs.shape[0])
+    for i in range(n_i.shape[0]):
+        n_i[i]=bose_einstein(freqs_gs[i],kbT)
+
+    step_length=max_t/num_points
+    for i in range(dipole_dipole.shape[0]):
+        t= -max_t + step_length * i
+        dipole_dipole[i,0]=t
+        dipole_dipole[i,1]=compute_corr_func_dipole_dipole_qm_t(freqs_gs,dipole_deriv,Jmat,n_i,t)
+        dipole_energy[i,0]=t
+        dipole_energy[i,1]=compute_corr_func_dipole_energy_qm_t(freqs_gs,dipole_mom,dipole_deriv,gamma,Jmat,n_i,t)
+
+    dipole_dipole[:,1]=dipole_dipole[:,1]*np.exp(-abs(dipole_dipole[:,0].real)/decay_length)
+    dipole_energy[:,1]=dipole_energy[:,1]*np.exp(-abs(dipole_energy[:,0].real)/decay_length)
+
+    np.savetxt('dipole_dipole_corr_func_qm.txt',dipole_dipole)
+ 
+    corr_func_freq = (
+        np.fft.fft(np.fft.ifftshift(dipole_dipole[:, 1].imag))
+        * max_t
+        / num_points
+        * 2.0
+        * math.pi
+    )  # 2pi is the missing normalization factor. double check
+    corr_func_freq_dipole_energy = (
+        np.fft.fft(np.fft.ifftshift(dipole_energy[:, 1].imag))
+        * max_t
+        / num_points
+        * 2.0
+        * math.pi
+    )  # 2pi is the missing normalization factor. double check
+    freqs = np.fft.fftfreq(corr_func_freq.shape[0], max_t / num_points) * 2.0 * math.pi
+
+    spectral_dens = np.zeros((int(corr_func_freq.shape[0]/2) - 1, 2))
+    spectral_dens_dipole_energy=np.zeros((int(corr_func_freq.shape[0]/2) - 1, 2))
+    counter = 0
+    while counter < spectral_dens.shape[0]:
+        spectral_dens[counter, 0] = freqs[counter]
+        spectral_dens[counter, 1] = corr_func_freq[counter].real
+        spectral_dens_dipole_energy[counter,0]=freqs[counter]
+        spectral_dens_dipole_energy[counter,1]=corr_func_freq_dipole_energy[counter].real
+        counter = counter + 1
+
+    np.savetxt('dipole_dipole_SD.txt',spectral_dens)
+    np.savetxt('dipole_energy_SD.txt',spectral_dens_dipole_energy)
+
+
+#  computing classical correlation funcs, then FFT to build SD
+def compute_spectral_dens_dipole_cl(freqs_gs,Jmat,gamma,dipole_deriv,dipole_mom,reorg_dipole,kbT,decay_length,max_t,num_points):
+    num_points=num_points*10
+    max_t=max_t*10.0 
+    dipole_dipole=np.zeros((num_points*2-1,2),dtype=complex) 
+    dipole_energy=np.zeros((num_points*2-1,2),dtype=complex) # dipole energy corr func is computed by forming the dot product with the dipole mom 
+
+    step_length=max_t/num_points
+    for i in range(dipole_dipole.shape[0]):
+        t= -max_t + step_length * i
+        dipole_dipole[i,0]=t
+        dipole_dipole[i,1]=compute_corr_func_dipole_dipole_cl_t(freqs_gs,dipole_deriv,Jmat,kbT,t)
+        dipole_energy[i,0]=t
+        dipole_energy[i,1]=compute_corr_func_dipole_energy_cl_t(freqs_gs,dipole_mom,reorg_dipole,dipole_deriv,gamma,Jmat,kbT,t)
+
+    dipole_dipole[:,1]=dipole_dipole[:,1]*np.exp(-abs(dipole_dipole[:,0].real)/decay_length)
+    dipole_energy[:,1]=dipole_energy[:,1]*np.exp(-abs(dipole_energy[:,0].real)/decay_length)
+
+    np.savetxt('dipole_dipole_corr_func_cl.txt',np.real(dipole_dipole))
+    np.savetxt('dipole_energy_corr_func_cl.txt',np.real(dipole_energy))
+
+    corr_func_freq = (
+        np.fft.fft(np.fft.ifftshift(dipole_dipole[:, 1]))
+        * max_t
+        / num_points
+        * 2.0
+        * math.pi
+    )  # 2pi is the missing normalization factor. double check
+    corr_func_freq_dipole_energy = (
+        np.fft.fft(np.fft.ifftshift(dipole_energy[:, 1]))
+        * max_t
+        / num_points
+        * 2.0
+        * math.pi
+    )  # 2pi is the missing normalization factor. double check
+    freqs = np.fft.fftfreq(corr_func_freq.shape[0], max_t / num_points) * 2.0 * math.pi
+
+    spectral_dens = np.zeros((int(corr_func_freq.shape[0]/2) - 1, 2))
+    spectral_dens_dipole_energy=np.zeros((int(corr_func_freq.shape[0]/2) - 1, 2))
+    cross_corr_freq=np.zeros((int(corr_func_freq.shape[0]/2) - 1, 2))
+ 
+    counter = 0
+    while counter < spectral_dens.shape[0]:
+        spectral_dens[counter, 0] = freqs[counter]
+        spectral_dens[counter, 1] = spectral_dens[counter,0]/(2.0*kbT)*corr_func_freq[counter].real
+        spectral_dens_dipole_energy[counter,0]=freqs[counter]
+        spectral_dens_dipole_energy[counter,1]=spectral_dens[counter,0]/(2.0*kbT)*corr_func_freq_dipole_energy[counter].real
+        cross_corr_freq[counter,0]=freqs[counter]
+        cross_corr_freq[counter,1]=corr_func_freq_dipole_energy[counter].real
+        counter = counter + 1
+
+    np.savetxt('dipole_dipole_SD_cl.txt',spectral_dens)
+    np.savetxt('dipole_energy_SD_cl.txt',spectral_dens_dipole_energy)
+
+    return cross_corr_freq
+
+def compute_corr_func_dipole_dipole_qm_t(freqs_gs,dipole_deriv,Jmat,n,t):
+    val=0.0+0.0*1j
+    dipole_deriv_J=np.zeros((Jmat.shape[0],3))
+    dipole_deriv_J[:,0]=np.dot(dipole_deriv[:,0],np.transpose(Jmat))
+    dipole_deriv_J[:,1]=np.dot(dipole_deriv[:,1],np.transpose(Jmat))
+    dipole_deriv_J[:,2]=np.dot(dipole_deriv[:,2],np.transpose(Jmat))
+
+
+    for i in range(freqs_gs.shape[0]):
+        val=val+1.0/(2.0*freqs_gs[i])*np.dot(dipole_deriv_J[i,:],dipole_deriv_J[i,:])*((n[i]+1.0)*np.exp(-1j*freqs_gs[i]*t)+n[i]*np.exp(1j*freqs_gs[i]*t))
+
+    return val
+
+def compute_corr_func_dipole_energy_qm_t(freqs_gs,dipole_mom,dipole_deriv,gamma,Jmat,n,t):
+    val=0.0+0.0*1j
+    dipole_deriv_J=np.zeros((Jmat.shape[0],3))
+    dipole_deriv_J[:,0]=np.dot(dipole_deriv[:,0],np.transpose(Jmat))
+    dipole_deriv_J[:,1]=np.dot(dipole_deriv[:,1],np.transpose(Jmat))
+    dipole_deriv_J[:,2]=np.dot(dipole_deriv[:,2],np.transpose(Jmat))
+
+    for i in range(freqs_gs.shape[0]):
+        val=val-gamma[i]*np.dot(dipole_deriv_J[i,:],dipole_mom)/(2.0*freqs_gs[i])*((n[i]+1.0)*np.exp(-1j*freqs_gs[i]*t)+n[i]*np.exp(1j*freqs_gs[i]*t))
+
+    return val 
+
+
+def compute_corr_func_dipole_dipole_cl_t(freqs_gs,dipole_deriv,Jmat,kbT,t):
+    val=0.0+0.0*1j
+    dipole_deriv_J=np.zeros((Jmat.shape[0],3))
+    dipole_deriv_J[:,0]=np.dot(dipole_deriv[:,0],np.transpose(Jmat))
+    dipole_deriv_J[:,1]=np.dot(dipole_deriv[:,1],np.transpose(Jmat))
+    dipole_deriv_J[:,2]=np.dot(dipole_deriv[:,2],np.transpose(Jmat))
+
+
+    for i in range(freqs_gs.shape[0]):
+        val=val+kbT/(2.0*freqs_gs[i]**2.0)*np.dot(dipole_deriv_J[i,:],dipole_deriv_J[i,:])*(np.cos(freqs_gs[i]*t))
+
+    return val
+
+def compute_corr_func_dipole_energy_cl_t(freqs_gs,dipole_mom,reorg_dipole,dipole_deriv,gamma,Jmat,kbT,t):
+    val=0.0+0.0*1j
+    dipole_deriv_J=np.zeros((Jmat.shape[0],3))
+    dipole_deriv_J[:,0]=np.dot(dipole_deriv[:,0],np.transpose(Jmat))
+    dipole_deriv_J[:,1]=np.dot(dipole_deriv[:,1],np.transpose(Jmat))
+    dipole_deriv_J[:,2]=np.dot(dipole_deriv[:,2],np.transpose(Jmat))
+
+    for i in range(freqs_gs.shape[0]):
+        val=val-gamma[i]*np.dot(dipole_deriv_J[i,:],(reorg_dipole-dipole_mom))*kbT/(2.0*freqs_gs[i]**2.0)*np.cos(freqs_gs[i]*t)
+
+    return val
+
+# full HT function
+def full_HT_term(freqs_gs,Kmat,Jmat,Omega_sq,gamma,dipole_mom,dipole_deriv,kbT,max_t,num_points,decay_length,is_qm,is_3rd_order,stdout):
+    # Before doing anything, compute the dipole dipole correlation function
     Jtrans=np.transpose(Jmat)
     HT_func=np.zeros((num_points, 2), dtype=complex)
     n_i_vec = np.zeros(freqs_gs.shape[0])
+    # correct order
     Jdip_deriv=np.zeros((freqs_gs.shape[0],3))
     Jdip_deriv[:,0]=np.dot(dipole_deriv[:,0],Jtrans)
     Jdip_deriv[:,1]=np.dot(dipole_deriv[:,1],Jtrans)
@@ -657,6 +823,26 @@ def full_HT_term(freqs_gs,Kmat,Jmat,Omega_sq,gamma,dipole_mom,dipole_deriv,kbT,m
     reorg_dipole[0]=np.dot(Jdip_deriv[:,0],Kmat)
     reorg_dipole[1]=np.dot(Jdip_deriv[:,1],Kmat)
     reorg_dipole[2]=np.dot(Jdip_deriv[:,2],Kmat)
+
+    # SET reorg_dipole to zero. THIS IS Equivalent to expanding around the GS PES.
+    reorg_dipole=np.zeros(3)
+
+    compute_spectral_dens_dipole(freqs_gs,Jmat,gamma,dipole_deriv,dipole_mom,kbT,decay_length,max_t,num_points)
+    cross_corr_freq=compute_spectral_dens_dipole_cl(freqs_gs,Jmat,gamma,dipole_deriv,dipole_mom,reorg_dipole,kbT,decay_length,max_t,num_points)
+
+
+    # TEST HOW BIG the FCHT TERM IS:
+    inv_w=1.0/freqs_gs[:]
+    inv_w_sq=np.multiply(inv_w,inv_w)
+    gamma_inv_sq=np.multiply(inv_w_sq,gamma)
+    eff_size=np.zeros(3)
+    eff_size[0]=1.0/kbT*(np.dot(gamma_inv_sq,Jdip_deriv[:,0]))
+    eff_size[1]=1.0/kbT*(np.dot(gamma_inv_sq,Jdip_deriv[:,1]))
+    eff_size[2]=1.0/kbT*(np.dot(gamma_inv_sq,Jdip_deriv[:,2]))
+ 
+    print('Size of corr func')
+    print(eff_size,np.dot(dipole_mom,eff_size))
+
 
     # compute the total renormalized dipole moment
     total_renorm_dipole=np.dot(dipole_mom,dipole_mom)-2.0*np.dot(reorg_dipole,dipole_mom)+np.dot(reorg_dipole,reorg_dipole)
@@ -672,17 +858,43 @@ def full_HT_term(freqs_gs,Kmat,Jmat,Omega_sq,gamma,dipole_mom,dipole_deriv,kbT,m
         if is_qm:
             HT_func[i,1]=HT_qm_t(freqs_gs,Kmat,Jtrans,Omega_sq,gamma,n_i_vec,dipole_mom,Jdip_deriv,reorg_dipole,total_renorm_dipole,is_3rd_order,t) 
         else:
-            HT_func[i,1]=HT_cl_t(freqs_gs,Kmat,Jtrans,Omega_sq,gamma,n_i_vec,kbT,dipole_mom,Jdip_deriv,reorg_dipole,total_renorm_dipole,is_3rd_order,t)
+            HT_func[i,1]=HT_cl_t(freqs_gs,cross_corr_freq,Kmat,Jtrans,Omega_sq,gamma,n_i_vec,kbT,dipole_mom,Jdip_deriv,reorg_dipole,total_renorm_dipole,is_3rd_order,t)
         t=t+step_length
 
     return HT_func
 
-def HT_cl_t(freqs_gs,Kmat,Jtrans,Omega_sq,gamma,n,kBT,dipole_mom,Jdip_deriv,reorg_dipole,total_renorm_dipole,is_3rd_order,t):
+def one_deriv_term_intergrant(cross_corr_func_freq,kbT,t):
+    integrant=np.zeros((cross_corr_func_freq.shape[0],cross_corr_func_freq.shape[1]),dtype=np.complex_)
+    tol=1.0e-15
+    for i in range(cross_corr_func_freq.shape[0]):
+        integrant[i,0]=cross_corr_func_freq[i,0]
+        # check for omega=0 condition
+        omega=integrant[i,0]
+        if abs(omega)<tol:
+           denom=2.0*math.pi
+           num=2.0*t*cross_corr_func_freq[i,1]
+           integrant[i,1]=num/denom
+
+        else:
+           denom=kbT*2.0*math.pi*(1.0-np.exp(-omega/kbT))
+           num=2.0*cross_corr_func_freq[i,1]*(1.0-cmath.exp(-1j*omega*t))
+           integrant[i,1]=num/denom
+
+    return integrant
+
+
+
+def HT_cl_t(freqs_gs,cross_corr_func_freq,Kmat,Jtrans,Omega_sq,gamma,n,kBT,dipole_mom,Jdip_deriv,reorg_dipole,total_renorm_dipole,is_3rd_order,t):
     one_deriv_term=0.0+0.0*1j
     # 2nd order HT term is unchanged from qm version of the same term.
     for i in range(freqs_gs.shape[0]):
-        term_xyz=-2.0*(reorg_dipole[0]*Jdip_deriv[i,0]+reorg_dipole[1]*Jdip_deriv[i,1]+reorg_dipole[2]*Jdip_deriv[i,2]-dipole_mom[0]*Jdip_deriv[i,0]-dipole_mom[1]*Jdip_deriv[i,1]-dipole_mom[2]*Jdip_deriv[i,2])*gamma[i]/(2.0*freqs_gs[i]**2.0)*((n[i]+1)*(1.0-cmath.exp(-1j*freqs_gs[i]*t))+n[i]*(1.0-cmath.exp(1j*freqs_gs[i])*t))
+        term_xyz=-2.0*(np.dot(reorg_dipole-dipole_mom,Jdip_deriv[i,:]))*gamma[i]/(4.0*math.pi*(freqs_gs[i])**2.0)*((n[i]+1.0)*(1.0-cmath.exp(-1j*freqs_gs[i]*t))-n[i]*(1.0-cmath.exp(1j*freqs_gs[i])*t))  # (n+1) and n term are opposite sign!)
         one_deriv_term=one_deriv_term+term_xyz
+
+#    print(t)
+#    integrant=one_deriv_term_intergrant(cross_corr_func_freq,kBT,t)
+#    one_deriv_term=-integrate.simps(integrant[:,1],dx=integrant[1,0]-integrant[0,0])   
+
 
     two_deriv_term=0.0+1j*0.0
     for i in range(freqs_gs.shape[0]):
@@ -746,12 +958,13 @@ def HT_cl_t(freqs_gs,Kmat,Jtrans,Omega_sq,gamma,n,kBT,dipole_mom,Jdip_deriv,reor
 def HT_qm_t(freqs_gs,Kmat,Jtrans,Omega_sq,gamma,n,dipole_mom,Jdip_deriv,reorg_dipole,total_renorm_dipole,is_3rd_order,t):
     one_deriv_term=0.0+0.0*1j
     for i in range(freqs_gs.shape[0]):
-        term_xyz=-2.0*(reorg_dipole[0]*Jdip_deriv[i,0]+reorg_dipole[1]*Jdip_deriv[i,1]+reorg_dipole[2]*Jdip_deriv[i,2]-dipole_mom[0]*Jdip_deriv[i,0]-dipole_mom[1]*Jdip_deriv[i,1]-dipole_mom[2]*Jdip_deriv[i,2])*gamma[i]/(2.0*freqs_gs[i]**2.0)*((n[i]+1)*(1.0-cmath.exp(-1j*freqs_gs[i]*t))+n[i]*(1.0-cmath.exp(1j*freqs_gs[i])*t))
+        term_xyz=-2.0*(np.dot(reorg_dipole-dipole_mom,Jdip_deriv[i,:]))*gamma[i]/(4.0*math.pi*(freqs_gs[i])**2.0)*((n[i]+1.0)*(1.0-cmath.exp(-1j*freqs_gs[i]*t))-n[i]*(1.0-cmath.exp(1j*freqs_gs[i])*t))
+	# n+1 and n term are opposite sign!
         one_deriv_term=one_deriv_term+term_xyz
 
     two_deriv_term=0.0+1j*0.0
     for i in range(freqs_gs.shape[0]):
-        term_xyz=(Jdip_deriv[i,0]**2.0+Jdip_deriv[i,1]**2.0+Jdip_deriv[i,2]**2.0)/(2.0*freqs_gs[i])*((n[i]+1.0)*cmath.exp(-1j*freqs_gs[i]*t)+n[i]*cmath.exp(1j*freqs_gs[i]*t))
+        term_xyz=(np.dot(Jdip_deriv[i,:],Jdip_deriv[i,:]))/(2.0*freqs_gs[i])*((n[i]+1.0)*cmath.exp(-1j*freqs_gs[i]*t)+n[i]*cmath.exp(1j*freqs_gs[i]*t))
         two_deriv_term=two_deriv_term+term_xyz
 
 

@@ -80,6 +80,7 @@ class params:
 		self.omega1=0.0/const.Ha_to_eV   # energies for when 2DES spectrum is supposed
 		self.omega3=0.0/const.Ha_to_eV	 # to be computed around a value other than mean
 		self.model=''
+		self.is_vertical_gradient=False
 		self.task=''
 		self.method=''
 		self.Jpath=''
@@ -90,6 +91,7 @@ class params:
 		self.dipole_mom_path=''
 		self.E_opt_path=''
 		self.MD_root=''
+		self.MD_input_code=''
 		self.GBOM_root=''
 
 		self.add_emission_shift=False # shift omega_eg_av by twice the solvent broadening (GBOM) or the total spectral dens
@@ -105,10 +107,12 @@ class params:
 		self.E_adiabatic=0.0
 		self.decay_length=500.0/const.fs_to_Ha
 		self.md_step=2.0/const.fs_to_Ha
+		self.md_num_frames=0   # number of MD frames. Only relevant if we read from a TeraChem file
+		self.md_skip_frames=0  # skip the first n frames in an MD trajectory to allow for equilibration
 		self.corr_length_3rd=1000
 		self.four_phonon_term=True # if set to false, ignore 4 phonon contribution to two-time corr in GBOM (speeds up code)
 		self.spectral_window=3.0/const.Ha_to_eV   # width of the window in which the spectrum gets calculated. 3eV as default
-		self.target_excited_state=1  # TARGET excited state specifies which is the state we are interested in. Only really necessary for Terachem calculation
+		self.target_excited_state=1  # TARGET excited state specifies which is the state we are interested in. Only really necessary for Terachem calculation where we extract excited state parameters directly from its output file. 
 
 		# now start filling keyword list by parsing input file.
 		self.task=get_param(filepath,'TASK')  # absorption, emission, 2DES, other spectroscopy techniqes
@@ -127,6 +131,7 @@ class params:
 		self.dipole_mom_path=get_param(filepath,'LIST_DIP_MOM')
 		self.frozen_atom_path=get_param(filepath, 'FROZEN_ATOM_PATH') # path to file list detailing frozen atoms
 		self.MD_root=get_param(filepath,'MD_ROOTNAME')	
+		self.MD_input_code=get_param(filepath, 'MD_INPUT_CODE')
 		self.GBOM_root=get_param(filepath, 'GBOM_ROOTNAME')
 		self.GBOM_input_code=get_param(filepath, 'GBOM_INPUT_CODE') # specify whether the GBOM input is a Gaussian or Terachem input
 									    # this will be extended to other supported codes
@@ -137,6 +142,13 @@ class params:
 			self.gs_reference_dipole=True
 		else:
 			self.gs_reference_dipole=False
+
+		par=get_param(filepath,'VERTICAL_GRADIENT')
+		if par=='TRUE':
+			self.is_vertical_gradient=True
+		else:
+			self.is_vertical_gradient=False
+
 		par=get_param(filepath,'ADD_EMISSION_SHIFT')
 		if par=='TRUE':
 			self.add_emission_shift=True
@@ -170,6 +182,7 @@ class params:
 				for elem in par:
 					self.num_frozen_atoms[counter]=int(elem)
 					counter=counter+1
+
 		par=get_param(filepath,'NUM_ATOMS')
 		if par != '':
 			self.num_atoms=int(par)
@@ -212,6 +225,12 @@ class params:
 		par=get_param(filepath,'MD_STEP')
 		if par != '':
 			self.md_step=(float(par)/const.fs_to_Ha)
+		par=get_param(filepath,'MD_NUM_FRAMES')
+		if par != '':
+			self.md_num_frames=int(par)
+		par=get_param(filepath,'MD_SKIP_FRAMES')
+		if par != '':
+			self.md_skip_frames=int(par)
 		par=get_param(filepath,'NUM_STEPS')
 		if par != '':
 			self.num_steps=int(par)

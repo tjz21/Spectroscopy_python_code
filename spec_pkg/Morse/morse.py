@@ -910,8 +910,8 @@ class morse_coupled:
 
                 return E_ex-E_gs+self.E_adiabatic
 
-        def compute_harmonic_FC_response_func(self,temp,max_t,num_steps,is_emission,stdout):
-                self.eff_gbom.calc_fc_response(temp,num_steps,max_t,is_emission,stdout)
+        def compute_harmonic_FC_response_func(self,temp,max_t,num_steps,is_emission,is_HT,stdout):
+                self.eff_gbom.calc_fc_response(temp,num_steps,max_t,is_emission,is_HT,stdout)
                 self.harmonic_fc_response_func=self.eff_gbom.fc_response
 
         def compute_harmonic_exact_cumulant_response_func(self,temp,max_t,num_steps,is_emission,stdout):

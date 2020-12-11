@@ -5,7 +5,7 @@ import os.path
 import numpy as np
 import math
 import numba
-from ..constants import constants as const
+from spec_pkg.constants import constants as const
 
 def get_gs_energy(input_path_gs):
 	search_phrase='FINAL ENERGY:'
@@ -43,6 +43,7 @@ def get_ex_energy_dipole_mom(input_path_ex,root):
 	energy=float(energy_line[1])
 	ex_energy=float(energy_line[2])/const.Ha_to_eV # convert to Ha 
 
+	searchfile = open(input_path_ex,"r")
 	search_phrase='Transition dipole moments:'
 	line_count=0
 	keyword_line=999999999
@@ -67,6 +68,47 @@ def get_e_adiabatic_dipole(input_path_gs,input_path_ex,root):
 	ex_energy,dipole_mom=get_ex_energy_dipole_mom(input_path_ex,root)
 	gs_energy=get_gs_energy(input_path_gs)
 	return dipole_mom,ex_energy-gs_energy
+
+# Test this
+def get_specific_dipole(input_path,displacement,root,ref_dipole):
+        search_phrase1='*** Displacement '+str(displacement)+' ***'
+        search_phrase2='Transition dipole moments:'
+        dipole_vec=np.zeros(3)
+
+        searchfile = open(input_path,"r")
+        line_count=0
+        keyword_line=999999999
+        for line in searchfile:
+                if search_phrase1 in line and keyword_line==999999999:
+                        keyword_line=line_count
+                line_count=line_count+1
+        total_line_number=line_count-1
+        linefile=open(input_path,"r")
+        lines=linefile.readlines()
+        # if we haven't found specific displacement, break
+        if keyword_line==999999999:
+                sys.exit('Error: Could not find transition dipole moment for Displacement '+str(displacement))
+        line_count=keyword_line
+        keyword_line2=999999999
+        while line_count<total_line_number:
+                if search_phrase2 in lines[line_count] and keyword_line2==999999999:
+                        keyword_line2=line_count
+                line_count=line_count+1
+        # if we havent found the gradient following the displacement, break
+        if keyword_line2==999999999:
+                sys.exit('Error: Could not find transition dipole moment for Displacement '+str(displacement))
+        line_start=keyword_line2+3+root
+        current_line=lines[line_start].split()
+	 
+        dipole_vec[0]=float(current_line[1])
+        dipole_vec[1]=float(current_line[2])
+        dipole_vec[2]=float(current_line[3])
+
+        # Check sign relative to reference dipole moment
+        if np.dot(dipole_vec,ref_dipole)/(np.dot(dipole_vec,dipole_vec)*np.dot(ref_dipole,ref_dipole))<-0.5:
+                dipole_vec=-1.0*dipole_vec
+
+        return dipole_vec
 
 # Works
 def get_specific_grad(input_path,displacement,num_atoms):
@@ -111,6 +153,76 @@ def get_specific_grad(input_path,displacement,num_atoms):
 		atom_count=atom_count+1
 
 	return grad_vec	
+
+def get_dipole_deriv_from_terachem(input_path,frozen_atom_list,num_frozen_atoms,root):
+	# ref dipole: 
+        energy,ref_dipole=get_ex_energy_dipole_mom(input_path,root)
+
+
+        num_atoms=frozen_atom_list.shape[0]
+        dipole_deriv=np.zeros((3,num_atoms*3))
+        displacement=0.0
+        # find displacement:
+        searchphrase='Using displacements of '
+        searchfile = open(input_path,"r")
+        line_count=0
+        keyword_line=999999999
+        for line in searchfile:
+                if searchphrase in line and keyword_line==999999999:
+                        keyword_line=line_count
+                line_count=line_count+1
+        searchfile.close()
+        if keyword_line < 9999999:
+                linefile=open(input_path,"r")
+                lines=linefile.readlines()
+                keyword=lines[keyword_line].split()
+                displacement=float(keyword[3])
+        else:
+                sys.exit('Error: Could not find displacement used in numerical Hessian calculation in Terachem file')	
+
+        print('FD parameter: 2*displacement')
+        print(displacement*2)
+
+        # Now construct the dipole_derivative. First displacement is the (x+delta x) displacement, then the (x-delta x) displacement 
+        unfrozen_atoms=num_atoms-num_frozen_atoms
+        unfrozen_count=0
+        total_atom_count=0
+        while total_atom_count<num_atoms:
+                # check whether this is a frozen or an unfrozen atom:
+                if frozen_atom_list[total_atom_count]==0: # unfrozen
+
+                        # loop over xyz coordinates:
+                        xyz_count=0
+                        while xyz_count<3:
+                                print('Getting dipole ', unfrozen_count, ' of ',3*unfrozen_atoms)
+                                dipole1=get_specific_dipole(input_path,unfrozen_count*2+1,root,ref_dipole)
+                                dipole2=get_specific_dipole(input_path,unfrozen_count*2+2,root,ref_dipole)
+
+                                print(dipole1)
+                                print(dipole2)
+                                print(dipole1-dipole2)
+
+                                # build the effective row of the Hessian through the finite difference scheme. 
+                                fd_dipole=(dipole1-dipole2)/(2.0*displacement)
+
+                                # this seems to be the correct approach. This way, off diagonal Hessian elements are the average of the numerical and the 
+                                # analytical force constants
+                                dipole_deriv[:,total_atom_count*3+xyz_count]=fd_dipole[:]
+
+                                print(fd_dipole)
+
+                                unfrozen_count=unfrozen_count+1
+                                xyz_count=xyz_count+1
+
+                total_atom_count=total_atom_count+1
+
+	# no need to symmetrize like in the Hessian. Just return
+
+        print('Full Dipole derivative. Units should be in a.u')
+        print(dipole_deriv)
+
+        return dipole_deriv
+
 
 #Works
 def get_hessian_from_terachem(input_path,frozen_atom_list,num_frozen_atoms):
@@ -238,6 +350,23 @@ def get_masses_geom_from_terachem(input_path, num_atoms):
 			masses[atom_count]=const.Mass_list[8]
 		elif elem=='Ne':
 			masses[atom_count]=const.Mass_list[9]
+		elif elem=='Na':
+			masses[atom_count]=const.Mass_list[10]
+		elif elem=='Mg':
+			masses[atom_count]=const.Mass_list[11]	
+		elif elem=='Al':
+			masses[atom_count]=const.Mass_list[12]
+		elif elem=='Si':
+			masses[atom_count]=const.Mass_list[13]
+		elif elem=='P':
+			masses[atom_count]=const.Mass_list[14]
+		elif elem=='S':
+			masses[atom_count]=const.Mass_list[15]
+		elif elem=='Cl':
+			masses[atom_count]=const.Mass_list[16]
+		elif elem=='Ar':
+			masses[atom_count]=const.Mass_list[17]
+
 		else:
 			sys.exit('Error: Could not find atomic mass for element '+elem)
 	

@@ -203,15 +203,41 @@ class MDtrajs:
 		# now construct correlation functions
 		self.corr_func_dipole_cl=ht.construct_corr_func_dipole(self.dipole_fluct,self.num_trajs,self.tau,self.time_step)
 		self.corr_func_cross_cl=ht.construct_corr_func_cross(self.dipole_fluct,self.fluct,self.num_trajs,self.tau,self.time_step)
+
+		# print out the effective cross correlation function
+		eff_cross_corr=np.zeros((self.corr_func_cross_cl.shape[0],2))
+		for i in range(eff_cross_corr.shape[0]):
+			eff_cross_corr[i,0]=-self.time_step*1.0*(eff_cross_corr.shape[0]-1)/2.0+(1.0*i)*self.time_step
+			eff_cross_corr[i,1]=np.dot(self.corr_func_cross_cl[i,:],self.dipole_mom_av)
+
+		np.savetxt('corr_func_cross_cl_x.dat',self.corr_func_cross_cl[:,0])
+		np.savetxt('corr_func_cross_cl_y.dat',self.corr_func_cross_cl[:,1])
+		np.savetxt('corr_func_cross_cl_z.dat',self.corr_func_cross_cl[:,2])
+
+		np.savetxt('Classical_dipole_energy_cross_corr.dat',eff_cross_corr)
+
+		eff_classical_corr=np.zeros((self.corr_func_dipole_cl.shape[0],2))
+		for i in range(eff_classical_corr.shape[0]):
+			eff_classical_corr[i,0]=-self.time_step*1.0*(eff_classical_corr.shape[0]-1)/2.0+(1.0*i)*self.time_step
+			eff_classical_corr[i,1]=self.corr_func_dipole_cl[i]
+
+		np.savetxt('Classical_dipole_dipole_corr.dat',eff_classical_corr)
+
 		# Compute spectral density: this is really only done for analysis purposes:
 		sd=cumulant.compute_spectral_dens(self.corr_func_dipole_cl,kbT, sampling_rate,self.time_step)
 		np.savetxt('Dipole_dipole_spectral_density.dat',sd)
 		sd=cumulant.compute_spectral_dens(self.corr_func_cross_cl[:,0],kbT, sampling_rate,self.time_step)
+		eff_SD=sd
+		eff_SD[:,1]=sd[:,1]*self.dipole_mom_av[0]
 		np.savetxt('Dipole_energy_cross_spectral_density_x.dat',sd)
 		sd=cumulant.compute_spectral_dens(self.corr_func_cross_cl[:,1],kbT, sampling_rate,self.time_step)
 		np.savetxt('Dipole_energy_cross_spectral_density_y.dat',sd)
+		eff_SD[:,1]=eff_SD[:,1]+sd[:,1]*self.dipole_mom_av[1]
 		sd=cumulant.compute_spectral_dens(self.corr_func_cross_cl[:,2],kbT, sampling_rate,self.time_step)
 		np.savetxt('Dipole_energy_cross_spectral_density_z.dat',sd)
+		eff_SD[:,1]=eff_SD[:,1]+sd[:,1]*self.dipole_mom_av[2]
+
+		np.savetxt('Dipole_energy_cross_sepctral_density_dot_mu_av.dat',eff_SD)
 
 		# now compute dipole reorganization and the renormalized dipole moment
 		if gs_dipole_ref:   # We take the ground state as the reference for dipole moment fluctuations.

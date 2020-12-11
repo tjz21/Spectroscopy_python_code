@@ -32,7 +32,7 @@ def construct_corr_func_dipole(dipole_flucts,num_trajs,tau,time_step):
                 counter=0
                 while counter<transform_time_x.shape[-1]:
 			# corr func is a scalar quantitiy. 
-                        corr_func[counter]=transform_time_x[counter]+transform_time_y[counter]+transform_time_z[counter]
+                        corr_func[counter]=corr_func[counter]+transform_time_x[counter]+transform_time_y[counter]+transform_time_z[counter]
                         counter=counter+1
 
                 traj_count=traj_count+1
@@ -49,8 +49,8 @@ def construct_corr_func_dipole(dipole_flucts,num_trajs,tau,time_step):
 
 # This correlation function is a scalar as it contains two instances of mu
 def construct_corr_func_3rd_mu_U_mu(dipole_flucts,energy_flucts, num_trajs,correlation_length,tau,time_step,stdout):
-	stdout.write('\n'+"Constructing classical 3rd order correlation function C_muUmu from MD trajectory."+'\n')
-	classical_corr=np.zeros((correlation_length*2+1,correlation_length*2+1,3))
+        stdout.write('\n'+"Constructing classical 3rd order correlation function C_muUmu from MD trajectory."+'\n')
+        classical_corr=np.zeros((correlation_length*2+1,correlation_length*2+1,3))
         traj_counter=0
         while traj_counter<num_trajs:
                 # get classical correlation function:
@@ -77,11 +77,11 @@ def construct_corr_func_3rd_mu_U_mu(dipole_flucts,energy_flucts, num_trajs,corre
 
         return classical_corr
 
-# constructing muUmu from single trajectory
+# constructing muUmu from single trajectory: CURRENTLY THIS ASSUMES ONLY A SINGLE TRAJ
 def construct_classical_mu_U_mu_from_single_traj(dipole_flucts,energy_flucts,correlation_length,time_step):
-	func_size=correlation_length*2+1
-	corr_func=np.zeros((func_size,func_size,3))
-	for icount in range(corr_func.shape[0]):
+        func_size=correlation_length*2+1
+        corr_func=np.zeros((func_size,func_size,3))
+        for icount in range(corr_func.shape[0]):
                 print(icount)
                 for jcount in range(corr_func.shape[0]):  # DO NOT exploit symmetry. Calculate full corr func
                         integrant=get_correlation_integrant_muUmu_3rd(dipole_flucts,energy_flucts,icount,jcount,correlation_length,time_step)
@@ -96,7 +96,7 @@ def construct_classical_mu_U_mu_from_single_traj(dipole_flucts,energy_flucts,cor
 
         return corr_func
 
-@jit(fastmath=True)
+@jit(fastmath=True) 
 def get_correlation_integrant_muUmu_3rd(dipole_flucts,energy_flucts,current_corr_i,current_corr_j,correlation_length,MD_steplength):
         relative_start_i=current_corr_i-correlation_length   # these can be negative or positive and define a range
         relative_start_j=current_corr_j-correlation_length   # over which the correlation function gets calculated
@@ -208,15 +208,15 @@ def construct_classical_mu_U_U_from_single_traj(dipole_flucts,energy_flucts,corr
                         corr_func[icount,jcount,0]=(icount*time_step)-(corr_func.shape[0]-1)/2.0*time_step
                         corr_func[icount,jcount,1]=(jcount*time_step)-(corr_func.shape[0]-1)/2.0*time_step
                         corr_func[icount,jcount,2]=integrate.simps(integrant[:,0],dx=time_step)/(1.0*integrant.shape[0])
-			corr_func[icount,jcount,3]=integrate.simps(integrant[:,1],dx=time_step)/(1.0*integrant.shape[0])
-			corr_func[icount,jcount,4]=integrate.simps(integrant[:,2],dx=time_step)/(1.0*integrant.shape[0])
+                        corr_func[icount,jcount,3]=integrate.simps(integrant[:,1],dx=time_step)/(1.0*integrant.shape[0])
+                        corr_func[icount,jcount,4]=integrate.simps(integrant[:,2],dx=time_step)/(1.0*integrant.shape[0])
 
         # make sure that the step length does not get multiplied in the trapezium integral function
         for icount in range(corr_func.shape[0]):
                 for jcount in range(corr_func.shape[0]):
                         corr_func[icount,jcount,2]=corr_func[icount,jcount,2]/(time_step)
-			corr_func[icount,jcount,3]=corr_func[icount,jcount,3]/(time_step)
-			corr_func[icount,jcount,4]=corr_func[icount,jcount,4]/(time_step)
+                        corr_func[icount,jcount,3]=corr_func[icount,jcount,3]/(time_step)
+                        corr_func[icount,jcount,4]=corr_func[icount,jcount,4]/(time_step)
 	
         return corr_func
 
@@ -257,8 +257,8 @@ def construct_corr_func_3rd_mu_U_U(dipole_flucts,energy_flucts, num_trajs,correl
                                 classical_corr[icount,jcount,0]=temp_corr[icount,jcount,0]
                                 classical_corr[icount,jcount,1]=temp_corr[icount,jcount,1]
                                 classical_corr[icount,jcount,2]=classical_corr[icount,jcount,2]+temp_corr[icount,jcount,2]
-				classical_corr[icount,jcount,3]=classical_corr[icount,jcount,3]+temp_corr[icount,jcount,3]
-				classical_corr[icount,jcount,4]=classical_corr[icount,jcount,4]+temp_corr[icount,jcount,4]
+                                classical_corr[icount,jcount,3]=classical_corr[icount,jcount,3]+temp_corr[icount,jcount,3]
+                                classical_corr[icount,jcount,4]=classical_corr[icount,jcount,4]+temp_corr[icount,jcount,4]
                                 jcount=jcount+1
                         icount=icount+1
                 traj_counter=traj_counter+1
@@ -268,8 +268,8 @@ def construct_corr_func_3rd_mu_U_U(dipole_flucts,energy_flucts, num_trajs,correl
                 jcount=0
                 while jcount<temp_corr.shape[0]:
                         classical_corr[icount,jcount,2]=classical_corr[icount,jcount,2]/num_trajs*math.exp(-abs(classical_corr[icount,jcount,0])/tau)*math.exp(-abs(classical_corr[icount,jcount,1])/tau)
-			classical_corr[icount,jcount,3]=classical_corr[icount,jcount,3]/num_trajs*math.exp(-abs(classical_corr[icount,jcount,0])/tau)*math.exp(-abs(classical_corr[icount,jcount,1])/tau)
-			classical_corr[icount,jcount,4]=classical_corr[icount,jcount,4]/num_trajs*math.exp(-abs(classical_corr[icount,jcount,0])/tau)*math.exp(-abs(classical_corr[icount,jcount,1])/tau)
+                        classical_corr[icount,jcount,3]=classical_corr[icount,jcount,3]/num_trajs*math.exp(-abs(classical_corr[icount,jcount,0])/tau)*math.exp(-abs(classical_corr[icount,jcount,1])/tau)
+                        classical_corr[icount,jcount,4]=classical_corr[icount,jcount,4]/num_trajs*math.exp(-abs(classical_corr[icount,jcount,0])/tau)*math.exp(-abs(classical_corr[icount,jcount,1])/tau)
                         jcount=jcount+1
                 icount=icount+1
 
@@ -300,12 +300,22 @@ def construct_corr_func_cross(dipole_flucts,energy_flucts,num_trajs,tau,time_ste
                 # add it to full corr func:
                 counter=0
                 while counter<transform_time_x.shape[-1]:
-                        corr_func[counter,0]=transform_time_x[counter]
-                        corr_func[counter,1]=transform_time_y[counter]
-                        corr_func[counter,2]=transform_time_z[counter]
+                        corr_func[counter,0]=corr_func[counter,0]+transform_time_x[counter]
+                        corr_func[counter,1]=corr_func[counter,1]+transform_time_y[counter]
+                        corr_func[counter,2]=corr_func[counter,2]+transform_time_z[counter]
                         counter=counter+1
 
                 traj_count=traj_count+1
+
+	# SYMMETRIZE. THIS SHOULD IN PRINCIPLE NOT BE NECESSARY FOR WELL ENOUGH BEHAVED CROSS CORRELATION FUNC
+        for i in range(corr_func.shape[0]):
+                corr_func[i,0]=0.5*(corr_func[i,0]+corr_func[corr_func.shape[0]-1-i,0])
+                corr_func[corr_func.shape[0]-1-i,0]=corr_func[i,0]
+                corr_func[i,1]=0.5*(corr_func[i,1]+corr_func[corr_func.shape[0]-1-i,1])
+                corr_func[corr_func.shape[0]-1-i,1]=corr_func[i,1]
+                corr_func[i,2]=0.5*(corr_func[i,2]+corr_func[corr_func.shape[0]-1-i,2])
+                corr_func[corr_func.shape[0]-1-i,2]=corr_func[i,2]
+       
 
         # normalize and multiply by a decaying exponential
         eff_decay_length=tau/time_step
@@ -378,13 +388,13 @@ def compute_cross_corr_func_freq(cross_corr_func,sample_rate,time_step):
 
 # build the vector quantity in the frequency domain:
 def compute_mu_U_U_corr_func_freq(corr_func_mu_U_U,sampling_rate_in_fs,low_freq_filter):
-	step_length_corr=corr_func_mu_U_U[1,1,0]-corr_func_mu_U_U[0,0,0]
+        step_length_corr=corr_func_mu_U_U[1,1,0]-corr_func_mu_U_U[0,0,0]
         sample_rate=sampling_rate_in_fs*math.pi*2.0*const.hbar_in_eVfs
         new_dim=corr_func_mu_U_U.shape[0]*2+1  # pad with a factor of 2 . Resulting value is guaranteed to be odd
 	# try padding:
         extended_func_x=np.zeros((new_dim,new_dim),dtype=np.complex)
-	extended_func_y=np.zeros((new_dim,new_dim),dtype=np.complex)
-	extended_func_z=np.zeros((new_dim,new_dim),dtype=np.complex)
+        extended_func_y=np.zeros((new_dim,new_dim),dtype=np.complex)
+        extended_func_z=np.zeros((new_dim,new_dim),dtype=np.complex)
 
         # pad with zeros:
         start_index=int((new_dim-corr_func_mu_U_U.shape[0])/2)
@@ -394,17 +404,17 @@ def compute_mu_U_U_corr_func_freq(corr_func_mu_U_U,sampling_rate_in_fs,low_freq_
                 for jcount in range(new_dim):
                         if icount<start_index or icount>end_index-1 or jcount<start_index or jcount>end_index-1:
                                 extended_func_x[icount,jcount]=0.0+0.0j
-				extended_func_y[icount,jcount]=0.0+0.0j
-				extended_func_z[icount,jcount]=0.0+0.0j
+                                extended_func_y[icount,jcount]=0.0+0.0j
+                                extended_func_z[icount,jcount]=0.0+0.0j
                         else:
                                 extended_func_x[icount,jcount]=corr_func_mu_U_U[icount-start_index,jcount-start_index,2]
-				extended_func_y[icount,jcount]=corr_func_mu_U_U[icount-start_index,jcount-start_index,3]
-				extended_func_z[icount,jcount]=corr_func_mu_U_U[icount-start_index,jcount-start_index,4]
+                                extended_func_y[icount,jcount]=corr_func_mu_U_U[icount-start_index,jcount-start_index,3]
+                                extended_func_z[icount,jcount]=corr_func_mu_U_U[icount-start_index,jcount-start_index,4]
 
         # remember: Need to normalize correlation func in frequency domain by multiplying by dt**2.0
         corr_func_freq_x=(np.fft.fftshift(np.fft.fftn(np.fft.ifftshift(extended_func_x[:,:]))))*step_length_corr*step_length_corr
-	corr_func_freq_y=(np.fft.fftshift(np.fft.fftn(np.fft.ifftshift(extended_func_y[:,:]))))*step_length_corr*step_length_corr
-	corr_func_freq_z=(np.fft.fftshift(np.fft.fftn(np.fft.ifftshift(extended_func_z[:,:]))))*step_length_corr*step_length_corr
+        corr_func_freq_y=(np.fft.fftshift(np.fft.fftn(np.fft.ifftshift(extended_func_y[:,:]))))*step_length_corr*step_length_corr
+        corr_func_freq_z=(np.fft.fftshift(np.fft.fftn(np.fft.ifftshift(extended_func_z[:,:]))))*step_length_corr*step_length_corr
 
         freq_list=np.fft.fftshift(np.fft.fftfreq(corr_func_freq_x.shape[0],d=1./sample_rate))/const.Ha_to_eV
 
@@ -415,20 +425,20 @@ def compute_mu_U_U_corr_func_freq(corr_func_mu_U_U,sampling_rate_in_fs,low_freq_
                         full_corr_func_freq[icount,jcount,0]=freq_list[icount]
                         full_corr_func_freq[icount,jcount,1]=freq_list[jcount]
                         full_corr_func_freq[icount,jcount,2]=corr_func_freq_x[icount,jcount].real
-			full_corr_func_freq[icount,jcount,3]=corr_func_freq_y[icount,jcount].real
-			full_corr_func_freq[icount,jcount,4]=corr_func_freq_z[icount,jcount].real
+                        full_corr_func_freq[icount,jcount,3]=corr_func_freq_y[icount,jcount].real
+                        full_corr_func_freq[icount,jcount,4]=corr_func_freq_z[icount,jcount].real
                         if abs(freq_list[icount])<low_freq_filter and abs(freq_list[jcount])<low_freq_filter:
                                 full_corr_func_freq[icount,jcount,2]=0.0
-				full_corr_func_freq[icount,jcount,3]=0.0
-				full_corr_func_freq[icount,jcount,4]=0.0
+                                full_corr_func_freq[icount,jcount,3]=0.0
+                                full_corr_func_freq[icount,jcount,4]=0.0
 
-	return full_corr_func_freq
+        return full_corr_func_freq
 
 # compute the classical correlation function of U_mu_U in the frequency domain
 def compute_mu_U_mu_corr_func_freq(corr_func_mu_U_mu,sampling_rate_in_fs,low_freq_filter): # this is a scalar func
-	step_length_corr=corr_func_mu_U_mu[1,1,0]-corr_func_mu_U_mu[0,0,0]
-	sample_rate=sampling_rate_in_fs*math.pi*2.0*const.hbar_in_eVfs
-	new_dim=corr_func_mu_U_mu.shape[0]*2+1  # pad with a factor of 2 . Resulting value is guaranteed to be odd
+        step_length_corr=corr_func_mu_U_mu[1,1,0]-corr_func_mu_U_mu[0,0,0]
+        sample_rate=sampling_rate_in_fs*math.pi*2.0*const.hbar_in_eVfs
+        new_dim=corr_func_mu_U_mu.shape[0]*2+1  # pad with a factor of 2 . Resulting value is guaranteed to be odd
 	# try padding:
         extended_func=np.zeros((new_dim,new_dim),dtype=np.complex)
 
@@ -436,9 +446,9 @@ def compute_mu_U_mu_corr_func_freq(corr_func_mu_U_mu,sampling_rate_in_fs,low_fre
         start_index=int((new_dim-corr_func_mu_U_mu.shape[0])/2)
         end_index=start_index+corr_func_mu_U_mu.shape[0]
 
-	for icount in range(new_dim):
-		for jcount in range(new_dim):
-			if icount<start_index or icount>end_index-1 or jcount<start_index or jcount>end_index-1:
+        for icount in range(new_dim):
+                for jcount in range(new_dim):
+                        if icount<start_index or icount>end_index-1 or jcount<start_index or jcount>end_index-1:
                                 extended_func[icount,jcount]=0.0+0.0j
                         else:
                                 extended_func[icount,jcount]=corr_func_mu_U_mu[icount-start_index,jcount-start_index,2]
@@ -448,17 +458,17 @@ def compute_mu_U_mu_corr_func_freq(corr_func_mu_U_mu,sampling_rate_in_fs,low_fre
 
         freq_list=np.fft.fftshift(np.fft.fftfreq(corr_func_freq.shape[0],d=1./sample_rate))/const.Ha_to_eV
 
-	full_corr_func_freq=np.zeros((corr_func_freq.shape[0],corr_func_freq.shape[0],3),dtype=np.complex_)
+        full_corr_func_freq=np.zeros((corr_func_freq.shape[0],corr_func_freq.shape[0],3),dtype=np.complex_)
 
-	for icount in range (full_corr_func_freq.shape[0]):
-		for jcount in range(full_corr_func_freq.shape[1]):
-			full_corr_func_freq[icount,jcount,0]=freq_list[icount]
-			full_corr_func_freq[icount,jcount,1]=freq_list[jcount]
-			full_corr_func_freq[icount,jcount,2]=corr_func_freq[icount,jcount].real
-			if abs(freq_list[icount])<low_freq_filter and abs(freq_list[jcount])<low_freq_filter:
+        for icount in range (full_corr_func_freq.shape[0]):
+                for jcount in range(full_corr_func_freq.shape[1]):
+                        full_corr_func_freq[icount,jcount,0]=freq_list[icount]
+                        full_corr_func_freq[icount,jcount,1]=freq_list[jcount]
+                        full_corr_func_freq[icount,jcount,2]=corr_func_freq[icount,jcount].real
+                        if abs(freq_list[icount])<low_freq_filter and abs(freq_list[jcount])<low_freq_filter:
                                 full_corr_func_freq[icount,jcount,2]=0.0
 
-	return full_corr_func_freq
+        return full_corr_func_freq
 
 
 # remember, mu_av and mu_reonorm and mu reorg, as well as corr_func_cross_freq, are vector quantities
@@ -493,12 +503,12 @@ def HT_integrant_mu_U_mu(corr_func_mu_U_mu_freq,mu_renorm,kBT,t_current):
 			w1=corr_func_mu_U_mu_freq[i,j,0]
 			w2=corr_func_mu_U_mu_freq[i,j,1]
 			integrant[i,j,0]=w1
-                        integrant[i,j,1]=w2
+			integrant[i,j,1]=w2
 			const_fac=corr_func_mu_U_mu_freq[i,j,2]/mu_renorm**2.0
 			w_bar=w1+w2
 			if abs(w1)<tol and abs(w2)<tol:
 				num=t_current
-                                denom=4.0*math.pi**2.0
+				denom=4.0*math.pi**2.0
 			elif abs(w1)<tol:
 				num=beta**2.0*w2**2.0*t_current*np.exp(beta*w2)*np.exp(-1j*w2*t_current)
 				denom=8.0*math.pi**2.0*(np.exp(beta*w2)-beta*w2-1.0)
@@ -524,14 +534,14 @@ def HT_integrant_mu_U_U(corr_func_mu_U_U_freq,mu_reorg,mu_renorm,kBT,t_current):
         integrant=np.zeros((corr_func_mu_U_U_freq.shape[0],corr_func_mu_U_U_freq.shape[1],3),dtype=np.complex_)
         for i in range(integrant.shape[0]):
                 for j in range(integrant.shape[1]):
-			w1=corr_func_mu_U_U_freq[i,j,0]
+                        w1=corr_func_mu_U_U_freq[i,j,0]
                         w2=corr_func_mu_U_U_freq[i,j,1]
-			integrant[i,j,0]=w1
+                        integrant[i,j,0]=w1
                         integrant[i,j,1]=w2
                         w_bar=w1+w2
-			const_fac=(corr_func_mu_U_U_freq[i,j,2]*mu_reorg[0]+corr_func_mu_U_U_freq[i,j,3]*mu_reorg[1]+corr_func_mu_U_U_freq[i,j,4]*mu_reorg[2])/mu_renorm**2.0
-			if abs(w1)<tol and abs(w2)<tol:
-				num=-t_current**2.0
+                        const_fac=(corr_func_mu_U_U_freq[i,j,2]*mu_reorg[0]+corr_func_mu_U_U_freq[i,j,3]*mu_reorg[1]+corr_func_mu_U_U_freq[i,j,4]*mu_reorg[2])/mu_renorm**2.0
+                        if abs(w1)<tol and abs(w2)<tol:
+                                num=-t_current**2.0
                                 denom=8.0*math.pi**2.0
                         elif abs(w1)<tol:
                                 num=beta**2.0*np.exp(beta*w2)*np.exp(-1j*w2*t_current)*(np.exp(1j*w2*t_current)-1j*w2*t_current-1.0)
@@ -553,21 +563,20 @@ def HT_integrant_mu_U_U(corr_func_mu_U_U_freq,mu_reorg,mu_renorm,kBT,t_current):
 # Correct
 @jit(fastmath=True)
 def HT_integrant_U_U_mu(corr_func_U_U_mu_freq,mu_reorg,mu_renorm,mu_av,kBT,t_current):
-	mu_eff=mu_reorg-2.0*mu_av
+        mu_eff=mu_reorg-2.0*mu_av
         beta=1.0/kBT
         tol=1.0e-15
         integrant=np.zeros((corr_func_U_U_mu_freq.shape[0],corr_func_U_U_mu_freq.shape[1],3),dtype=np.complex_)
         for i in range(integrant.shape[0]):
                 for j in range(integrant.shape[1]):
-			
-			w1=corr_func_U_U_mu_freq[i,j,0]
+                        w1=corr_func_U_U_mu_freq[i,j,0]
                         w2=corr_func_U_U_mu_freq[i,j,1]
-			integrant[i,j,0]=w1
-			integrant[i,j,1]=w2
+                        integrant[i,j,0]=w1
+                        integrant[i,j,1]=w2
                         w_bar=w1+w2
-			const_fac=(corr_func_U_U_mu_freq[i,j,2]*mu_eff[0]+corr_func_U_U_mu_freq[i,j,3]*mu_eff[1]+corr_func_U_U_mu_freq[i,j,4]*mu_eff[2])/mu_renorm**2.0
-			if abs(w1)<tol and abs(w2)<tol:
-				num=t_current**2.0
+                        const_fac=(corr_func_U_U_mu_freq[i,j,2]*mu_eff[0]+corr_func_U_U_mu_freq[i,j,3]*mu_eff[1]+corr_func_U_U_mu_freq[i,j,4]*mu_eff[2])/mu_renorm**2.0
+                        if abs(w1)<tol and abs(w2)<tol:
+                                num=t_current**2.0
                                 denom=8.0*math.pi**2.0
                         elif abs(w1)<tol:
                                 num=beta**2.0*np.exp(beta*w2)*np.exp(-1j*w2*t_current)*(np.exp(1j*w2*t_current)-1j*w2*t_current-1.0)
@@ -606,14 +615,22 @@ def compute_HT_term_3rd_order(corr_func_mu_U_U_freq,corr_func_U_U_mu_freq,corr_f
 
 # The full A func. NOTE THAT MU RENORM IS A SCALAR QUANTITY, NOT A VECTOR QUANTITY
 def compute_HT_term_2nd_order(corr_func_freq,corr_func_cross_freq,mu_av,mu_renorm,mu_reorg,kBT,max_t,steps):
-	Afunc=np.zeros((steps,2),dtype=np.complex_)
-	step_length=max_t/steps
-	for i in range(steps):
-		t_current=i*step_length
-		Afunc[i,0]=t_current
-		integrant=HT_2nd_order_integrant(corr_func_freq,corr_func_cross_freq,mu_av,mu_renorm,mu_reorg,kBT,t_current)
-		Afunc[i,1]=1.0+integrate.simps(integrant[:,1],dx=(integrant[1,0]-integrant[0,0]))
+        Afunc=np.zeros((steps,2),dtype=np.complex_)
+        step_length=max_t/steps
+        for i in range(steps):
+                t_current=i*step_length
+                Afunc[i,0]=t_current
+                integrant=HT_2nd_order_integrant(corr_func_freq,corr_func_cross_freq,mu_av,mu_renorm,mu_reorg,kBT,t_current)
+                Afunc[i,1]=1.0+integrate.simps(integrant[:,1],dx=(integrant[1,0]-integrant[0,0]))
 
-	Afunc[:,1]=Afunc[:,1]*mu_renorm**2.0
+        Afunc[:,1]=Afunc[:,1]*mu_renorm**2.0
 
-	return Afunc
+        # STUPID TEST: Integrate over corr funcs:
+        effective_cross_corr=np.zeros(3)
+        effective_cross_corr[0]=integrate.simps(corr_func_cross_freq[:,1],dx=(integrant[1,0]-integrant[0,0]))
+        effective_cross_corr[1]=integrate.simps(corr_func_cross_freq[:,2],dx=(integrant[1,0]-integrant[0,0]))
+        effective_cross_corr[2]=integrate.simps(corr_func_cross_freq[:,3],dx=(integrant[1,0]-integrant[0,0]))
+        print('Effective magnitude of cross correlation term:')
+        print(effective_cross_corr,np.dot(effective_cross_corr,mu_av))
+
+        return Afunc
