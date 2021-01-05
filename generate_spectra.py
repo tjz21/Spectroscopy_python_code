@@ -164,14 +164,14 @@ def compute_morse_absorption(param_list,morse_oscs,solvent,is_emission):
 			np.savetxt('Morse_oscs_2nd_order_corr_imag.dat',temp_func)
 			morse_oscs.compute_spectral_dens()
 			np.savetxt('Morse_oscs_spectral_dens.dat',morse_oscs.spectral_dens)
-			morse_oscs.compute_2nd_order_cumulant_response(param_list.temperature,param_list.max_t,param_list.num_steps)
+			morse_oscs.compute_2nd_order_cumulant_response(param_list.temperature,param_list.max_t,param_list.num_steps,param_list.stdout)
 			spectrum=linear_spectrum.full_spectrum(morse_oscs.cumulant_response_func,solvent.solvent_response,param_list.num_steps,E_start,E_end,True,is_emission,param_list.stdout)
 			np.savetxt('Morse_second_order_cumulant_spectrum.dat', spectrum, header='Energy (eV)      Intensity (arb. units)')
 
 		# Andres Hybrid approach
 		elif param_list.method=='CUMUL_FC_SEPARABLE':
 			# Set average energy gap for GBOM
-			morse_oscs.eff_gbom.calc_omega_av_qm(param_list.temperature,is_emission,param_list.stdout)
+			morse_oscs.eff_gbom.calc_omega_av_qm(param_list.temperature,is_emission)
 			morse_oscs.compute_cumul_fc_hybrid_response_func(param_list.temperature,param_list.decay_length,param_list.max_t,param_list.num_steps,is_emission,param_list.stdout)
 			spectrum=linear_spectrum.full_spectrum(morse_oscs.hybrid_cumul_fc_response_func,solvent.solvent_response,param_list.num_steps,E_start,E_end,True,is_emission,param_list.stdout)	
 			np.savetxt('Morse_hybrid_cumul_harmonic_FC_spectrum.dat', spectrum, header='Energy (eV)      Intensity (arb. units)')
@@ -586,7 +586,7 @@ def compute_hybrid_GBOM_batch_MD_absorption(param_list,MDtraj,GBOM_batch,solvent
 
                                 # calculate FC and 2nd order cumulant response functions for GBOM
                                 for i in range(param_list.num_gboms):
-                                                GBOM_batch.gboms[i].calc_cumulant_response(param_list.third_order,param_list.exact_corr,is_emission)
+                                                GBOM_batch.gboms[i].calc_cumulant_response(param_list.third_order,param_list.exact_corr,is_emission,param_list.herzberg_teller)
                                                 GBOM_batch.gboms[i].calc_fc_response(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.herzberg_teller,param_list.stdout)
                                                 # compute 2nd order cumulant divergence:
                                                 GBOM_batch.gboms[i].calc_2nd_order_divergence(param_list.temperature,param_list.exact_corr)
@@ -598,7 +598,9 @@ def compute_hybrid_GBOM_batch_MD_absorption(param_list,MDtraj,GBOM_batch,solvent
                                 num_gboms_averaged=0
                                 for j in range(param_list.num_gboms):
                                         # can i average over this GBOM? Check
-                                        if GBOM_batch.gboms[j].second_order_divergence<MDtraj.second_order_divergence:
+					        print('Divergence GBOM, Divergence MDtraj')
+					        print(GBOM_batch.gboms[j].second_order_divergence, MDtraj.second_order_divergence)
+                                        #if GBOM_batch.gboms[j].second_order_divergence<MDtraj.second_order_divergence:
                                                 num_gboms_averaged=num_gboms_averaged+1
                                                 for icount in range(eff_response.shape[0]):
                                                         # protect against divide by 0
@@ -772,6 +774,9 @@ if os.path.exists(input_file):
 else:
 		sys.exit('Error: Could not find input file')
 
+print('PARAMSET: NUM_FROZEN_ATOMS')
+print(param_set.num_frozen_atoms)
+
 print_banner(param_set.stdout)
 
 param_set.stdout.write('Successfully parsed the input file!'+'\n')
@@ -822,6 +827,16 @@ if param_set.model=='GBOM' or param_set.model=='MD_GBOM':
 
 									param_set.dipole_mom=gaussian_params.extract_transition_dipole(param_set.GBOM_root+'_ex.log',param_set.target_excited_state)
 									param_set.E_adiabatic=gaussian_params.extract_adiabatic_freq(param_set.GBOM_root+'_vibronic.log')
+								# if requested, remove low frequency vibrational modes:
+								if param_set.freq_cutoff_gbom>0.0:
+									for i in range(freqs_gs.shape[0]):
+										if freqs_gs[i]<param_set.freq_cutoff_gbom:
+											freqs_ex[i]=freqs_gs[i]
+											J[i,:]=0.0
+											J[:,i]=0.0
+											J[i,i]=1.0
+											K[i]=0.0 
+
 
 								GBOM=gbom.gbom(freqs_gs,freqs_ex,J,K,param_set.E_adiabatic,param_set.dipole_mom,param_set.stdout)
 
@@ -885,6 +900,17 @@ if param_set.model=='GBOM' or param_set.model=='MD_GBOM':
 												J[counter,counter]=1.0
 												counter=counter+1
 
+                                                                # if requested, remove low frequency vibrational modes:
+                                                                if param_set.freq_cutoff_gbom>0.0:
+                                                                        for i in range(freqs_gs.shape[0]):
+                                                                                if freqs_gs[i]<param_set.freq_cutoff_gbom:
+                                                                                        freqs_ex[i]=freqs_gs[i]
+                                                                                        J[i,:]=0.0      
+                                                                                        J[:,i]=0.0
+                                                                                        J[i,i]=1.0
+                                                                                        K[i]=0.0 
+
+
 								# GBOM assumes E_0_0 as input rather than E_adiabatic. 
 								E_0_0=(E_adiabatic+0.5*(np.sum(freqs_ex)-np.sum(freqs_gs)))
 
@@ -914,6 +940,17 @@ if param_set.model=='GBOM' or param_set.model=='MD_GBOM':
 								K=np.genfromtxt(param_set.Kpath)
 								freqs_ex=np.genfromtxt(param_set.freq_ex_path)
 								# created appropriate matrices: now create GBOM.
+
+
+                                                                # if requested, remove low frequency vibrational modes:
+                                                                if param_set.freq_cutoff_gbom>0.0:
+                                                                        for i in range(freqs_gs.shape[0]):
+                                                                                if freqs_gs[i]<param_set.freq_cutoff_gbom:
+                                                                                        freqs_ex[i]=freqs_gs[i]
+                                                                                        J[i,:]=0.0      
+                                                                                        J[:,i]=0.0
+                                                                                        J[i,i]=1.0
+                                                                                        K[i]=0.0 
 
 								# GBOM assumes E_0_0 as input rather than E_adiabatic. 
 								E_0_0=param_set.E_adiabatic+0.5*(np.sum(freqs_ex)-np.sum(freqs_gs))
@@ -949,19 +986,36 @@ if param_set.model=='GBOM' or param_set.model=='MD_GBOM':
 												while counter<freqs_gs.shape[0]:
 														J[counter,counter]=1.0
 														counter=counter+1
+
+
+                                                                		# if requested, remove low frequency vibrational modes:
+                                                                		if param_set.freq_cutoff_gbom>0.0:
+                                                                        		for i in range(freqs_gs.shape[0]):
+                                                                                		if freqs_gs[i]<param_set.freq_cutoff_gbom:
+                                                                                        		freqs_ex[i]=freqs_gs[i]
+                                                                                        		J[i,:]=0.0      
+                                                                                        		J[:,i]=0.0
+                                                                                        		J[i,i]=1.0
+                                                                                        		K[i]=0.0 
+
 										# fill batch
 										freqs_gs_batch[batch_count-1,:]=freqs_gs
 										freqs_ex_batch[batch_count-1,:]=freqs_ex
 										Jbatch[batch_count-1,:,:]=J
 										Kbatch[batch_count-1,:]=K
+
+
+
 										E_batch[batch_count-1]=E_adiabatic
 										dipole_batch[batch_count-1,:]=param_set.dipole_mom
 								elif param_set.GBOM_input_code=='TERACHEM':
 										atoms_snapshot=0
 										frozen_atoms_snapshot=0
-										if param_set.num_frozen_atoms>0: 
+										print('FROZEN ATOMS')
+										print(param_set.num_frozen_atoms)
+										if param_set.num_frozen_atoms[batch_count-1]>0: 
 												if os.path.exists(param_set.frozen_atom_path+str(batch_count)):
-														frozen_atom_list=np.genfromtxt(param_set.frozen_atom_path)
+														frozen_atom_list=np.genfromtxt(param_set.frozen_atom_path+str(batch_count))
 												else:
 														sys.exit('Error: Trying to perform Terachem calculation with frozen atoms but frozen atom list does not exist for current batch!')
 												atoms_snapshot=frozen_atom_list.shape[0]
@@ -974,9 +1028,9 @@ if param_set.model=='GBOM' or param_set.model=='MD_GBOM':
 												atoms_snapshot=param_set.num_atoms
 
 										# now obtain Hessians and other params.
-										masses,gs_geom=terachem_params.get_masses_geom_from_terachem(param_set.GBOM_root+str(batch_count)+'_gs.log', num_atoms_snapshot)
+										masses,gs_geom=terachem_params.get_masses_geom_from_terachem(param_set.GBOM_root+str(batch_count)+'_gs.log', atoms_snapshot)
 										gs_hessian=terachem_params.get_hessian_from_terachem(param_set.GBOM_root+str(batch_count)+'_gs.log',frozen_atom_list,frozen_atoms_snapshot)
-										masses,ex_geom=terachem_params.get_masses_geom_from_terachem(param_set.GBOM_root+str(batch_count)+'_ex.log', num_atoms_snapshot)
+										masses,ex_geom=terachem_params.get_masses_geom_from_terachem(param_set.GBOM_root+str(batch_count)+'_ex.log', atoms_snapshot)
 										ex_hessian=terachem_params.get_hessian_from_terachem(param_set.GBOM_root+str(batch_count)+'_ex.log',frozen_atom_list,frozen_atoms_snapshot)
 										dipole_mom,E_adiabatic=terachem_params.get_e_adiabatic_dipole(param_set.GBOM_root+str(batch_count)+'_gs.log',param_set.GBOM_root+str(batch_count)+'_ex.log',param_set.target_excited_state)
 										dipole_deriv_cart=terachem_params.get_dipole_deriv_from_terachem(param_set.GBOM_root+str(batch_count)+'_ex.log',frozen_atom_list,frozen_atoms_snapshot,param_set.target_excited_state)
@@ -991,6 +1045,18 @@ if param_set.model=='GBOM' or param_set.model=='MD_GBOM':
 												while counter<freqs_ex.shape[0]:
 														J[counter,counter]=1.0
 														counter=counter+1
+
+
+                                                                		# if requested, remove low frequency vibrational modes:
+                                                                		if param_set.freq_cutoff_gbom>0.0:
+                                                                        		for i in range(freqs_gs.shape[0]):
+                                                                                		if freqs_gs[i]<param_set.freq_cutoff_gbom:
+													print('Remove_freq:  ', str(i))
+                                                                                        		freqs_ex[i]=freqs_gs[i]
+                                                                                        		J[i,:]=0.0      
+                                                                                        		J[:,i]=0.0
+                                                                                        		J[i,i]=1.0
+                                                                                        		K[i]=0.0 
 
 										# GBOM assumes E_0_0 as input rather than E_adiabatic. 
 										E_0_0=(E_adiabatic+0.5*(np.sum(freqs_ex)-np.sum(freqs_gs)))
