@@ -271,7 +271,19 @@ def compute_GBOM_absorption(param_list,GBOM_chromophore,solvent,is_emission):
 						np.savetxt(param_list.GBOM_root+'_cumulant_spectrum_exact_corr.dat', spectrum, header='Energy (eV)      Intensity (arb. units)')
 				else:
 						np.savetxt(param_list.GBOM_root+'_cumulant_spectrum_harmonic_qcf.dat', spectrum, header='Energy (eV)      Intensity (arb. units)')
-				
+	
+				# now also print out resonance raman. 
+				rr_spectrum=np.zeros((GBOM_chromophore.spectral_dens.shape[0],GBOM_chromophore.spectral_dens.shape[1]))
+				for i in range(GBOM_chromophore.spectral_dens.shape[0]):
+					rr_spectrum[i,0]=GBOM_chromophore.spectral_dens[i,0]
+					rr_spectrum[i,1]=GBOM_chromophore.spectral_dens[i,0]**2.0*GBOM_chromophore.spectral_dens[i,1]
+
+				if param_list.exact_corr:
+					np.savetxt(param_list.GBOM_root+'_resonance_raman_exact_corr.dat', rr_spectrum)
+				else:
+					np.savetxt(param_list.GBOM_root+'_resonance_raman_harmonic_qcf.dat', rr_spectrum)
+
+	
 		# do all approaches, including qm wigner sampling and exact and approximate 
 		# quantum correlation functions for the cumulant approach
 		elif param_list.method=='ALL':
@@ -314,6 +326,18 @@ def compute_GBOM_absorption(param_list,GBOM_chromophore,solvent,is_emission):
 						np.savetxt(param_list.GBOM_root+'_cumulant_spectrum_exact_corr.dat', spectrum,header='Energy (eV)      Intensity (arb. units)')
 				else:
 						np.savetxt(param_list.GBOM_root+'_cumulant_spectrum_harmonic_qcf.dat', spectrum,header='Energy (eV)      Intensity (arb. units)')
+
+                		# now also print out resonance raman. 
+				rr_spectrum=np.zeros((GBOM_chromophore.spectral_dens.shape[0],GBOM_chromophore.spectral_dens.shape[1]))
+				for i in range(GBOM_chromophore.spectral_dens.shape[0]):
+					rr_spectrum[i,0]=GBOM_chromophore.spectral_dens[i,0]
+					rr_spectrum[i,1]=GBOM_chromophore.spectral_dens[i,0]**2.0*GBOM_chromophore.spectral_dens[i,1]
+
+				if param_list.exact_corr:
+					np.savetxt(param_list.GBOM_root+'_resonance_raman_exact_corr.dat', rr_spectrum)
+				else:   
+					np.savetxt(param_list.GBOM_root+'_resonance_raman_harmonic_qcf.dat', rr_spectrum)
+
 
 		else:
 				sys.exit('Error: Unknown method '+param_list.method)
@@ -607,8 +631,8 @@ def compute_hybrid_GBOM_batch_MD_absorption(param_list,MDtraj,GBOM_batch,solvent
                                 num_gboms_averaged=0
                                 for j in range(param_list.num_gboms):
                                         # can i average over this GBOM? Check
-					        print('Divergence GBOM, Divergence MDtraj')
-					        print(GBOM_batch.gboms[j].second_order_divergence, MDtraj.second_order_divergence)
+					       # print('Divergence GBOM, Divergence MDtraj')
+					       # print(GBOM_batch.gboms[j].second_order_divergence, MDtraj.second_order_divergence)
                                         #if GBOM_batch.gboms[j].second_order_divergence<MDtraj.second_order_divergence:
                                                 num_gboms_averaged=num_gboms_averaged+1
                                                 for icount in range(eff_response.shape[0]):
@@ -755,14 +779,14 @@ def compute_MD_absorption(param_list,MDtraj,solvent,is_emission):
 				np.savetxt(param_list.MD_root+'MD_cumulant_spectrum.dat', spectrum, header='Energy (eV)      Intensity (arb. units)')
 				# DO THIS LAST! CURRENTLY THIS OVERWRITES SD.
 
-                                # Also print raman intensity:
-                                resonance_raman=np.zeros((MDtraj.spectral_dens.shape[0],MDtraj.spectral_dens.shape[1]))                                        
+				# Also print raman intensity:
+				resonance_raman=np.zeros((MDtraj.spectral_dens.shape[0],MDtraj.spectral_dens.shape[1]))                                        
 
-                                for i in range(resonance_raman.shape[0]):
+				for i in range(resonance_raman.shape[0]):
 					resonance_raman[i,0]=MDtraj.spectral_dens[i,0]
-                                        resonance_raman[i,1]=MDtraj.spectral_dens[i,1]*MDtraj.spectral_dens[i,0]**2.0
+					resonance_raman[i,1]=MDtraj.spectral_dens[i,1]*MDtraj.spectral_dens[i,0]**2.0
 
-                                np.savetxt(param_list.MD_root+'MD_resonance_raman.dat', resonance_raman)
+				np.savetxt(param_list.MD_root+'MD_resonance_raman.dat', resonance_raman)
 
 		# now do ensemble approach
 		elif param_list.method=='ENSEMBLE':
@@ -920,15 +944,15 @@ if param_set.model=='GBOM' or param_set.model=='MD_GBOM':
 												J[counter,counter]=1.0
 												counter=counter+1
 
-                                                                # if requested, remove low frequency vibrational modes:
-                                                                if param_set.freq_cutoff_gbom>0.0:
-                                                                        for i in range(freqs_gs.shape[0]):
-                                                                                if freqs_gs[i]<param_set.freq_cutoff_gbom:
-                                                                                        freqs_ex[i]=freqs_gs[i]
-                                                                                        J[i,:]=0.0      
-                                                                                        J[:,i]=0.0
-                                                                                        J[i,i]=1.0
-                                                                                        K[i]=0.0 
+								# if requested, remove low frequency vibrational modes:
+								if param_set.freq_cutoff_gbom>0.0:
+									for i in range(freqs_gs.shape[0]):
+										if freqs_gs[i]<param_set.freq_cutoff_gbom:
+											freqs_ex[i]=freqs_gs[i]
+											J[i,:]=0.0      
+											J[:,i]=0.0
+											J[i,i]=1.0
+											K[i]=0.0 
 
 
 								# GBOM assumes E_0_0 as input rather than E_adiabatic. 
@@ -963,14 +987,14 @@ if param_set.model=='GBOM' or param_set.model=='MD_GBOM':
 
 
                                                                 # if requested, remove low frequency vibrational modes:
-                                                                if param_set.freq_cutoff_gbom>0.0:
-                                                                        for i in range(freqs_gs.shape[0]):
-                                                                                if freqs_gs[i]<param_set.freq_cutoff_gbom:
-                                                                                        freqs_ex[i]=freqs_gs[i]
-                                                                                        J[i,:]=0.0      
-                                                                                        J[:,i]=0.0
-                                                                                        J[i,i]=1.0
-                                                                                        K[i]=0.0 
+								if param_set.freq_cutoff_gbom>0.0:
+									for i in range(freqs_gs.shape[0]):
+										if freqs_gs[i]<param_set.freq_cutoff_gbom:
+											freqs_ex[i]=freqs_gs[i]
+											J[i,:]=0.0      
+											J[:,i]=0.0
+											J[i,i]=1.0
+											K[i]=0.0 
 
 								# GBOM assumes E_0_0 as input rather than E_adiabatic. 
 								E_0_0=param_set.E_adiabatic+0.5*(np.sum(freqs_ex)-np.sum(freqs_gs))
@@ -1009,14 +1033,14 @@ if param_set.model=='GBOM' or param_set.model=='MD_GBOM':
 
 
                                                                 		# if requested, remove low frequency vibrational modes:
-                                                                		if param_set.freq_cutoff_gbom>0.0:
-                                                                        		for i in range(freqs_gs.shape[0]):
-                                                                                		if freqs_gs[i]<param_set.freq_cutoff_gbom:
-                                                                                        		freqs_ex[i]=freqs_gs[i]
-                                                                                        		J[i,:]=0.0      
-                                                                                        		J[:,i]=0.0
-                                                                                        		J[i,i]=1.0
-                                                                                        		K[i]=0.0 
+										if param_set.freq_cutoff_gbom>0.0:
+											for i in range(freqs_gs.shape[0]):
+												if freqs_gs[i]<param_set.freq_cutoff_gbom:
+													freqs_ex[i]=freqs_gs[i]
+													J[i,:]=0.0      
+													J[:,i]=0.0
+													J[i,i]=1.0
+													K[i]=0.0 
 
 										# fill batch
 										freqs_gs_batch[batch_count-1,:]=freqs_gs
@@ -1068,15 +1092,15 @@ if param_set.model=='GBOM' or param_set.model=='MD_GBOM':
 
 
                                                                 		# if requested, remove low frequency vibrational modes:
-                                                                		if param_set.freq_cutoff_gbom>0.0:
-                                                                        		for i in range(freqs_gs.shape[0]):
-                                                                                		if freqs_gs[i]<param_set.freq_cutoff_gbom:
+										if param_set.freq_cutoff_gbom>0.0:
+											for i in range(freqs_gs.shape[0]):
+												if freqs_gs[i]<param_set.freq_cutoff_gbom:
 													print('Remove_freq:  ', str(i))
-                                                                                        		freqs_ex[i]=freqs_gs[i]
-                                                                                        		J[i,:]=0.0      
-                                                                                        		J[:,i]=0.0
-                                                                                        		J[i,i]=1.0
-                                                                                        		K[i]=0.0 
+													freqs_ex[i]=freqs_gs[i]
+													J[i,:]=0.0      
+													J[:,i]=0.0
+													J[i,i]=1.0
+													K[i]=0.0 
 
 										# GBOM assumes E_0_0 as input rather than E_adiabatic. 
 										E_0_0=(E_adiabatic+0.5*(np.sum(freqs_ex)-np.sum(freqs_gs)))

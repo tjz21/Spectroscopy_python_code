@@ -200,8 +200,8 @@ class params:
 		if par != '':
 			self.low_freq_cutoff=(float(par)/const.Ha_to_cm)
 		par=get_param(filepath,'FREQ_CUTOFF_GBOM')   #ignore frequencies lower than that in GBOM
-                if par != '':
-                        self.freq_cutoff_gbom=(float(par)/const.Ha_to_cm)
+		if par != '':
+			self.freq_cutoff_gbom=(float(par)/const.Ha_to_cm)
 		par=get_param(filepath,'PUMP_ENERGY')
 		if par != '':
 			self.pump_energy=(float(par)/const.Ha_to_eV)

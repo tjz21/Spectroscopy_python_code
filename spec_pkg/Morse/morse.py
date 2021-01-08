@@ -873,7 +873,7 @@ class morse_coupled:
                 self.harmonic_FC_response_func=np.zeros((1,1),dtype=np.complex_)
                 self.harmonic_cumulant_response_func=np.zeros((1,1),dtype=np.complex_)
                 self.cumulant_response_func=np.zeros((1,1),dtype=np.complex_)
-		self.hybrid_cumul_response_func=np.zeros((1,1),dtype=np.complex_)
+                self.hybrid_cumul_response_func=np.zeros((1,1),dtype=np.complex_)
 
 		# Exact cumulant fucntion
                 self.exact_2nd_order_corr=np.zeros((1,1),dtype=np.complex_)
