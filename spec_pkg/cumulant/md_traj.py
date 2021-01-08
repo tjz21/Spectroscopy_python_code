@@ -133,6 +133,7 @@ class MDtrajs:
 		self.mean,sd,skew=mean_of_func_batch(trajs)
 		stdout.write('Mean thermal energy gap:    '+str(self.mean)+'  Ha'+'\n')
 		stdout.write('Standard deviation of energy gap fluctuations: '+str(sd)+' Ha'+'\n')
+#		stdout.write('Skewness parameter:  '+str(skew)+'\n')
 		if abs(skew)>0.3: # check for large skewness parameter
 			stdout.write('WARNING: Large skewness value of '+str(skew)+' detected in energy gap fluctuations.'+'\n')
 			stdout.write('This means that the energy gap fluctuations are likely non-Gaussian in nature and low-order cumulant expansions might be unreliable!'+'\n'+'\n')

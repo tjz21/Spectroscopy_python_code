@@ -873,6 +873,7 @@ class morse_coupled:
                 self.harmonic_FC_response_func=np.zeros((1,1),dtype=np.complex_)
                 self.harmonic_cumulant_response_func=np.zeros((1,1),dtype=np.complex_)
                 self.cumulant_response_func=np.zeros((1,1),dtype=np.complex_)
+		self.hybrid_cumul_response_func=np.zeros((1,1),dtype=np.complex_)
 
 		# Exact cumulant fucntion
                 self.exact_2nd_order_corr=np.zeros((1,1),dtype=np.complex_)
@@ -916,7 +917,7 @@ class morse_coupled:
 
         def compute_harmonic_exact_cumulant_response_func(self,temp,max_t,num_steps,is_emission,stdout):
                 self.eff_gbom.calc_g2_qm(temp,num_steps,max_t,is_emission,stdout)
-                self.eff_gbom.calc_cumulant_response(False,True,is_emission)
+                self.eff_gbom.calc_cumulant_response(False,True,is_emission,False)
                 self.harmonic_cumulant_response_func=self.eff_gbom.cumulant_response
 
 	        # Now declare functions of the Morse oscillator 
@@ -963,12 +964,31 @@ class morse_coupled:
                 kbT=const.kb_in_Ha*temp
                 self.g2_exact=cumulant.compute_2nd_order_cumulant_from_spectral_dens(self.spectral_dens,kbT,max_t,num_points)
 
-        def compute_2nd_order_cumulant_response(self,temp,max_t,num_points):
+        def compute_2nd_order_cumulant_response(self,temp,max_t,num_points,stdout):
                 kbT=const.kb_in_Ha*temp 
-                self.g2_exact=cumulant.compute_2nd_order_cumulant_from_spectral_dens(self.spectral_dens,kbT,max_t,num_points)
-                self.cumulant_response_func=gbom_cumulant_response.compute_cumulant_response(self.g2_exact, np.zeros((1,1)),False, False)
+                self.g2_exact=cumulant.compute_2nd_order_cumulant_from_spectral_dens(self.spectral_dens,kbT,max_t,num_points,stdout)
+                self.cumulant_response_func=gbom_cumulant_response.compute_cumulant_response(self.g2_exact, np.zeros((1,1)),self.eff_gbom.dipole_mom,np.zeros((1,1)),False,False, False)
                 for i in range(self.cumulant_response_func.shape[0]):
                         self.cumulant_response_func[i,1]=self.cumulant_response_func[i,1]*cmath.exp(-1j*self.cumulant_response_func[i,0]*self.omega_av_qm)
+
+
+        def compute_cumul_fc_hybrid_response_func(self,temp,decay_length,max_t,num_steps,is_emission,stdout):
+                # first compute effective response functions for the GBOM under the harmonic approximation of the PES
+                self.compute_harmonic_FC_response_func(temp,max_t,num_steps,is_emission,False,stdout)  # disable HT option for now
+                self.compute_harmonic_exact_cumulant_response_func(temp,max_t,num_steps,is_emission,stdout)
+
+                # now compute the 2nd order cumulant response function for the morse oscillator
+                # start by computing the classical correlation function
+                self.compute_exact_corr(temp,decay_length,num_steps,max_t)
+                # now compute the spectral density
+                self.compute_spectral_dens()
+                # finally compute 2nd order cumulant response
+                self.compute_2nd_order_cumulant_response(temp,max_t,num_steps,stdout)
+
+                # now can construct the full hybrid response function
+                self.hybrid_cumul_fc_response_func=self.cumulant_response_func
+                self.hybrid_cumul_fc_response_func[:,1]=self.hybrid_cumul_fc_response_func[:,1]*self.eff_gbom.fc_response[:,1]/self.eff_gbom.cumulant_response[:,1]
+
 
         def compute_exact_response(self,temp,max_t,num_steps):
                 kbT=const.kb_in_Ha*temp

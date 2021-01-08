@@ -122,9 +122,18 @@ def compute_coupled_morse_absorption(param_list,coupled_morse,solvent,is_emissio
                         np.savetxt('Morse_duschinsky_2nd_order_corr_imag.dat',temp_func)
                         coupled_morse.compute_spectral_dens()
                         np.savetxt('Morse_duschinsky_spectral_dens.dat',coupled_morse.spectral_dens)
-                        coupled_morse.compute_2nd_order_cumulant_response(param_list.temperature,param_list.max_t,param_list.num_steps)
+                        coupled_morse.compute_2nd_order_cumulant_response(param_list.temperature,param_list.max_t,param_list.num_steps,param_list.stdout)
                         spectrum=linear_spectrum.full_spectrum(coupled_morse.cumulant_response_func,solvent.solvent_response,param_list.num_steps,E_start,E_end,True,is_emission,param_list.stdout)
                         np.savetxt('Morse_Duschinsky_second_order_cumulant_spectrum.dat', spectrum, header='Energy (eV)      Intensity (arb. units)')
+
+                # Andres Hybrid approach
+                elif param_list.method=='CUMUL_FC_SEPARABLE':
+                        # Set average energy gap for GBOM
+                        coupled_morse.eff_gbom.calc_omega_av_qm(param_list.temperature,is_emission)
+                        coupled_morse.compute_cumul_fc_hybrid_response_func(param_list.temperature,param_list.decay_length,param_list.max_t,param_list.num_steps,is_emission,param_list.stdout)
+                        spectrum=linear_spectrum.full_spectrum(coupled_morse.hybrid_cumul_fc_response_func,solvent.solvent_response,param_list.num_steps,E_start,E_end,True,is_emission,param_list.stdout)
+                        np.savetxt('Morse_duschinsky_hybrid_cumul_harmonic_FC_spectrum.dat', spectrum, header='Energy (eV)      Intensity (arb. units)')
+
 
                 else:
                         sys.exit('Error: Unknown method '+param_list.method)
@@ -718,6 +727,7 @@ def compute_MD_absorption(param_list,MDtraj,solvent,is_emission):
 				MDtraj.calc_2nd_order_corr()
 				MDtraj.calc_spectral_dens(param_list.temperature_MD)
 				np.savetxt(param_list.MD_root+'MD_spectral_density.dat', MDtraj.spectral_dens)
+
 				MDtraj.calc_g2(param_list.temperature,param_list.max_t,param_list.num_steps,param_list.stdout)
 				# check if we need to compute HT corrections:
 				print(param_list.herzberg_teller)
@@ -743,6 +753,16 @@ def compute_MD_absorption(param_list,MDtraj,solvent,is_emission):
 						# set solvent response to a zero dummy vector
 						spectrum=linear_spectrum.full_spectrum(MDtraj.cumulant_response,np.zeros((1,1)),param_list.num_steps,E_start,E_end,False,is_emission,param_list.stdout)
 				np.savetxt(param_list.MD_root+'MD_cumulant_spectrum.dat', spectrum, header='Energy (eV)      Intensity (arb. units)')
+				# DO THIS LAST! CURRENTLY THIS OVERWRITES SD.
+
+                                # Also print raman intensity:
+                                resonance_raman=np.zeros((MDtraj.spectral_dens.shape[0],MDtraj.spectral_dens.shape[1]))                                        
+
+                                for i in range(resonance_raman.shape[0]):
+					resonance_raman[i,0]=MDtraj.spectral_dens[i,0]
+                                        resonance_raman[i,1]=MDtraj.spectral_dens[i,1]*MDtraj.spectral_dens[i,0]**2.0
+
+                                np.savetxt(param_list.MD_root+'MD_resonance_raman.dat', resonance_raman)
 
 		# now do ensemble approach
 		elif param_list.method=='ENSEMBLE':
