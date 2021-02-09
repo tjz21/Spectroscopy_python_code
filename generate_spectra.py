@@ -611,7 +611,7 @@ def compute_hybrid_GBOM_batch_MD_absorption(param_list,MDtraj,GBOM_batch,solvent
 
                                 else:
                                                 for i in range(param_list.num_gboms):
-                                                        GBOM_batch.gboms[i].calc_spectral_dens(param_list.temperature,param_list.max_t,param_list.num_steps,param_list.decay_length,True,is_emission,param_list.stdout)
+                                                        GBOM_batch.gboms[i].calc_spectral_dens(param_list.temperature,param_list.max_t,param_list.num_steps,param_list.decay_length,True,is_emission)
                                                         #np.savetxt(param_list.GBOM_root+'_spectral_density_exact_corr.dat', GBOM_chromophore.spectral_dens)
                                                         GBOM_batch.gboms[i].calc_g2_cl(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.stdout)
                                                         if param_list.third_order:
@@ -708,7 +708,7 @@ def compute_hybrid_GBOM_MD_absorption(param_list,MDtraj,GBOM_chromophore,solvent
 	
                                 else:
                                                 GBOM_chromophore.calc_spectral_dens(param_list.temperature,param_list.max_t,param_list.num_steps,param_list.decay_length,True,is_emission)
-                                                np.savetxt(param_list.GBOM_root+'_spectral_density_exact_corr.dat', GBOM_chromophore.spectral_dens)
+                                                np.savetxt(param_list.GBOM_root+'_spectral_density_harmonic_qcf.dat', GBOM_chromophore.spectral_dens)
                                                 GBOM_chromophore.calc_g2_cl(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.stdout)
                                                 if param_list.third_order:
                                                                 GBOM_chromophore.calc_g3_qm(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.four_phonon_term,param_list.g3_cutoff,param_list.stdout)
@@ -968,7 +968,7 @@ if param_set.model=='GBOM' or param_set.model=='MD_GBOM':
 								sys.exit('Error: Unrecognized code from which to read the GBOM parameters. Only GAUSSIAN and TERACHEM supported!')
 
 				elif param_set.Jpath!='' and param_set.Kpath!='' and param_set.freq_gs_path!='' and param_set.freq_ex_path!='':
-						if param_set.dipole_mom==0.0 and param_set.E_adiabatic==0.0:
+						if np.dot(param_set.dipole_mom,param_set.dipole_mom)<0.000000000001 and param_set.E_adiabatic==0.0000000000001:
 								sys.exit('Error: Did not provide dipole moment or adiabatic energy gap for GBOM!')
 						# create GBOM from input J, K and freqs
 						else:
