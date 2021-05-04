@@ -7,6 +7,7 @@ import math
 import numba
 from spec_pkg.constants import constants as const
 
+
 def get_gs_energy(input_path_gs):
 	search_phrase='FINAL ENERGY:'
 	searchfile = open(input_path_gs,"r")

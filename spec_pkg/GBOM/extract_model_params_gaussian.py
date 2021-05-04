@@ -95,14 +95,17 @@ def extract_normal_mode_freqs_vertical_gradient(filename,num_modes):
                 linefile=open(filename,"r")
                 lines=linefile.readlines()
                 current_line=lines[freq_line].split()
-                if int(current_line[3])<num_modes: # no frozen atoms
-                        num_atoms_chromophore=(num_modes+6)/3
+                if int(current_line[3])<num_modes+1: # no frozen atoms
+                        num_atoms_chromophore=int((num_modes+6)/3)
                         frozen_atoms=0
                         total_num_atoms=num_atoms_chromophore
                 else:   # frozen atoms
-                        total_num_atoms=(int(current_line[3])+6)/3
+                        print('Frozen atoms?')
+                        total_num_atoms=int(((current_line[3])+6)/3)
                         frozen_atoms=total_num_atoms-num_atoms_chromophore
+                        print(total_num_atoms,frozen_atoms,num_atoms_chromophore)
         # Done
+        print(num_atoms_chromophore)
 
         # also return the normal modes
         nm_vec=np.zeros((num_modes,num_atoms_chromophore*3))

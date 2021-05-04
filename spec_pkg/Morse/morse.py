@@ -818,6 +818,7 @@ class morse_coupled:
                         sys.exit('Error: Coupled Morse oscillator code currently only implemented for exactly 2 coupled oscillators.')
                 self.morse_oscs = []
                 for i in range(num_morse_oscillators):
+                        print(i,D_gs[i],D_ex[i])
                         self.morse_oscs.append(morse(D_gs[i],D_ex[i],alpha_gs[i],alpha_ex[i],mu[i],K[i],E_adiabatic,dipole_mom,max_states_gs,max_states_ex,num_points))
                 self.num_morse_oscillators=num_morse_oscillators
 
@@ -835,8 +836,11 @@ class morse_coupled:
                 self.E_adiabatic=E_adiabatic
 
 		# variables defining the grid:
-                self.grid_start=np.array([self.morse_oscs[0].grid_start,self.morse_oscs[1].grid_start])
-                self.grid_end=np.array([self.morse_oscs[0].grid_end,self.morse_oscs[1].grid_end])
+                grid_start=min(self.morse_oscs[0].grid_start,self.morse_oscs[1].grid_start)
+                grid_end=max(self.morse_oscs[0].grid_end,self.morse_oscs[1].grid_end)
+                
+                self.grid_start=np.array([grid_start,grid_start])
+                self.grid_end=np.array([grid_end,grid_end])
                 self.grid_n_points=np.array([num_points,num_points])
 
 		# variables defining number of bound states per morse oscillator
@@ -852,7 +856,7 @@ class morse_coupled:
                         self.n_max_gs[i]=self.morse_oscs[i].n_max_gs
                         self.n_max_ex[i]=self.morse_oscs[i].n_max_ex
                         eff_shift_vec_GBOM[i]=self.morse_oscs[i].K/self.morse_oscs[i].freq_gs # need to convert this to a dimensionless shift vec
-
+                print(self.gs_freqs,self.ex_freqs)
 
                 eff_0_0=E_adiabatic-0.5*np.sum(self.gs_freqs)+0.5*np.sum(self.ex_freqs)
                 self.eff_gbom=gbom.gbom(self.gs_freqs,self.ex_freqs,self.J,eff_shift_vec_GBOM,eff_0_0,dipole_mom,stdout)

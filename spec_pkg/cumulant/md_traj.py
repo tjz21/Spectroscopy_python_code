@@ -197,7 +197,7 @@ class MDtrajs:
 
 
 	# currently only works for 2nd order
-	def calc_ht_correction(self,temp,max_t,num_steps,corr_length,low_freq_filter,third_order,gs_dipole_ref,stdout):
+	def calc_ht_correction(self,temp,max_t,num_steps,corr_length,low_freq_filter,third_order,gs_dipole_ref,dipole_dipole_only,stdout):
 		kbT=temp*const.kb_in_Ha
 		sampling_rate=1.0/self.time_step*math.pi*2.0
 		sampling_rate_in_fs=1.0/(self.time_step*const.fs_to_Ha)
@@ -253,7 +253,7 @@ class MDtrajs:
 		corr_func_cross_freq=ht.compute_cross_corr_func_freq(self.corr_func_cross_cl,sampling_rate,self.time_step)
 		corr_func_dipole_freq=ht.compute_corr_func_freq(self.corr_func_dipole_cl,sampling_rate,self.time_step)
 		# now evaluate 2nd order cumulant correction term. 
-		self.A_HT2=ht.compute_HT_term_2nd_order(corr_func_dipole_freq,corr_func_cross_freq,self.dipole_mom_av,self.dipole_renorm,self.dipole_reorg,kbT,max_t,num_steps)
+		self.A_HT2=ht.compute_HT_term_2nd_order(corr_func_dipole_freq,corr_func_cross_freq,self.dipole_mom_av,self.dipole_renorm,self.dipole_reorg,kbT,max_t,num_steps,dipole_dipole_only)   # Check if we only use the dipole dipole correlation function, essentially assuming all cross correlation funcs go to zero. 
 
 		# need to compute 3rd order correction
 		if third_order:

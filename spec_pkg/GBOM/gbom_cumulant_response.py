@@ -809,7 +809,7 @@ def compute_corr_func_dipole_energy_cl_t(freqs_gs,dipole_mom,reorg_dipole,dipole
     return val
 
 # full HT function
-def full_HT_term(freqs_gs,Kmat,Jmat,Omega_sq,gamma,dipole_mom,dipole_deriv,kbT,max_t,num_points,decay_length,is_qm,is_3rd_order,stdout):
+def full_HT_term(freqs_gs,Kmat,Jmat,Omega_sq,gamma,dipole_mom,dipole_deriv,kbT,max_t,num_points,decay_length,is_qm,is_3rd_order,dipole_dipole_only,stdout):
     # Before doing anything, compute the dipole dipole correlation function
     Jtrans=np.transpose(Jmat)
     HT_func=np.zeros((num_points, 2), dtype=complex)
@@ -856,9 +856,9 @@ def full_HT_term(freqs_gs,Kmat,Jmat,Omega_sq,gamma,dipole_mom,dipole_deriv,kbT,m
     for i in range(num_points):
         HT_func[i,0]=t
         if is_qm:
-            HT_func[i,1]=HT_qm_t(freqs_gs,Kmat,Jtrans,Omega_sq,gamma,n_i_vec,dipole_mom,Jdip_deriv,reorg_dipole,total_renorm_dipole,is_3rd_order,t) 
+            HT_func[i,1]=HT_qm_t(freqs_gs,Kmat,Jtrans,Omega_sq,gamma,n_i_vec,dipole_mom,Jdip_deriv,reorg_dipole,total_renorm_dipole,is_3rd_order,dipole_dipole_only,t) 
         else:
-            HT_func[i,1]=HT_cl_t(freqs_gs,cross_corr_freq,Kmat,Jtrans,Omega_sq,gamma,n_i_vec,kbT,dipole_mom,Jdip_deriv,reorg_dipole,total_renorm_dipole,is_3rd_order,t)
+            HT_func[i,1]=HT_cl_t(freqs_gs,cross_corr_freq,Kmat,Jtrans,Omega_sq,gamma,n_i_vec,kbT,dipole_mom,Jdip_deriv,reorg_dipole,total_renorm_dipole,is_3rd_order,dipole_dipole_only,t)
         t=t+step_length
 
     return HT_func
@@ -884,7 +884,7 @@ def one_deriv_term_intergrant(cross_corr_func_freq,kbT,t):
 
 
 
-def HT_cl_t(freqs_gs,cross_corr_func_freq,Kmat,Jtrans,Omega_sq,gamma,n,kBT,dipole_mom,Jdip_deriv,reorg_dipole,total_renorm_dipole,is_3rd_order,t):
+def HT_cl_t(freqs_gs,cross_corr_func_freq,Kmat,Jtrans,Omega_sq,gamma,n,kBT,dipole_mom,Jdip_deriv,reorg_dipole,total_renorm_dipole,is_3rd_order,dipole_dipole_only,t):
     one_deriv_term=0.0+0.0*1j
     # 2nd order HT term is unchanged from qm version of the same term.
     for i in range(freqs_gs.shape[0]):
@@ -950,12 +950,15 @@ def HT_cl_t(freqs_gs,cross_corr_func_freq,Kmat,Jtrans,Omega_sq,gamma,n,kBT,dipol
 
         total=total_renorm_dipole+one_deriv_term+two_deriv_term+dUdUdmu+dmudUdU+dmudUdmu
     else:
-        total=total_renorm_dipole+one_deriv_term+two_deriv_term
+        if dipole_dipole_only:  # only two derivative term
+            total=total_renorm_dipole+two_deriv_term
+        else:
+            total=total_renorm_dipole+one_deriv_term+two_deriv_term
 
     return total
 
 # HT prefactor for a given value of t if the exact quantum correlation function is used. 
-def HT_qm_t(freqs_gs,Kmat,Jtrans,Omega_sq,gamma,n,dipole_mom,Jdip_deriv,reorg_dipole,total_renorm_dipole,is_3rd_order,t):
+def HT_qm_t(freqs_gs,Kmat,Jtrans,Omega_sq,gamma,n,dipole_mom,Jdip_deriv,reorg_dipole,total_renorm_dipole,is_3rd_order,dipole_dipole_only,t):
     one_deriv_term=0.0+0.0*1j
     for i in range(freqs_gs.shape[0]):
         term_xyz=-2.0*(np.dot(reorg_dipole-dipole_mom,Jdip_deriv[i,:]))*gamma[i]/(4.0*math.pi*(freqs_gs[i])**2.0)*((n[i]+1.0)*(1.0-cmath.exp(-1j*freqs_gs[i]*t))-n[i]*(1.0-cmath.exp(1j*freqs_gs[i])*t))
@@ -1017,7 +1020,10 @@ def HT_qm_t(freqs_gs,Kmat,Jtrans,Omega_sq,gamma,n,dipole_mom,Jdip_deriv,reorg_di
 
         total=total_renorm_dipole+one_deriv_term+dUdUdmu+dmudUdU+two_deriv_term+dmudUdmu
     else:
-        total=total_renorm_dipole+one_deriv_term+two_deriv_term
+        if dipole_dipole_only:
+            total=total_renorm_dipole+two_deriv_term
+        else:
+            total=total_renorm_dipole+one_deriv_term+two_deriv_term
 
     return total
 

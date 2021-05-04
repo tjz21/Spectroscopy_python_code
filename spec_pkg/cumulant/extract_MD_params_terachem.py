@@ -215,9 +215,9 @@ def get_full_energy_dipole_moms_from_MD(filename_energies,filename_geoms,num_ato
     ref_geom=get_coors_frame(skip_snapshots,num_atoms,filename_geoms)
 
     # HACK:
-    masses[0]=masses[0]+4.0   # break symmetry for applying the Eckart conditions
-    masses[9]=masses[9]+6.0
-    masses[7]=masses[7]+4.0
+#    masses[0]=masses[0]+4.0   # break symmetry for applying the Eckart conditions
+#    masses[9]=masses[9]+6.0
+#    masses[7]=masses[7]+4.0
 
     prev_T=np.zeros((3,3))
     prev_T[0,0]=1.0
@@ -251,6 +251,7 @@ def get_full_energy_dipole_moms_from_MD(filename_energies,filename_geoms,num_ato
         prev_T=Tmat
 
         print('Iteration number  '+str(i))
+        print(energy_osc, dipole_transformed)
 
         # update energies dipole list
         energies_dipoles[i,0]=energy_osc[0]
