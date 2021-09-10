@@ -5090,7 +5090,7 @@ def prefactor_3rd_order_lineshape(const_fac, omega1, omega2, kbT, t):
         full_contribution = val * num / denom
     elif abs(omega1) / kbT < tol:
         num = 2.0 * (cmath.exp(-1j * omega2 * t) - 1.0) + 1j * omega2 * t * (
-            cmath.exp(-1j * omega2 * t) + 1.0
+        cmath.exp(-1j * omega2 * t) + 1.0
         )
         denom = omega2 * (
             1.0 - cmath.exp(-omega2 / kbT) - omega2 / kbT * cmath.exp(-omega2 / kbT)

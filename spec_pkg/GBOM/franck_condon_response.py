@@ -498,7 +498,4 @@ def compute_full_response_func(
             )
         counter = counter + 1
 
-   
-    print('Dipole MOM')
-    print(dipole_mom)
     return response_func

@@ -1225,10 +1225,10 @@ elif param_set.model=='MD':
     if param_set.MD_input_code=='TERACHEM':   # Read directly from a TeraChem input file 
         # currently only works for a single traj. 
         traj_count=1
-        if os.path.exists(param_set.MD_root+'traj'+str(traj_count)+'.out') and os.path.exists(param_set.MD_root+'traj'+str(traj_count)+'.xyz'):  # make sure the out
+        if os.path.exists(param_set.MD_root+'traj'+str(traj_count)+'.out') and os.path.exists(param_set.MD_root+'traj'+str(traj_count)+'.xyz') and os.path.exists(param_set.MD_root+'ref.out') and os.path.exists(param_set.MD_root+'ref.xyz'):  # make sure the out
             param_set.stdout.write('Reading in MD trajectory '+str(traj_count)+'  from TeraChem output file '+param_set.MD_root+'traj'+str(traj_count)+'.dat'+'\n')
 
-            traj_dipole=terachem_params_MD.get_full_energy_dipole_moms_from_MD(param_set.MD_root+'traj'+str(traj_count)+'.out',param_set.MD_root+'traj'+str(traj_count)+'.xyz',param_set.num_atoms,param_set.target_excited_state,param_set.md_num_frames,param_set.md_skip_frames)
+            traj_dipole=terachem_params_MD.get_full_energy_dipole_moms_from_MD(param_set.MD_root+'traj'+str(traj_count)+'.out',param_set.MD_root+'traj'+str(traj_count)+'.xyz',param_set.MD_root+'ref.out',param_set.MD_root+'ref.xyz',param_set.num_atoms,param_set.target_excited_state,param_set.md_num_frames,param_set.md_skip_frames)
 
             np.savetxt('full_traj_dipole_from_terachem.dat',traj_dipole)
 
@@ -1704,7 +1704,7 @@ elif param_set.task=='2DES':
                 q_func_eff=morse_oscs.g2_exact
                 q_func_eff[:,1]=q_func_eff[:,1]+solvent_mod.g2_solvent[:,1]
 
-                twoDES.calc_2DES_time_series(q_func_eff,E_start,E_end,E_start,E_end,param_set.num_steps_2DES,filename_2DES,param_set.num_time_samples_2DES,param_set.t_step_2DES,0.0)
+                twoDES.calc_2DES_time_series(q_func_eff,param_set.dipole_mom,E_start,E_end,E_start,E_end,param_set.num_steps_2DES,filename_2DES,param_set.num_time_samples_2DES,param_set.t_step_2DES,0.0)
 
             elif param_set.method=='FC_HARMONIC':
                 filename_2DES='Decoupled_Morse_harmonic_FC'
@@ -1731,7 +1731,7 @@ elif param_set.task=='2DES':
                 q_func_eff[:,1]=q_func_eff[:,1]+solvent_mod.g2_solvent[:,1]
 
 
-                twoDES.calc_2DES_time_series(q_func_eff,E_start1,E_end1,E_start2,E_end2,param_set.num_steps_2DES,filename_2DES,param_set.num_time_samples_2DES,param_set.t_step_2DES,0.0)
+                twoDES.calc_2DES_time_series(q_func_eff,param_set.dipole_mom,E_start1,E_end1,E_start2,E_end2,param_set.num_steps_2DES,filename_2DES,param_set.num_time_samples_2DES,param_set.t_step_2DES,0.0)
 
         elif param_set.model=='COUPLED_MORSE':
             if param_set.method=='EXACT':
@@ -1818,7 +1818,7 @@ elif param_set.task=='2DES':
                         if param_set.third_order:
                                 twoDES.calc_2DES_time_series_3rd(q_func_eff,MDtraj.g3,MDtraj.h1,MDtraj.h2,MDtraj.h4,MDtraj.h5,MDtraj.corr_func_3rd_qm_freq,E_start1,E_end1,E_start2,E_end2,param_set.num_steps_2DES,filename_2DES,param_set.num_time_samples_2DES,param_set.t_step_2DES,MDtraj.mean)
                         else:
-                                twoDES.calc_2DES_time_series(q_func_eff,E_start1,E_end1,E_start2,E_end2,param_set.num_steps_2DES,filename_2DES,param_set.num_time_samples_2DES,param_set.t_step_2DES,MDtraj.mean)
+                                twoDES.calc_2DES_time_series(q_func_eff,param_set.dipole_mom,E_start1,E_end1,E_start2,E_end2,param_set.num_steps_2DES,filename_2DES,param_set.num_time_samples_2DES,param_set.t_step_2DES,MDtraj.mean)
                 elif param_set.method_2DES=='PUMP_PROBE':
                         twoDES.calc_pump_probe_time_series(q_func_eff,E_start,E_end,param_set.num_steps_2DES,filename_2DES,param_set.pump_energy,param_set.num_time_samples_2DES,param_set.t_step_2DES,MDtraj.mean)
                 else:
