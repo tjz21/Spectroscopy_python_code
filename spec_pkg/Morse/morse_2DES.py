@@ -63,6 +63,7 @@ def calc_2DES_time_series_morse(morse,g2_solvent,E_min1,E_max1,E_min2,E_max2,num
 
 def calc_2DES_time_series_morse_list(morse_list,g2_solvent,E_min1,E_max1,E_min2,E_max2,num_points_2D,rootname,num_times,time_step):
                 averaged_val=np.zeros((num_times,2))
+                transient_abs=np.zeros((num_times,num_points_2D,3))
                 # make sure chosen delay times break down into an integer number of timesteps in the response function
                 step_length_t=(g2_solvent[1,0]-g2_solvent[0,0]).real
                 eff_time_index_2DES=int(round(time_step/step_length_t))
@@ -75,13 +76,22 @@ def calc_2DES_time_series_morse_list(morse_list,g2_solvent,E_min1,E_max1,E_min2,
                                 print(counter,current_delay)
                                 spectrum_2D=calc_2D_spectrum_exact_morse_list(morse_list,g2_solvent,current_delay,current_delay_index,E_min1,E_max1,E_min2,E_max2,num_points_2D)
                                 twoDES.print_2D_spectrum(rootname+'_2DES_'+str(counter)+'.dat',spectrum_2D,False)
+
+                                transient_temp=twoDES.transient_abs_from_2DES(spectrum_2D)
+                                transient_abs[counter,:,0]=current_delay
+                                transient_abs[counter,:,1]=transient_temp[:,0]
+                                transient_abs[counter,:,2]=transient_temp[:,1]
                                 
                                 averaged_val[counter,0]=current_delay
                                 averaged_val[counter,1]=cumul.simpson_integral_2D(spectrum_2D)
                                 counter=counter+1
                                 current_delay=current_delay+eff_time_step_2DES
                                 current_delay_index=current_delay_index+eff_time_index_2DES
-
+                                #compute transient absorption contribution here:
+                                
+                                
+                                
+                twoDES.print_2D_spectrum(rootname+'_2nd_order_cumulant_transient_absorption_spec.txt',transient_abs,False)
                 np.savetxt(rootname+'_Morse_averaged_spectrum.txt',averaged_val)
 
 
