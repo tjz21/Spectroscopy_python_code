@@ -155,7 +155,7 @@ def compute_morse_absorption(param_list,morse_oscs,solvent,is_emission):
 
         # exact solution to the morse oscillator
         if param_list.method=='EXACT':
-            morse_oscs.compute_total_exact_response(param_list.temperature,param_list.max_t,param_list.num_steps)
+            morse_oscs.compute_total_exact_response(param_list.temperature,param_list.max_t,param_list.num_steps,param_list.herzberg_teller)
             spectrum=linear_spectrum.full_spectrum(morse_oscs.total_exact_response_func,solvent.solvent_response,param_list.num_steps,E_start,E_end,True,is_emission,param_list.stdout)
             np.savetxt('Morse_exact_spectrum.dat', spectrum, header='Energy (eV)      Intensity (arb. units)')
         # The effective FC spectrum for this oscillator
@@ -173,7 +173,7 @@ def compute_morse_absorption(param_list,morse_oscs,solvent,is_emission):
             np.savetxt('Morse_oscs_2nd_order_corr_imag.dat',temp_func)
             morse_oscs.compute_spectral_dens()
             np.savetxt('Morse_oscs_spectral_dens.dat',morse_oscs.spectral_dens)
-            morse_oscs.compute_2nd_order_cumulant_response(param_list.temperature,param_list.max_t,param_list.num_steps,param_list.stdout)
+            morse_oscs.compute_2nd_order_cumulant_response(param_list.temperature,param_list.max_t,param_list.num_steps,param_list.stdout,param_list.herzberg_teller)
             spectrum=linear_spectrum.full_spectrum(morse_oscs.cumulant_response_func,solvent.solvent_response,param_list.num_steps,E_start,E_end,True,is_emission,param_list.stdout)
             np.savetxt('Morse_second_order_cumulant_spectrum.dat', spectrum, header='Energy (eV)      Intensity (arb. units)')
 
@@ -922,61 +922,61 @@ if param_set.model=='GBOM' or param_set.model=='MD_GBOM':
                                     if param_set.num_atoms<1:
                                         param_set.stdout.write('Error: Trying to read from Terachem input but number of atoms is not set!'+'\n')
                                         sys.exit('Error: Trying to read from Terachem input but number of atoms is not set!') 
-                                        frozen_atom_list=np.zeros(param_set.num_atoms)
-                                        if param_set.num_frozen_atoms>0: 
-                                            if os.path.exists(param_set.frozen_atom_path):
-                                                frozen_atom_list=np.genfromtxt(param_set.frozen_atom_path)
-                                            else:
-                                                # assume the frozen atoms are all at the end of file
-                                                for i in range(frozen_atom_list.shape[0]):
-                                                    if i<param_set.num_atoms-param_set.num_frozen_atoms:
-                                                        frozen_atom_list[i]=0  # unfrozen
-                                                    else:
-                                                        frozen_atom_list[i]=1 # frozen                                              
+                                    frozen_atom_list=np.zeros(param_set.num_atoms)
+                                    if param_set.num_frozen_atoms>0: 
+                                        if os.path.exists(param_set.frozen_atom_path):
+                                            frozen_atom_list=np.genfromtxt(param_set.frozen_atom_path)
+                                        else:
+                                            # assume the frozen atoms are all at the end of file
+                                            for i in range(frozen_atom_list.shape[0]):
+                                                if i<param_set.num_atoms-param_set.num_frozen_atoms:
+                                                    frozen_atom_list[i]=0  # unfrozen
+                                                else:
+                                                    frozen_atom_list[i]=1 # frozen                                              
 
                                     #param_set.stdout.write('Error: Trying to perform Terachem calculation with frozen atoms but frozen atom list does not exist!')
                                     #sys.exit('Error: Trying to perform Terachem calculation with frozen atoms but frozen atom list does not exist!')
                                 
-                                # now obtain Hessians and other params.
-                                masses,gs_geom=terachem_params.get_masses_geom_from_terachem(param_set.GBOM_root+'_gs.log', param_set.num_atoms)        
-                                gs_hessian=terachem_params.get_hessian_from_terachem(param_set.GBOM_root+'_gs.log',frozen_atom_list,param_set.num_frozen_atoms)
-                                masses,ex_geom=terachem_params.get_masses_geom_from_terachem(param_set.GBOM_root+'_ex.log', param_set.num_atoms)
-                                ex_hessian=terachem_params.get_hessian_from_terachem(param_set.GBOM_root+'_ex.log',frozen_atom_list,param_set.num_frozen_atoms)
-                                dipole_mom,E_adiabatic=terachem_params.get_e_adiabatic_dipole(param_set.GBOM_root+'_gs.log',param_set.GBOM_root+'_ex.log',param_set.target_excited_state)
+                                    # now obtain Hessians and other params.
+                                    masses,gs_geom=terachem_params.get_masses_geom_from_terachem(param_set.GBOM_root+'_gs.log', param_set.num_atoms)        
+                                    gs_hessian=terachem_params.get_hessian_from_terachem(param_set.GBOM_root+'_gs.log',frozen_atom_list,param_set.num_frozen_atoms)
+                                    masses,ex_geom=terachem_params.get_masses_geom_from_terachem(param_set.GBOM_root+'_ex.log', param_set.num_atoms)
+                                    ex_hessian=terachem_params.get_hessian_from_terachem(param_set.GBOM_root+'_ex.log',frozen_atom_list,param_set.num_frozen_atoms)
+                                    dipole_mom,E_adiabatic=terachem_params.get_e_adiabatic_dipole(param_set.GBOM_root+'_gs.log',param_set.GBOM_root+'_ex.log',param_set.target_excited_state)
 
-                                dipole_deriv_cart=terachem_params.get_dipole_deriv_from_terachem(param_set.GBOM_root+'_ex.log',frozen_atom_list,param_set.num_frozen_atoms,param_set.target_excited_state)
+                                    dipole_deriv_cart=terachem_params.get_dipole_deriv_from_terachem(param_set.GBOM_root+'_ex.log',frozen_atom_list,param_set.num_frozen_atoms,param_set.target_excited_state)
 
-                                # now construct frequencies, J and K from these params. 
-                                # also construct new transition dipole moment in Eckart frame and 
-                                # the dipole derivative with respect to mass weighted normal modes
-                                freqs_gs,freqs_ex,J,K,dipole_transformed,dipole_deriv_nm=hess_to_gbom.construct_freqs_J_K(gs_geom,ex_geom,gs_hessian,ex_hessian,dipole_mom,dipole_deriv_cart,masses,param_set.num_frozen_atoms,frozen_atom_list)
+                                    # now construct frequencies, J and K from these params. 
+                                    # also construct new transition dipole moment in Eckart frame and 
+                                    # the dipole derivative with respect to mass weighted normal modes
+                                    freqs_gs,freqs_ex,J,K,dipole_transformed,dipole_deriv_nm=hess_to_gbom.construct_freqs_J_K(gs_geom,ex_geom,gs_hessian,ex_hessian,dipole_mom,dipole_deriv_cart,masses,param_set.num_frozen_atoms,frozen_atom_list)
 
-                                # Check if we are artificially switching off the Duschinsky rotation
-                                if param_set.no_dusch:
+                                    # Check if we are artificially switching off the Duschinsky rotation
+                                    if param_set.no_dusch:
                                         J=np.zeros((freqs_gs.shape[0],freqs_gs.shape[0]))
                                         counter=0
                                         while counter<freqs_ex.shape[0]:
                                                 J[counter,counter]=1.0
                                                 counter=counter+1
 
-                                # if requested, remove low frequency vibrational modes:
-                                if param_set.freq_cutoff_gbom>0.0:
-                                    for i in range(freqs_gs.shape[0]):
-                                        if freqs_gs[i]<param_set.freq_cutoff_gbom:
-                                            freqs_ex[i]=freqs_gs[i]
-                                            J[i,:]=0.0      
-                                            J[:,i]=0.0
-                                            J[i,i]=1.0
-                                            K[i]=0.0 
+                                    # if requested, remove low frequency vibrational modes:
+                                    if param_set.freq_cutoff_gbom>0.0:
+                                        for i in range(freqs_gs.shape[0]):
+                                            if freqs_gs[i]<param_set.freq_cutoff_gbom:
+                                                freqs_ex[i]=freqs_gs[i]
+                                                J[i,:]=0.0      
+                                                J[:,i]=0.0
+                                                J[i,i]=1.0
+                                                K[i]=0.0 
 
 
-                                # GBOM assumes E_0_0 as input rather than E_adiabatic. 
-                                E_0_0=(E_adiabatic+0.5*(np.sum(freqs_ex)-np.sum(freqs_gs)))
+                                    # GBOM assumes E_0_0 as input rather than E_adiabatic. 
+                                    E_0_0=(E_adiabatic+0.5*(np.sum(freqs_ex)-np.sum(freqs_gs)))
 
-                                # construct GBOM
-                                GBOM=gbom.gbom(freqs_gs,freqs_ex,J,K,E_0_0,dipole_transformed,param_set.stdout)
-                                if param_set.herzberg_teller:
-                                    GBOM.dipole_deriv=dipole_deriv_nm
+                                    # construct GBOM
+                                    GBOM=gbom.gbom(freqs_gs,freqs_ex,J,K,E_0_0,dipole_transformed,param_set.stdout)
+                                    if param_set.herzberg_teller:
+                                        GBOM.dipole_deriv=dipole_deriv_nm
 
                         # unsupported input code
                         else:
@@ -1183,12 +1183,20 @@ elif param_set.model=='MORSE':
                                                         alpha_ex=ex_params[:,1]
                                                         mu=gs_params[:,2]
                                                         shift=ex_params[:,2]
+
+                                                        # check if HT params are given
+                                                        if gs_params.shape[1]>3:
+                                                            lambda_param=gs_params[:,3]
+                                                            HT_overlaps=True
+                                                        else:
+                                                            lambda_param=np.zeros(1)
+                                                            HT_overlaps=False
                 
                                                         # sanity check
                                                         num_morse=gs_params.shape[0]
                                                         if gs_params.shape[0] != ex_params.shape[0]:
                                                                  sys.exit('Error: Inconsistent number of parameters in ground and excited state morse oscillator files!')
-                                                        morse_oscs=morse.morse_list(D_gs,D_ex,alpha_gs,alpha_ex,mu,shift,param_set.E_adiabatic,param_set.dipole_mom,param_set.max_states_morse_gs,param_set.max_states_morse_ex,param_set.integration_points_morse,num_morse,param_set.stdout)
+                                                        morse_oscs=morse.morse_list(D_gs,D_ex,alpha_gs,alpha_ex,mu,shift,param_set.E_adiabatic,param_set.dipole_mom,param_set.max_states_morse_gs,param_set.max_states_morse_ex,param_set.integration_points_morse,lambda_param,HT_overlaps,param_set.gs_reference_dipole,num_morse,param_set.stdout)
                 else:
                                                 sys.exit('Error: Did not provide ground and excited state Morse oscillator parameters!')
 

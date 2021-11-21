@@ -3,7 +3,11 @@ This is a simple example input files for parameterizing a set of displaced Morse
 Ground state parameters are contained in the params_gs.dat file. Each row corresponds to an
 independent Morse oscillator. The first value is the well depth D in Ha. The second value is
 the width alpha in Bohr. The third value is the reduced mass mu in atomic units. It is assumed
-to be identical in the ground and excited state Morse oscillator
+to be identical in the ground and excited state Morse oscillator. Finally, in the 4th column,
+there is an optional parameter lambda. This parameter is the couplin of the dipole moment to 
+nuclear degrees of freedom (non-Condon effects). In this model, it is assumed that the transition
+dipole moment fluctuations around the mean are proportional to the effective classical energy gap 
+between S0 and S1, with lambda being the proportionality constant.
 
 Excited state parameters are contained in the params_ex.dat file. Again each row corresponds to
 an independent morse oscillator. The first two values are again D and alpha respectively. The 

@@ -26,6 +26,39 @@ from spec_pkg.Morse import morse_2DES
 # oscillator.
 #--------------------------------------------------------------------------------------------
 
+# HT dipole function for the morse oscillator is described by a coupling constant lambda and 
+# a zeroth order dipole term. The assumption here is that the change in transition dipole moment
+# correlates with the classical energy gap between S0 and S1. This is probably not unreasonable, 
+# but will influence some terms like C_{mumuU}, which might come out more correlated than they 
+# should. This of course also does not allow for the scenario where the modes responsible for 
+# energy gap fluctuations are totally different from the ones causing changes in energy gap.
+# Note also that we are using a shifted mu=lambda*U, such that for q=0, the correction to the zeroth order
+# HT term is zero. 
+def HT_q_func(num_points,start_point,end_point,D_gs,D_ex,alpha_gs,alpha_ex,shift,dipole_mom,lambda_coupling):
+        HT_func=np.zeros(num_points)
+        step=(end_point-start_point)/num_points
+        for i in range(HT_func.shape[0]):
+            q_val=start_point+i*step
+            # should be correct!
+            HT_func[i]=np.dot(dipole_mom,dipole_mom)+lambda_coupling*(D_ex*((1.0-np.exp(-alpha_ex*(q_val-shift)))**2.0-(1.0-np.exp(alpha_ex*shift))**2.0)-D_gs*(1.0-np.exp(-alpha_gs*(q_val))))
+        
+        #  static dipole moment gets accounted for in the end, so divide through by dipole_mom
+        return HT_func/np.dot(dipole_mom,dipole_mom)
+
+
+# compute the derivative of HT_q_func with respect to q, evaluated at q-->0 (ground state minimum)
+# and q-->shift (excited state minimum). The gradient can be used in a Franck-Condon HT type 
+# calculation. This is of importance in the question WHICH reference dipole moment is more appropriate
+# in a HT approach. The one around the ground or the excited state minimum. My feeling is ground state 
+# minimum IS MORE APPROPRIATE. 
+def dH_dq_vals(D_gs,D_ex,alpha_gs,alpha_ex,shift,lambda_coupling):
+        # dipole derivative at q=0 (gs minimum)
+        dH_dq_r0=lambda_coupling*(2.0*alpha_ex*D_ex*(np.exp(-alpha_ex*shift)-np.exp(-2.0*alpha_ex*shift)))
+        # dipole derivative at q=shift_val (excited state minimum)
+        dH_dq_rshift=lambda_coupling*(-2.0*alpha_gs*D_gs*(np.exp(alpha_gs*shift)-np.exp(2.0*alpha_gs*shift)))
+
+        return dH_dq_r0,dH_dq_rshift
+
 # return the result of a ground state wavefunction acting on an excited state Hamiltonian
 #@jit(fastmath=True)
 def H_e_on_gs_wavefunc(wavefunc,D_ex,alpha_ex,shift,mu,E_adiabatic):
@@ -160,6 +193,27 @@ def compute_omega_av_qm(He_matrix,freq_gs,D_gs,kbT):
 
 	return omega_av
 
+# compute the thermal average of the dipole fluctuation operator.
+def compute_mu_av_qm(mu_mat,freq_gs,D_gs,kbT):
+        energy_list=np.zeros(mu_mat.shape[0])
+        for i in range(energy_list.shape[0]):
+                energy_list[i]=compute_morse_eval_n(freq_gs,D_gs,i)
+
+        boltzmann_fac=np.exp(-energy_list/kbT)
+        Z=np.sum(boltzmann_fac)
+        mu_av=0.0
+
+        print(energy_list.shape[0])
+        print(boltzmann_fac.shape[0])
+        print(mu_mat.shape)
+        # trace of the dipole matrix times the boltzmann factor
+        for i in range(energy_list.shape[0]):
+                mu_av=mu_av+(mu_mat[i,i])*boltzmann_fac[i]
+
+        mu_av=mu_av/Z
+
+        return mu_av
+
 def compute_omega_av_qm_2D(He_matrix,freq_gs,D_gs,kbT,n_max_gs):
 	energy_list=np.zeros(He_matrix.shape[0])
 	for i in range(int(n_max_gs[0])):
@@ -177,6 +231,31 @@ def compute_omega_av_qm_2D(He_matrix,freq_gs,D_gs,kbT,n_max_gs):
 	omega_av=omega_av/Z
 
 	return omega_av
+
+
+# compute C_mu_mu, the dipole dipole autocorrelation function. dmu matrix is the matrix element
+# of the actual transition dipole moment with respect to the ground state wavefunctions minus the 
+# thermal average. note, that the MATRICES ARE NOT SQUARE. CURRENTLY THIS DOES NOT WORK 
+def exact_corr_func_mu_mu_t(gs_energy_list,ex_energy_list,boltzmann_list,dmu_matrix,t):
+        pos_phase_mat=np.zeros((gs_energy_list.shape[0],gs_energy_list.shape[0]),dtype=np.complex_)
+        neg_phase_mat=np.zeros((ex_energy_list.shape[0],ex_energy_list.shape[0]),dtype=np.complex_)
+        for i in range(gs_energy_list.shape[0]):
+                pos_phase_mat[i,i]=cmath.exp(1j*gs_energy_list[i]*t)
+        for i in range(ex_energy_list.shape[0]):
+                neg_phase_mat[i,i]=cmath.exp(-1j*ex_energy_list[i]*t)
+
+        Z=np.sum(boltzmann_list)
+        corr_val=0.0+1j*0.0
+        boltzmann_mat=np.zeros((boltzmann_list.shape[0],boltzmann_list.shape[0]))
+        for i in range(boltzmann_mat.shape[0]):
+                boltzmann_mat[i,i]=boltzmann_list[i]
+
+        pos_mu=np.dot(pos_phase_mat,dmu_matrix)
+        neg_mu=np.dot(neg_phase_mat,np.transpose(np.conjugate(dmu_matrix)))  # hermitian conjugate of the matrix. DOUBLE CHECK! BUT YES, this should be hermitian
+        temp_mat=np.dot(pos_mu,neg_mu)
+        tot_mat=np.dot(temp_mat,boltzmann_mat)
+        corr_val=np.trace(tot_mat)/Z
+        return corr_val
 
 # compute the energy gap autocorrelation function for a given value of t. 
 #@jit
@@ -245,6 +324,27 @@ def exact_corr_func(He_mat,D_gs,freq_gs,omega_av,kbT,num_points,max_t):
 		current_t=current_t+time_step
 
 	return corr_func
+
+# compute exact dipole diple auto correlation function of energy gap fluctuations.
+def exact_corr_func_mu_mu(mu_mat,D_gs,freq_gs,D_ex,freq_ex,mu_av,kbT,num_points,max_t):
+        gs_energy_list=np.zeros(mu_mat.shape[0])
+        ex_energy_list=np.zeros(mu_mat.shape[1])
+        for i in range(gs_energy_list.shape[0]):
+                gs_energy_list[i]=compute_morse_eval_n(freq_gs,D_gs,i)
+        for i in range(ex_energy_list.shape[0]):
+                ex_energy_list[i]=compute_morse_eval_n(freq_ex,D_ex,i)
+        boltzmann_list=np.exp(-gs_energy_list/kbT)
+
+        time_step=max_t/num_points
+        corr_func=np.zeros((2*num_points+1,2),np.complex_)
+        current_t=-max_t
+        for i in range(corr_func.shape[0]):
+                corr_func[i,0]=current_t
+                corr_func[i,1]=exact_corr_func_mu_mu_t(gs_energy_list,ex_energy_list,boltzmann_list, mu_mat,current_t)-mu_av**2.0  # This should be correct. We are accounting
+                # for the fact that we used mu instead of dmu to calcualte the correlation function. This would be definitely the correct treatment for classical
+                # correlation functions. Is it true for quantum correlation functions?
+                current_t=current_t+time_step
+        return corr_func
 
 def exact_corr_func_3rd(He_mat,D_gs,freqs_gs,omega_av,kbT,num_points,max_t):
 	gs_energy_list=np.zeros(He_mat.shape[0])
@@ -483,15 +583,21 @@ def compute_excited_state_wf_2D(num_points,start_point,end_point,D,alpha,mu,n,sh
 
 
 # compute the effective Franck-Condon wavefunction overlap between two wavefunctions
-# This shouldnt be squared!
-def get_fc_factor(num_points,start_point,end_point,D_gs,D_ex,alpha_gs,alpha_ex,mu,K,n_gs,n_ex):
+# This shouldnt be squared! 
+# Include the option of a varying dipole moment in the HT integral! 
+def get_fc_factor(num_points,start_point,end_point,D_gs,D_ex,alpha_gs,alpha_ex,mu,K,n_gs,n_ex,HT_q_func):
         #print start_point,end_point,D,alpha,n_gs,n_ex,d
         func1=compute_wavefunction_n(num_points, start_point,end_point,D_gs,alpha_gs,mu,n_gs,0.0)
         func2=compute_wavefunction_n(num_points, start_point,end_point,D_ex,alpha_ex,mu,n_ex,K)
         counter=0
-        for x in func1:
-                x[1]=x[1]*func2[counter,1]
-                counter=counter+1
+        if HT_q_func.shape[0]!=num_points: # empty HT func
+                for x in func1:
+                        x[1]=x[1]*func2[counter,1]
+                        counter=counter+1
+        else:
+                for x in func1:
+                        x[1]=x[1]*func2[counter,1]*HT_q_func[counter]
+                        counter=counter+1
 
         return integrate.simps(func1[:,1],dx=func1[1,0]-func1[0,0])
 
@@ -518,295 +624,366 @@ def get_fc_factor_2D(num_points,start_point,end_point,D_gs,D_ex,alpha_gs,alpha_e
 	overlap[:,:,2]=overlap[:,:,2]*ex_wavefunc[:,:,2]
 	return cumulant.simpson_integral_2D(overlap)
 
-class morse: 
-	def __init__(self,D_gs,D_ex,alpha_gs,alpha_ex,mu,K,E_adiabatic,dipole_mom,max_states_gs,max_states_ex,num_points):
+# morse class: Include the possibility of doing HT effects
+class morse:   
+        def __init__(self,D_gs,D_ex,alpha_gs,alpha_ex,mu,K,E_adiabatic,dipole_mom,max_states_gs,max_states_ex,num_points,dipole_coupling,is_HT):
 		# Adiabatic energy gap, dipole moment, ground and excited state well depths D
 		# and alpha parameters, as well as the shift vector K between the two surfaces
-		self.alpha_gs=alpha_gs
-		self.alpha_ex=alpha_ex
-		self.D_gs=D_gs
-		self.D_ex=D_ex
-		self.mu=mu # reduced mass
-		self.K=K
-		self.E_adiabatic=E_adiabatic
-		self.dipole_mom=dipole_mom
+                self.alpha_gs=alpha_gs
+                self.alpha_ex=alpha_ex
+                self.D_gs=D_gs
+                self.D_ex=D_ex
+                self.mu=mu # reduced mass
+                self.K=K
+                self.E_adiabatic=E_adiabatic
+                self.dipole_mom=dipole_mom
+                # Include HT component
+                if is_HT:
+                    self.dipole_coupling=dipole_coupling
+                    self.is_HT=True
+                else: 
+                    self.dipole_coupling=0.0
+                    self.is_HT=False
 
 		# derived quantities:
 		# effective harmonic ground and excited state frequencies
-		self.freq_gs=0.0
-		self.freq_ex=0.0
+                self.freq_gs=0.0
+                self.freq_ex=0.0
 
 		# variables defining the numerical grid over which we compute and integrate
 		# ground and excited state wavefunctions
-		self.grid_start=0.0
-		self.grid_end=0.0
-		self.grid_n_points=num_points
-		self.grid_step=0.0   # step length of the grid 
+                self.grid_start=0.0
+                self.grid_end=0.0
+                self.grid_n_points=num_points
+                self.grid_step=0.0   # step length of the grid 
 		
 		# number of states in the ground and excited state that are considered
 		# this number is either max_states, or the number of bound states in the 
 		# specific morse oscillator, whatever parameter is smaller
-		self.n_max_gs=max_states_gs
-		self.n_max_ex=max_states_ex
+                self.n_max_gs=max_states_gs
+                self.n_max_ex=max_states_ex
 
 
 		# values needed for the calculation of quantum correlation functions
-		self.omega_av_cl=0.0
-		self.omega_av_qm=0.0 # this value does NOT include E_adiabatic
+                self.omega_av_cl=0.0
+                self.omega_av_qm=0.0 # this value does NOT include E_adiabatic
+                self.mu_av_qm=0.0  # average transition dipole moment. This does NOT include mu_0. 
 
 		# set derived absorption vactiables, mainly n_max and freq
-		self.set_absorption_variables()
+                self.set_absorption_variables()
 
 
 		# modulus squared of the overlaps of nuclear wavefunctions between ground
 		# and excited state PES
-		self.wf_overlaps=np.zeros((self.n_max_gs,self.n_max_ex))
-		self.wf_overlaps_sq=np.zeros((self.n_max_gs,self.n_max_ex))
-		self.transition_energies=np.zeros((self.n_max_gs,self.n_max_ex))
-		self.gs_energies=np.zeros(self.n_max_gs)
-		self.boltzmann_fac=np.zeros(self.n_max_gs)
-		self.ex_energies=np.zeros(self.n_max_ex)	
+                self.wf_overlaps=np.zeros((self.n_max_gs,self.n_max_ex))
+                self.wf_overlaps_sq=np.zeros((self.n_max_gs,self.n_max_ex))
+                self.wf_overlaps_HT=np.zeros((self.n_max_gs,self.n_max_ex)) # including HT dipole variation in overlap
+                self.wf_overlaps_sq_HT=np.zeros((self.n_max_gs,self.n_max_ex))
+                self.wf_overlaps_HT_gs=np.zeros((self.n_max_gs,self.n_max_gs)) # need this for GS average of dipole mom
+               
+                # transition energies
+                self.transition_energies=np.zeros((self.n_max_gs,self.n_max_ex))
+                self.gs_energies=np.zeros(self.n_max_gs)
+                self.boltzmann_fac=np.zeros(self.n_max_gs)
+                self.ex_energies=np.zeros(self.n_max_ex)	
 	
 		# effective overlap between ground state wavefunctions and excited state hamiltonian
-		self.He_mat=np.zeros((self.n_max_gs,self.n_max_gs))
+                self.He_mat=np.zeros((self.n_max_gs,self.n_max_gs))
 
 		# response functions 
-		self.exact_response_func=np.zeros((1,1),dtype=np.complex_)
+                self.exact_response_func=np.zeros((1,1),dtype=np.complex_)
 
 		# cumulant parameters
-		self.exact_2nd_order_corr=np.zeros((1,1),dtype=np.complex_)
-		self.exact_3rd_order_corr=np.zeros((1,1,1),dtype=np.complex_)
-		self.exact_g2=np.zeros((1,1),dtype=np.complex_)
+                self.exact_2nd_order_corr=np.zeros((1,1),dtype=np.complex_)
+                self.exact_3rd_order_corr=np.zeros((1,1,1),dtype=np.complex_)
+                self.exact_2nd_order_corr_mu_mu=np.zeros((1,1),dtype=np.complex_)
+                self.exact_g2=np.zeros((1,1),dtype=np.complex_)
 
-	def compute_boltzmann_fac(self,temp):
-		kbT=const.kb_in_Ha*temp
-		self.boltzmann_fac=np.exp(-self.gs_energies/kbT)	
+        def compute_boltzmann_fac(self,temp):
+                kbT=const.kb_in_Ha*temp
+                self.boltzmann_fac=np.exp(-self.gs_energies/kbT)	
 	
-	def compute_exact_corr_3rd(self,temp,num_points,max_t):
-		kbT=const.kb_in_Ha*temp
-		self.He_mat=gs_wavefunc_He_matrix(self.grid_n_points,self.grid_start,self.grid_end,self.D_gs,self.D_ex,self.alpha_gs,self.alpha_ex,self.K,self.mu,self.E_adiabatic,self.n_max_gs)
-		self.omega_av_qm= compute_omega_av_qm(self.He_mat,self.freq_gs,self.D_gs,kbT)
-		self.exact_3rd_order_corr=exact_corr_func_3rd(self.He_mat,self.D_gs,self.freq_gs,self.omega_av_qm,kbT,num_points,max_t)
+        def compute_exact_corr_3rd(self,temp,num_points,max_t):
+                kbT=const.kb_in_Ha*temp
+                self.He_mat=gs_wavefunc_He_matrix(self.grid_n_points,self.grid_start,self.grid_end,self.D_gs,self.D_ex,self.alpha_gs,self.alpha_ex,self.K,self.mu,self.E_adiabatic,self.n_max_gs)
+                self.omega_av_qm= compute_omega_av_qm(self.He_mat,self.freq_gs,self.D_gs,kbT)
+                self.exact_3rd_order_corr=exact_corr_func_3rd(self.He_mat,self.D_gs,self.freq_gs,self.omega_av_qm,kbT,num_points,max_t)
 
 	# Now declare functions of the Morse oscillator 
-	def compute_exact_corr(self,temp,num_points,max_t):
-		kbT=const.kb_in_Ha*temp
-		self.He_mat=gs_wavefunc_He_matrix(self.grid_n_points,self.grid_start,self.grid_end,self.D_gs,self.D_ex,self.alpha_gs,self.alpha_ex,self.K,self.mu,self.E_adiabatic,self.n_max_gs)
-		self.omega_av_qm= compute_omega_av_qm(self.He_mat,self.freq_gs,self.D_gs,kbT)
-		self.exact_2nd_order_corr=exact_corr_func(self.He_mat,self.D_gs,self.freq_gs,self.omega_av_qm,kbT,num_points,max_t)
+        def compute_exact_corr(self,temp,num_points,max_t):
+                kbT=const.kb_in_Ha*temp
+                self.He_mat=gs_wavefunc_He_matrix(self.grid_n_points,self.grid_start,self.grid_end,self.D_gs,self.D_ex,self.alpha_gs,self.alpha_ex,self.K,self.mu,self.E_adiabatic,self.n_max_gs)
+                self.omega_av_qm= compute_omega_av_qm(self.He_mat,self.freq_gs,self.D_gs,kbT)
+                self.exact_2nd_order_corr=exact_corr_func(self.He_mat,self.D_gs,self.freq_gs,self.omega_av_qm,kbT,num_points,max_t)
 
-	def set_absorption_variables(self):
-		self.freq_gs=math.sqrt(2.0*self.D_gs*self.alpha_gs**2.0/self.mu)
-		self.freq_ex=math.sqrt(2.0*self.D_ex*self.alpha_ex**2.0/self.mu)
+        # Function to compute dipole dipole fluctuation response function. 
+        def compute_exact_corr_mu_mu(self,temp,num_points,max_t):
+                kbT=const.kb_in_Ha*temp
+                self.compute_overlaps_and_transition_energies()
+                self.mu_av_qm=compute_mu_av_qm(self.wf_overlaps_HT_gs,self.freq_gs, self.D_gs,kbT)
+                self.exact_2nd_order_corr_mu_mu=exact_corr_func_mu_mu(self.wf_overlaps_HT,self.D_gs,self.freq_gs,self.D_ex,self.freq_ex,self.mu_av_qm,kbT,num_points,max_t)
+
+        def set_absorption_variables(self):
+                self.freq_gs=math.sqrt(2.0*self.D_gs*self.alpha_gs**2.0/self.mu)
+                self.freq_ex=math.sqrt(2.0*self.D_ex*self.alpha_ex**2.0/self.mu)
 			
-		# calculate number of bound states
-		nbound_gs=int((2.0*self.D_gs-self.freq_gs)/self.freq_gs)
-		nbound_ex=int((2.0*self.D_ex-self.freq_ex)/self.freq_ex)
+                # calculate number of bound states
+                nbound_gs=int((2.0*self.D_gs-self.freq_gs)/self.freq_gs)
+                nbound_ex=int((2.0*self.D_ex-self.freq_ex)/self.freq_ex)
 			
-		if nbound_gs<self.n_max_gs:
-			self.n_max_gs=nbound_gs
-		if nbound_ex<self.n_max_ex:
-			self.n_max_ex=nbound_ex
+                if nbound_gs<self.n_max_gs:
+                        self.n_max_gs=nbound_gs
+                if nbound_ex<self.n_max_ex:
+                        self.n_max_ex=nbound_ex
 
 		# now define numerical grid. Find classical turning points
 		# on ground and excited state PES
-		start_point,end_point=find_classical_turning_points_morse(self.n_max_gs,self.n_max_ex,self.freq_gs,self.freq_ex,self.alpha_gs,self.alpha_ex,self.D_gs,self.D_ex,self.K)
+                start_point,end_point=find_classical_turning_points_morse(self.n_max_gs,self.n_max_ex,self.freq_gs,self.freq_ex,self.alpha_gs,self.alpha_ex,self.D_gs,self.D_ex,self.K)
 
-		cl_range=end_point-start_point
-		# make sure that the effective qm range is 10% larger than the effective classical range
-		# to account for tunneling effects 
-		self.grid_start=start_point-0.05*cl_range
-		self.grid_end=end_point+0.05*cl_range
-		self.grid_step=(self.grid_end-self.grid_start)/self.grid_n_points
+                cl_range=end_point-start_point
+                # make sure that the effective qm range is 10% larger than the effective classical range
+                # to account for tunneling effects 
+                self.grid_start=start_point-0.05*cl_range
+                self.grid_end=end_point+0.05*cl_range
+                self.grid_step=(self.grid_end-self.grid_start)/self.grid_n_points
 
-	def compute_exact_response(self,temp,max_t,num_steps):
-		kbT=const.kb_in_Ha*temp
-		self.compute_overlaps_and_transition_energies()
-		self.exact_response_func=compute_exact_response_func(self.wf_overlaps_sq,self.transition_energies,self.freq_gs,self.D_gs,kbT,max_t,num_steps)
+        def compute_exact_response(self,temp,max_t,num_steps,include_HT_effects):  # do we want to include HT effects? 
+                kbT=const.kb_in_Ha*temp
+                self.compute_overlaps_and_transition_energies()
+                if self.is_HT and include_HT_effects:
+                        self.exact_response_func=compute_exact_response_func(self.wf_overlaps_sq_HT,self.transition_energies,self.freq_gs,self.D_gs,kbT,max_t,num_steps)
+                else:
+                        self.exact_response_func=compute_exact_response_func(self.wf_overlaps_sq,self.transition_energies,self.freq_gs,self.D_gs,kbT,max_t,num_steps)
 
-	# now compute all wavefunction overlaps and Transition energies 
-	def compute_overlaps_and_transition_energies(self):
-		for i in range(self.n_max_gs):
-			self.gs_energies[i]=compute_morse_eval_n(self.freq_gs,self.D_gs,i)
-			for j in range(self.n_max_ex):
-				self.ex_energies[j]=compute_morse_eval_n(self.freq_ex,self.D_ex,j)+self.E_adiabatic
-				self.transition_energies[i,j]=self.transition_energy(i,j)
-				self.wf_overlaps[i,j]=get_fc_factor(self.grid_n_points,self.grid_start,self.grid_end,self.D_gs,self.D_ex,self.alpha_gs,self.alpha_ex,self.mu,self.K,i,j)
-				self.wf_overlaps_sq[i,j]=self.wf_overlaps[i,j]**2.0
-
-		print('Transition energies relative to GS')
-		print(self.transition_energies[0,:])
+        # now compute all wavefunction overlaps and Transition energies. Account for HT effects.
+        def compute_overlaps_and_transition_energies(self):
+                if self.is_HT:
+                        HT_func=HT_q_func(self.grid_n_points,self.grid_start,self.grid_end,self.D_gs,self.D_ex,self.alpha_gs,self.alpha_ex,self.K,self.dipole_mom,self.dipole_coupling)
+                        # fill gs matrix too
+                        for i in range(self.n_max_gs):
+                                for j in range(self.n_max_gs):
+                                    # compute overlap with respect to gs wavefuncs only. 
+                                    self.wf_overlaps_HT_gs[i,j]=get_fc_factor(self.grid_n_points,self.grid_start,self.grid_end,self.D_gs,self.D_gs,self.alpha_gs,self.alpha_gs,self.mu,0.0,i,j,HT_func)
+                for i in range(self.n_max_gs):
+                        self.gs_energies[i]=compute_morse_eval_n(self.freq_gs,self.D_gs,i)
+                        for j in range(self.n_max_ex):
+                                self.ex_energies[j]=compute_morse_eval_n(self.freq_ex,self.D_ex,j)+self.E_adiabatic
+                                self.transition_energies[i,j]=self.transition_energy(i,j)
+                                self.wf_overlaps[i,j]=get_fc_factor(self.grid_n_points,self.grid_start,self.grid_end,self.D_gs,self.D_ex,self.alpha_gs,self.alpha_ex,self.mu,self.K,i,j,np.zeros(1))
+                                self.wf_overlaps_sq[i,j]=self.wf_overlaps[i,j]**2.0
+                                # if it is a HT function, also fill HT overlaps:    
+                                if self.is_HT:
+                                    self.wf_overlaps_HT[i,j]=get_fc_factor(self.grid_n_points,self.grid_start,self.grid_end,self.D_gs,self.D_ex,self.alpha_gs,self.alpha_ex,self.mu,self.K,i,j,HT_func)
+                                    self.wf_overlaps_sq_HT[i,j]=self.wf_overlaps_HT[i,j]**2.0
 
 
 	# calculate transition energy between two specific morse oscillators.
-	def transition_energy(self,n_gs,n_ex):
-		E_gs=compute_morse_eval_n(self.freq_gs,self.D_gs,n_gs)
-		E_ex=compute_morse_eval_n(self.freq_ex,self.D_ex,n_ex)
+        def transition_energy(self,n_gs,n_ex):
+                E_gs=compute_morse_eval_n(self.freq_gs,self.D_gs,n_gs)
+                E_ex=compute_morse_eval_n(self.freq_ex,self.D_ex,n_ex)
 
-		return E_ex-E_gs
+                return E_ex-E_gs
 
 # Now define a class for a batch of independent Morse oscillators. This only works if the Morse oscillators are
 # NOT coupled through a Duschinsky type rotation. 
 class morse_list:
-	def __init__(self,D_gs,D_ex,alpha_gs,alpha_ex,mu,K,E_adiabatic,dipole_mom,max_states_gs,max_states_ex,num_points,num_morse_oscillators,stdout):
-		self.morse_oscs = []
-		for i in range(num_morse_oscillators):
-			self.morse_oscs.append(morse(D_gs[i],D_ex[i],alpha_gs[i],alpha_ex[i],mu[i],K[i],E_adiabatic,dipole_mom,max_states_gs,max_states_ex,num_points))
-		self.num_morse_oscillators=num_morse_oscillators
+        def __init__(self,D_gs,D_ex,alpha_gs,alpha_ex,mu,K,E_adiabatic,dipole_mom,max_states_gs,max_states_ex,num_points,dipole_coupling,is_HT,gs_ref_dipole,num_morse_oscillators,stdout):
+                self.morse_oscs = []
+                for i in range(num_morse_oscillators):
+                        self.morse_oscs.append(morse(D_gs[i],D_ex[i],alpha_gs[i],alpha_ex[i],mu[i],K[i],E_adiabatic,dipole_mom,max_states_gs,max_states_ex,num_points,dipole_coupling[i],is_HT))
+                self.num_morse_oscillators=num_morse_oscillators
+                self.is_HT=is_HT
 
 		# GBOM parameters obtained from doing a harmonic expansion of the ground and excited state
 		# PES. These are temporary variables that get filled and an effective GBOM is created 
-		gs_freqs=np.zeros(self.num_morse_oscillators)
-		ex_freqs=np.zeros(self.num_morse_oscillators)
-		# Jmat is always taken to be the identity matrix for the time being
-		Jmat=np.zeros((self.num_morse_oscillators,self.num_morse_oscillators))
-		eff_shift_vec_GBOM=np.zeros(self.num_morse_oscillators)
+                gs_freqs=np.zeros(self.num_morse_oscillators)
+                ex_freqs=np.zeros(self.num_morse_oscillators)
+                # Jmat is always taken to be the identity matrix for the time being
+                Jmat=np.zeros((self.num_morse_oscillators,self.num_morse_oscillators))
+                eff_shift_vec_GBOM=np.zeros(self.num_morse_oscillators)
 
 		# fill effective GBOM parameters:
-		for i in range(self.num_morse_oscillators):
-			Jmat[i,i]=1.0
-			gs_freqs[i]=self.morse_oscs[i].freq_gs
-			ex_freqs[i]=self.morse_oscs[i].freq_ex
-			eff_shift_vec_GBOM[i]=self.morse_oscs[i].K/self.morse_oscs[i].freq_gs # need to convert this to a dimensionless shift vec
+                for i in range(self.num_morse_oscillators):
+                        Jmat[i,i]=1.0
+                        gs_freqs[i]=self.morse_oscs[i].freq_gs
+                        ex_freqs[i]=self.morse_oscs[i].freq_ex
+                        eff_shift_vec_GBOM[i]=self.morse_oscs[i].K/self.morse_oscs[i].freq_gs # need to convert this to a dimensionless shift vec
 
-		eff_0_0=E_adiabatic-0.5*np.sum(gs_freqs)+0.5*np.sum(ex_freqs)
-		self.eff_gbom=gbom.gbom(gs_freqs,ex_freqs,Jmat,eff_shift_vec_GBOM,eff_0_0,dipole_mom,stdout)
+                eff_0_0=E_adiabatic-0.5*np.sum(gs_freqs)+0.5*np.sum(ex_freqs)
+                self.eff_gbom=gbom.gbom(gs_freqs,ex_freqs,Jmat,eff_shift_vec_GBOM,eff_0_0,dipole_mom,stdout)
 
-		self.total_exact_response_func=np.zeros((1,1),dtype=np.complex_)
-		self.harmonic_fc_response_func=np.zeros((1,1),dtype=np.complex_)
-		self.harmonic_cumulant_response_func=np.zeros((1,1),dtype=np.complex_)
-		self.cumulant_response_func=np.zeros((1,1),dtype=np.complex_)
-		self.hybrid_cumul_fc_response_func=np.zeros((1,1),dtype=np.complex_)
-		self.E_adiabatic=E_adiabatic
+                # if it is a HT calculation, fill the dipole derivative matrix. 
+                if self.is_HT:
+                        self.set_dipole_deriv(gs_ref_dipole)
 
-		self.omega_av_qm=0.0
-		self.omega_av_cl=0.0
+                self.total_exact_response_func=np.zeros((1,1),dtype=np.complex_)
+                self.harmonic_fc_response_func=np.zeros((1,1),dtype=np.complex_)
+                self.harmonic_cumulant_response_func=np.zeros((1,1),dtype=np.complex_)
+                self.cumulant_response_func=np.zeros((1,1),dtype=np.complex_)
+                self.hybrid_cumul_fc_response_func=np.zeros((1,1),dtype=np.complex_)
+                self.E_adiabatic=E_adiabatic
+
+                self.omega_av_qm=0.0
+                self.omega_av_cl=0.0
+                self.mu_av_qm=0.0
 
 		# cumulant
-		self.exact_2nd_order_corr=np.zeros((1,1),dtype=np.complex_)
-		self.exact_2nd_order_corr_freq=np.zeros((1,1),dtype=np.complex_)
-		self.exact_3rd_order_corr=np.zeros((1,1,1),dtype=np.complex_)
-		self.exact_3rd_order_corr_freq=np.zeros((1,1,1),dtype=np.complex_)
-		self.spectral_dens=np.zeros((1,1))
-		self.g2_exact=np.zeros((1,1),dtype=np.complex_)
+                self.exact_2nd_order_corr=np.zeros((1,1),dtype=np.complex_)
+                self.exact_2nd_order_corr_mu_mu=np.zeros((1,1),dtype=np.complex_) # Herzberg-Teller
+                self.exact_2nd_order_corr_freq=np.zeros((1,1),dtype=np.complex_)
+                self.exact_3rd_order_corr=np.zeros((1,1,1),dtype=np.complex_)
+                self.exact_3rd_order_corr_freq=np.zeros((1,1,1),dtype=np.complex_)
+                self.spectral_dens=np.zeros((1,1))
+                self.g2_exact=np.zeros((1,1),dtype=np.complex_)
 
+
+        def set_dipole_deriv(self,gs_reference_dipole):
+                # assume that our dipole moment is completely aligned in the x direction, and so is the derivative. 
+                # simplifying approximation.
+                dipole_deriv_mat=np.zeros((self.num_morse_oscillators,3))
+                for i in range(self.num_morse_oscillators):
+                        derivq0,derivqshift=dH_dq_vals(self.morse_oscs[i].D_gs,self.morse_oscs[i].D_ex,self.morse_oscs[i].alpha_gs,self.morse_oscs[i].alpha_ex,self.morse_oscs[i].K,self.morse_oscs[i].dipole_coupling)
+                        if gs_reference_dipole:
+                                dipole_deriv_mat[i,0]=derivq0*self.eff_gbom.freqs_gs[i]   # for now set it to deriv_q0 here. Should have a keyword to switch reference dipole
+                        else:
+                                dipole_deriv_mat[i,0]=derivqshift*self.eff_gbom.freqs_gs[i]
+                self.eff_gbom.dipole_deriv=dipole_deriv_mat  # fill the matrix
 		
-	def compute_total_exact_response(self,temp,max_t,num_steps):
-		for i in range(self.num_morse_oscillators):
-			self.morse_oscs[i].compute_exact_response(temp,max_t,num_steps)
-			print('Computed response func!')
-			print(self.morse_oscs[i].exact_response_func)
-			if i==0:
-				self.total_exact_response_func=self.morse_oscs[i].exact_response_func
+        def compute_total_exact_response(self,temp,max_t,num_steps,include_HT_effects):
+                for i in range(self.num_morse_oscillators):
+                        self.morse_oscs[i].compute_exact_response(temp,max_t,num_steps,include_HT_effects)
+                        print('Computed response func!')
+                        print(self.morse_oscs[i].exact_response_func)
+                        if i==0:
+                                self.total_exact_response_func=self.morse_oscs[i].exact_response_func
 
-			else:
-				for j in range(self.total_exact_response_func.shape[0]):
-					self.total_exact_response_func[j,1]=self.total_exact_response_func[j,1]*self.morse_oscs[i].exact_response_func[j,1]
+                        else:
+                                for j in range(self.total_exact_response_func.shape[0]):
+                                        self.total_exact_response_func[j,1]=self.total_exact_response_func[j,1]*self.morse_oscs[i].exact_response_func[j,1]
 
 		# shift final response function by the adiabatic energy gap
-		for j in range(self.total_exact_response_func.shape[0]):
-			self.total_exact_response_func[j,1]=self.total_exact_response_func[j,1]*cmath.exp(-1j*self.E_adiabatic*self.total_exact_response_func[j,0])
+                for j in range(self.total_exact_response_func.shape[0]):
+                        self.total_exact_response_func[j,1]=self.total_exact_response_func[j,1]*cmath.exp(-1j*self.E_adiabatic*self.total_exact_response_func[j,0])
 
 	# routine computes the exact 3rd order correlation function and its Fourier transform
-	def compute_total_corr_func_3rd_exact(self,temp,decay_length,max_t,num_steps):
-		for i in range(self.num_morse_oscillators):
-			self.morse_oscs[i].compute_exact_corr_3rd(temp,num_steps,max_t)
-			self.omega_av_qm=self.omega_av_qm+(self.morse_oscs[i].omega_av_qm)
-			if i==0:
-				self.exact_3rd_order_corr=self.morse_oscs[i].exact_3rd_order_corr
-			else:
-				self.exact_3rd_order_corr[:,:,2]=self.exact_3rd_order_corr[:,:,2]+self.morse_oscs[i].exact_3rd_order_corr[:,:,2]
-		skew=(np.sqrt(np.sum(np.real(self.exact_2nd_order_corr[:,1]))/(1.0*self.exact_2nd_order_corr.shape[0])))**3.0
+        def compute_total_corr_func_3rd_exact(self,temp,decay_length,max_t,num_steps):
+                for i in range(self.num_morse_oscillators):
+                        self.morse_oscs[i].compute_exact_corr_3rd(temp,num_steps,max_t)
+                        self.omega_av_qm=self.omega_av_qm+(self.morse_oscs[i].omega_av_qm)
+                        if i==0:
+                                self.exact_3rd_order_corr=self.morse_oscs[i].exact_3rd_order_corr
+                        else:
+                                self.exact_3rd_order_corr[:,:,2]=self.exact_3rd_order_corr[:,:,2]+self.morse_oscs[i].exact_3rd_order_corr[:,:,2]
+                skew=(np.sqrt(np.sum(np.real(self.exact_2nd_order_corr[:,1]))/(1.0*self.exact_2nd_order_corr.shape[0])))**3.0
 		
-		self.exact_3rd_order_corr[:,:,2]=self.exact_3rd_order_corr[:,:,2]-skew
+                self.exact_3rd_order_corr[:,:,2]=self.exact_3rd_order_corr[:,:,2]-skew
 
 		# successfully computed the total 3rd order correlation function. Now need to construct its Fourier
 		# transform. 
 
+        def compute_total_corr_func_exact_mu_mu(self,temp,max_t,num_steps):
+                for i in range(self.num_morse_oscillators):
+                        self.morse_oscs[i].compute_exact_corr_mu_mu(temp,num_steps,max_t)
+                        self.mu_av_qm=self.mu_av_qm+(self.morse_oscs[i].mu_av_qm)
+                        if i==0:
+                                self.exact_2nd_order_corr_mu_mu=self.morse_oscs[i].exact_2nd_order_corr_mu_mu
+                        else:
+                                self.exact_2nd_order_corr_mu_mu[:,1]=self.exact_2nd_order_corr_mu_mu[:,1]+self.morse_oscs[i].exact_2nd_order_corr_mu_mu[:,1]
+
+                np.savetxt('Morse_exact_corr_func_mu_mu_real.dat',np.real(self.exact_2nd_order_corr_mu_mu))
+
 
 	# routine computes the exact correlation function and its Fourier transform
-	def compute_total_corr_func_exact(self,temp,decay_length,max_t,num_steps):
-		for i in range(self.num_morse_oscillators):
-			self.morse_oscs[i].compute_exact_corr(temp,num_steps,max_t)
-			self.omega_av_qm=self.omega_av_qm+(self.morse_oscs[i].omega_av_qm)
-			if i==0:
-				self.exact_2nd_order_corr=self.morse_oscs[i].exact_2nd_order_corr
-			else:
-				self.exact_2nd_order_corr[:,1]=self.exact_2nd_order_corr[:,1]+self.morse_oscs[i].exact_2nd_order_corr[:,1]
+        def compute_total_corr_func_exact(self,temp,decay_length,max_t,num_steps):
+                for i in range(self.num_morse_oscillators):
+                        self.morse_oscs[i].compute_exact_corr(temp,num_steps,max_t)
+                        self.omega_av_qm=self.omega_av_qm+(self.morse_oscs[i].omega_av_qm)
+                        if i==0:
+                                self.exact_2nd_order_corr=self.morse_oscs[i].exact_2nd_order_corr
+                        else:
+                                self.exact_2nd_order_corr[:,1]=self.exact_2nd_order_corr[:,1]+self.morse_oscs[i].exact_2nd_order_corr[:,1]
 
 		# mean_sq has to be real
-		mean_sq=np.sum(np.real(self.exact_2nd_order_corr[:,1]))/(1.0*self.exact_2nd_order_corr.shape[0])
+                mean_sq=np.sum(np.real(self.exact_2nd_order_corr[:,1]))/(1.0*self.exact_2nd_order_corr.shape[0])
 
 		# subtract the square of the total omega_av_qm from the values
-		self.exact_2nd_order_corr[:,1]=self.exact_2nd_order_corr[:,1]-mean_sq
+                self.exact_2nd_order_corr[:,1]=self.exact_2nd_order_corr[:,1]-mean_sq
 
 		# add a decaying exponential to make Fourier transforms well-behaved
-		for i in range(self.exact_2nd_order_corr.shape[0]):
-			self.exact_2nd_order_corr[i,1]=self.exact_2nd_order_corr[i,1]*np.exp(-abs(np.real(self.exact_2nd_order_corr[i,0]))/decay_length)
-		np.savetxt('Morse_exact_corr_func_real.dat',np.real(self.exact_2nd_order_corr))
-		print('Average energy gap Morse: '+str(self.E_adiabatic+np.sqrt(mean_sq)))
+                for i in range(self.exact_2nd_order_corr.shape[0]):
+                        self.exact_2nd_order_corr[i,1]=self.exact_2nd_order_corr[i,1]*np.exp(-abs(np.real(self.exact_2nd_order_corr[i,0]))/decay_length)
+                np.savetxt('Morse_exact_corr_func_real.dat',np.real(self.exact_2nd_order_corr))
+                print('Average energy gap Morse: '+str(self.E_adiabatic+np.sqrt(mean_sq)))
 
-		self.omega_av_qm=self.omega_av_qm+self.E_adiabatic # add E_adiabatic to get the total average energy gap 
+                self.omega_av_qm=self.omega_av_qm+self.E_adiabatic # add E_adiabatic to get the total average energy gap 
 
 		# compute the Fourier transform of the correlation function.
-		corr_freq=max_t/num_steps*np.fft.fftshift(np.fft.fft(np.fft.ifftshift(self.exact_2nd_order_corr[:,1])))
-		sample_rate=1.0/(max_t/num_steps)*math.pi*2.0
-		freqs=np.fft.fftshift(np.fft.fftfreq(corr_freq.size,d=1.0/sample_rate))
-		self.exact_2nd_order_corr_freq=np.zeros((corr_freq.size,2),dtype=np.complex_)
-		for i in range(self.exact_2nd_order_corr_freq.shape[0]):
-			self.exact_2nd_order_corr_freq[i,0]=freqs[i]
-			self.exact_2nd_order_corr_freq[i,1]=corr_freq[i]
+                corr_freq=max_t/num_steps*np.fft.fftshift(np.fft.fft(np.fft.ifftshift(self.exact_2nd_order_corr[:,1])))
+                sample_rate=1.0/(max_t/num_steps)*math.pi*2.0
+                freqs=np.fft.fftshift(np.fft.fftfreq(corr_freq.size,d=1.0/sample_rate))
+                self.exact_2nd_order_corr_freq=np.zeros((corr_freq.size,2),dtype=np.complex_)
+                for i in range(self.exact_2nd_order_corr_freq.shape[0]):
+                        self.exact_2nd_order_corr_freq[i,0]=freqs[i]
+                        self.exact_2nd_order_corr_freq[i,1]=corr_freq[i]
 
-		np.savetxt('Morse_exact_corr_func_freq_real.dat',np.real(self.exact_2nd_order_corr_freq))
+                np.savetxt('Morse_exact_corr_func_freq_real.dat',np.real(self.exact_2nd_order_corr_freq))
 
-	def compute_spectral_dens(self):
-		step_length=np.real(self.exact_2nd_order_corr[1,0]-self.exact_2nd_order_corr[0,0])
-		corr_func_freq=np.fft.fft(np.fft.ifftshift(self.exact_2nd_order_corr[:, 1].imag))
-		freqs = np.fft.fftfreq(self.exact_2nd_order_corr.shape[0], step_length)*2.0*math.pi
-		self.spectral_dens = np.zeros((int((corr_func_freq.shape[0])/2) - 1, 2))
-		counter = 0
-		while counter < self.spectral_dens.shape[0]:
-			self.spectral_dens[counter, 0] = freqs[counter]
-			self.spectral_dens[counter, 1] = -step_length*np.real(1j*corr_func_freq[counter]) 
-			counter = counter + 1
+        def compute_spectral_dens(self):
+                step_length=np.real(self.exact_2nd_order_corr[1,0]-self.exact_2nd_order_corr[0,0])
+                corr_func_freq=np.fft.fft(np.fft.ifftshift(self.exact_2nd_order_corr[:, 1].imag))
+                freqs = np.fft.fftfreq(self.exact_2nd_order_corr.shape[0], step_length)*2.0*math.pi
+                self.spectral_dens = np.zeros((int((corr_func_freq.shape[0])/2) - 1, 2))
+                counter = 0
+                while counter < self.spectral_dens.shape[0]:
+                        self.spectral_dens[counter, 0] = freqs[counter]
+                        self.spectral_dens[counter, 1] = -step_length*np.real(1j*corr_func_freq[counter]) 
+                        counter = counter + 1
 
-	def compute_g2_exact(self,temp,max_t,num_points,stdout):
-		kbT=const.kb_in_Ha*temp
-		self.g2_exact=cumulant.compute_2nd_order_cumulant_from_spectral_dens(self.spectral_dens,kbT,max_t,num_points,stdout)
+        def compute_g2_exact(self,temp,max_t,num_points,stdout):
+                kbT=const.kb_in_Ha*temp
+                self.g2_exact=cumulant.compute_2nd_order_cumulant_from_spectral_dens(self.spectral_dens,kbT,max_t,num_points,stdout)
+    
+        def compute_2nd_order_cumulant_response(self,temp,max_t,num_points,stdout,is_HT):   # include HT option
+                kbT=const.kb_in_Ha*temp	
+                #self.g2_exact=g2_from_corr_func(self.exact_2nd_order_corr_freq,num_points,max_t)
+                self.g2_exact=cumulant.compute_2nd_order_cumulant_from_spectral_dens(self.spectral_dens,kbT,max_t,num_points,stdout)
+                if is_HT:
+                        self.compute_total_corr_func_exact_mu_mu(temp,max_t,num_points)
+                        ht_term=np.zeros((num_points,2),np.complex_)
+                        for i in range(ht_term.shape[0]):
+                                ht_term[i,0]=self.exact_2nd_order_corr_mu_mu[i+num_points,0]
+                                ht_term[i,1]=1.0+self.exact_2nd_order_corr_mu_mu[i+num_points,1] # correct dipole only HT prefactor
+                        self.cumulant_response_func=gbom_cumulant_response.compute_cumulant_response(self.g2_exact, np.zeros((1,1)),self.eff_gbom.dipole_mom,ht_term,False,True, False)
+                else:
+                        self.cumulant_response_func=gbom_cumulant_response.compute_cumulant_response(self.g2_exact, np.zeros((1,1)),self.eff_gbom.dipole_mom,np.zeros((1,1)),False,False, False)
+                for i in range(self.cumulant_response_func.shape[0]):
+                        self.cumulant_response_func[i,1]=self.cumulant_response_func[i,1]*cmath.exp(-1j*self.cumulant_response_func[i,0]*self.omega_av_qm)
+    
+        def compute_harmonic_FC_response_func(self,temp,max_t,num_steps,is_emission,is_HT,stdout):
+                self.eff_gbom.calc_fc_response(temp,num_steps,max_t,is_emission,is_HT,stdout)
+                self.harmonic_fc_response_func=self.eff_gbom.fc_response
 
-	def compute_2nd_order_cumulant_response(self,temp,max_t,num_points,stdout):
-		kbT=const.kb_in_Ha*temp	
-		#self.g2_exact=g2_from_corr_func(self.exact_2nd_order_corr_freq,num_points,max_t)
-		self.g2_exact=cumulant.compute_2nd_order_cumulant_from_spectral_dens(self.spectral_dens,kbT,max_t,num_points,stdout)
-		self.cumulant_response_func=gbom_cumulant_response.compute_cumulant_response(self.g2_exact, np.zeros((1,1)),self.eff_gbom.dipole_mom,np.zeros((1,1)),False,False, False)
-		for i in range(self.cumulant_response_func.shape[0]):
-			self.cumulant_response_func[i,1]=self.cumulant_response_func[i,1]*cmath.exp(-1j*self.cumulant_response_func[i,0]*self.omega_av_qm)
+        def compute_harmonic_exact_cumulant_response_func(self,temp,max_t,num_steps,is_emission,stdout):
+                self.eff_gbom.calc_g2_qm(temp,num_steps,max_t,is_emission,stdout)
+                self.eff_gbom.calc_cumulant_response(False,True,is_emission,False) # no HT option for the time being
+                self.harmonic_cumulant_response_func=self.eff_gbom.cumulant_response
 
-	def compute_harmonic_FC_response_func(self,temp,max_t,num_steps,is_emission,is_HT,stdout):
-		self.eff_gbom.calc_fc_response(temp,num_steps,max_t,is_emission,is_HT,stdout)
-		self.harmonic_fc_response_func=self.eff_gbom.fc_response
-
-	def compute_harmonic_exact_cumulant_response_func(self,temp,max_t,num_steps,is_emission,stdout):
-		self.eff_gbom.calc_g2_qm(temp,num_steps,max_t,is_emission,stdout)
-		self.eff_gbom.calc_cumulant_response(False,True,is_emission,False) # no HT option for the time being
-		self.harmonic_cumulant_response_func=self.eff_gbom.cumulant_response
-
-	def compute_cumul_fc_hybrid_response_func(self,temp,decay_length,max_t,num_steps,is_emission,stdout):
-		# first compute effective response functions for the GBOM under the harmonic approximation of the PES
-		self.compute_harmonic_FC_response_func(temp,max_t,num_steps,is_emission,False,stdout)  # disable HT option for now
-		self.compute_harmonic_exact_cumulant_response_func(temp,max_t,num_steps,is_emission,stdout)
+        def compute_cumul_fc_hybrid_response_func(self,temp,decay_length,max_t,num_steps,is_emission,stdout):
+                # first compute effective response functions for the GBOM under the harmonic approximation of the PES
+                self.compute_harmonic_FC_response_func(temp,max_t,num_steps,is_emission,False,stdout)  # disable HT option for now
+                self.compute_harmonic_exact_cumulant_response_func(temp,max_t,num_steps,is_emission,stdout)
 	
 		# now compute the 2nd order cumulant response function for the morse oscillator
 		# start by computing the classical correlation function
-		self.compute_total_corr_func_exact(temp,decay_length,max_t,num_steps)
+                self.compute_total_corr_func_exact(temp,decay_length,max_t,num_steps)
 		# now compute the spectral density
-		self.compute_spectral_dens()
+                self.compute_spectral_dens()
 		# finally compute 2nd order cumulant response
-		self.compute_2nd_order_cumulant_response(temp,max_t,num_steps,stdout)
+                self.compute_2nd_order_cumulant_response(temp,max_t,num_steps,stdout)
 
 		# now can construct the full hybrid response function
-		self.hybrid_cumul_fc_response_func=self.cumulant_response_func
-		self.hybrid_cumul_fc_response_func[:,1]=self.hybrid_cumul_fc_response_func[:,1]*self.eff_gbom.fc_response[:,1]/self.eff_gbom.cumulant_response[:,1]
+                self.hybrid_cumul_fc_response_func=self.cumulant_response_func
+                self.hybrid_cumul_fc_response_func[:,1]=self.hybrid_cumul_fc_response_func[:,1]*self.eff_gbom.fc_response[:,1]/self.eff_gbom.cumulant_response[:,1]
 
 # Class description for several morse oscillators that are coupled by a Duschinsky rotation. Evaluating the FC integrals for this 
 # is very expensive, so usage of this class should be limited to a couple of modes. It can however be combined with Morse_list, to 
