@@ -29,17 +29,6 @@ def construct_freqs_J_K(coords_gs,coords_ex,hessian_gs,hessian_ex,dipole_mom,dip
 		J,K,dipole_transformed,dipole_deriv_nm=construct_J_K(gs_nm,ex_nm,coords_gs,coords_ex,dipole_mom,dipole_deriv,atomic_masses,False)
 
 
-	# STUPID TEST: zero out low freqs
-#	for i in range(gs_freqs.shape[0]):
-#		if gs_freqs[i]<0.00045569: # 100cm-1 in ha
-#			print gs_freqs[i]
-#			ex_freqs[i]=gs_freqs[i]
-#			K[i]=0.0
-#			J[i,:]=0.0
-#			J[:,i]=0.0
-#			J[i,i]=1.0   # remove all coupling to these modes
-	# Sanity check. simply get rid of negative freqs:
-       
 	for i in range(gs_freqs.shape[0]):
 		if gs_freqs[i]<0.0:
 			print('Warning: Negative ground state frequency detected. Removing:')
@@ -77,122 +66,121 @@ def construct_J_K(nm_gs,nm_ex,coords_gs,coords_ex,dipole_mom,dipole_deriv,atomic
 	# fulfill Eckart conditions. This is because that would lead to moving frozen atoms between the ground
 	# and excited state reference geometry, which is wrong.
 
-	if not is_atom_constraint and atomic_masses.shape[0]>2:
-		# first make sure that gs and exited state coords have the same COM
-		com_gs=np.zeros(3)
-		com_ex=np.zeros(3)
-		total_mass=np.sum(atomic_masses)
-		for i in range(atomic_masses.shape[0]):
-			com_gs[0]=com_gs[0]+atomic_masses[i]*coords_gs[i,0]
-			com_gs[1]=com_gs[1]+atomic_masses[i]*coords_gs[i,1]
-			com_gs[2]=com_gs[2]+atomic_masses[i]*coords_gs[i,2]
-			com_ex[0]=com_ex[0]+atomic_masses[i]*coords_ex[i,0]
-			com_ex[1]=com_ex[1]+atomic_masses[i]*coords_ex[i,1]
-			com_ex[2]=com_ex[2]+atomic_masses[i]*coords_ex[i,2]
+        if not is_atom_constraint and atomic_masses.shape[0]>2:
+                # first make sure that gs and exited state coords have the same COM
+                com_gs=np.zeros(3)
+                com_ex=np.zeros(3)
+                total_mass=np.sum(atomic_masses)
+                for i in range(atomic_masses.shape[0]):
+                        com_gs[0]=com_gs[0]+atomic_masses[i]*coords_gs[i,0]
+                        com_gs[1]=com_gs[1]+atomic_masses[i]*coords_gs[i,1]
+                        com_gs[2]=com_gs[2]+atomic_masses[i]*coords_gs[i,2]
+                        com_ex[0]=com_ex[0]+atomic_masses[i]*coords_ex[i,0]
+                        com_ex[1]=com_ex[1]+atomic_masses[i]*coords_ex[i,1]
+                        com_ex[2]=com_ex[2]+atomic_masses[i]*coords_ex[i,2]
 
-		com_gs=com_gs/total_mass
-		com_ex=com_ex/total_mass
+                com_gs=com_gs/total_mass
+                com_ex=com_ex/total_mass
 
-		for i in range(coords_gs.shape[0]):
-			coords_gs[i,:]=coords_gs[i,:]-com_gs[:]
-			coords_ex[i,:]=coords_ex[i,:]-com_ex[:]
+                for i in range(coords_gs.shape[0]):
+                        coords_gs[i,:]=coords_gs[i,:]-com_gs[:]
+                        coords_ex[i,:]=coords_ex[i,:]-com_ex[:]
 
-		# now both coordinates are shifted such that their COM overlaps. 
-		# build the Eckart rotation matrix: 
-		amat=np.zeros((3,3))
-		for i in range(coords_gs.shape[0]):
-			# loop over xyz coords
-			for j in range(3):
-				for k in range(3):
-					amat[j,k]=amat[j,k]+atomic_masses[i]*coords_ex[i,j]*coords_gs[i,k]
+                # now both coordinates are shifted such that their COM overlaps. 
+                # build the Eckart rotation matrix: 
+                amat=np.zeros((3,3))
+                for i in range(coords_gs.shape[0]):
+                        # loop over xyz coords
+                        for j in range(3):
+                                for k in range(3):
+                                        amat[j,k]=amat[j,k]+atomic_masses[i]*coords_ex[i,j]*coords_gs[i,k]
 
-		sym_a=np.dot(amat,np.transpose(amat))
-		inv_a=np.linalg.inv(amat)
-		evals,evecs=np.linalg.eig(sym_a)
+                sym_a=np.dot(amat,np.transpose(amat))
+                evals,evecs=np.linalg.eig(sym_a)
 		# Check for negative eigenvalues. These can happen due to numerical issues if eval is very small
 		# Very small eval might mean linear dependence--> should set Eckart rotation matrix to the identity 
 		# matrix
-		print('Eckart Evals')
-		print(evals)
-		linear_dependence=False
-		for i in range(evals.shape[0]):
-			if evals[i]<0.0 or abs(evals[i])<1.0e-10: # Check for small evals/linear dependence  
-				linear_dependence=True
+                print('Eckart Evals')
+                print(evals)
+                linear_dependence=False
+                for i in range(evals.shape[0]):
+                        if evals[i]<0.0 or abs(evals[i])<1.0e-10: # Check for small evals/linear dependence  
+                                linear_dependence=True
 
-		if not linear_dependence:
+                if not linear_dependence:
+                        inv_a=np.linalg.inv(amat)
+                        # create dmat, the diagonal matrix of sqrts 
+                        Dmat=np.zeros((3,3))
+                        for i in range(3):
+                                Dmat[i,i]=np.sqrt(evals[i])
+                        # now build rotation matrix U
+                        temp_mat=np.dot(Dmat,np.transpose(evecs))
+                        temp_mat2=np.dot(evecs,temp_mat)
+                        Tmat=np.dot(inv_a,temp_mat2)
+                else: # if linear dependence, set Tmat to the identity matrix:
+                        Tmat=np.zeros((3,3))
+                        for i in range(Tmat.shape[0]):
+                                Tmat[i,i]=1.0
 
-			# create dmat, the diagonal matrix of sqrts 
-			Dmat=np.zeros((3,3))
-			for i in range(3):
-				Dmat[i,i]=np.sqrt(evals[i])
-			# now build rotation matrix U
-			temp_mat=np.dot(Dmat,np.transpose(evecs))
-			temp_mat2=np.dot(evecs,temp_mat)
-			Tmat=np.dot(inv_a,temp_mat2)
-		else: # if linear dependence, set Tmat to the identity matrix:
-			Tmat=np.zeros((3,3))
-			for i in range(Tmat.shape[0]):
-				Tmat[i,i]=1.0
+                print('Rotation matrix T for Eckart conditions:')
+                print(Tmat)
 
-		print('Rotation matrix T for Eckart conditions:')
-		print(Tmat)
+                # successfully built Eckart rotation matrix. Now rotate both coords_ex and nm_ex. 
+                coords_ex_rotated=np.zeros((coords_ex.shape[0],coords_ex.shape[1]))	
+                nm_ex_rotated=np.zeros((nm_ex.shape[0],nm_ex.shape[1]))	
+                # first sort out coordinates. loop over atoms	
+                for i in range(coords_ex.shape[0]):
+                        current_xyz=coords_ex[i,:]
+                        coords_ex_rotated[i,:]=np.dot(Tmat,current_xyz)
 
-		# successfully built Eckart rotation matrix. Now rotate both coords_ex and nm_ex. 
-		coords_ex_rotated=np.zeros((coords_ex.shape[0],coords_ex.shape[1]))	
-		nm_ex_rotated=np.zeros((nm_ex.shape[0],nm_ex.shape[1]))	
-		# first sort out coordinates. loop over atoms	
-		for i in range(coords_ex.shape[0]):
-			current_xyz=coords_ex[i,:]
-			coords_ex_rotated[i,:]=np.dot(Tmat,current_xyz)
+                # now sort out nm vector. loop over normal modes:
+                for i in range(nm_ex.shape[1]):
+                        # loop over atoms
+                        for j in range(coords_ex.shape[0]):
+                                # find effective xyz normal mode compnent of normal mode vector i and atom j 
+                                nm_xyz=np.zeros(3)
+                                nm_xyz[0]=nm_ex[3*j,i]
+                                nm_xyz[1]=nm_ex[3*j+1,i]
+                                nm_xyz[2]=nm_ex[3*j+2,i]
+                                rot_nm_xyz=np.dot(Tmat,nm_xyz)
+                                nm_ex_rotated[3*j,i]=rot_nm_xyz[0]
+                                nm_ex_rotated[3*j+1,i]=rot_nm_xyz[1]
+                                nm_ex_rotated[3*j+2,i]=rot_nm_xyz[2]
+                # all done. Now make sure we overwrite old normal modes and xyz coordinates
+                nm_ex=nm_ex_rotated
+                coords_ex=coords_ex_rotated
 
-		# now sort out nm vector. loop over normal modes:
-		for i in range(nm_ex.shape[1]):
-			# loop over atoms
-			for j in range(coords_ex.shape[0]):
-				# find effective xyz normal mode compnent of normal mode vector i and atom j 
-				nm_xyz=np.zeros(3)
-				nm_xyz[0]=nm_ex[3*j,i]
-				nm_xyz[1]=nm_ex[3*j+1,i]
-				nm_xyz[2]=nm_ex[3*j+2,i]
-				rot_nm_xyz=np.dot(Tmat,nm_xyz)
-				nm_ex_rotated[3*j,i]=rot_nm_xyz[0]
-				nm_ex_rotated[3*j+1,i]=rot_nm_xyz[1]
-				nm_ex_rotated[3*j+2,i]=rot_nm_xyz[2]
-		# all done. Now make sure we overwrite old normal modes and xyz coordinates
-		nm_ex=nm_ex_rotated
-		coords_ex=coords_ex_rotated
-
-		# if this is not a frozen atom calculation, need to also rotate the transition
-		# dipole moment and its derivative into the Eckart frame
-		dipole_rotated=np.dot(Tmat,dipole_mom)
-		dipole_deriv_rotated=np.zeros((dipole_deriv.shape[0],dipole_deriv.shape[1]))
-		for i in range(dipole_deriv.shape[1]):
-			current_dipole=dipole_deriv[:,i]
-			dipole_deriv_rotated[:,i]=np.dot(Tmat,current_dipole)
-		print('Dipole before rotation')
-		print(dipole_mom)
-		print('Dipole after rotation:')
-		print(dipole_rotated)
+                # if this is not a frozen atom calculation, need to also rotate the transition
+                # dipole moment and its derivative into the Eckart frame
+                dipole_rotated=np.dot(Tmat,dipole_mom)
+                dipole_deriv_rotated=np.zeros((dipole_deriv.shape[0],dipole_deriv.shape[1]))
+                for i in range(dipole_deriv.shape[1]):
+                        current_dipole=dipole_deriv[:,i]
+                        dipole_deriv_rotated[:,i]=np.dot(Tmat,current_dipole)
+                print('Dipole before rotation')
+                print(dipole_mom)
+                print('Dipole after rotation:')
+                print(dipole_rotated)
 			
-		dipole_mom=dipole_rotated
-		dipole_deriv=dipole_deriv_rotated
+                dipole_mom=dipole_rotated
+                dipole_deriv=dipole_deriv_rotated
 
-	Jmat=np.dot(np.transpose(nm_gs),nm_ex)  # This is Jmat as defined in Baiardi,Barone. 	
+        Jmat=np.dot(np.transpose(nm_gs),nm_ex)  # This is Jmat as defined in Baiardi,Barone. 	
 
-	coord_diff=np.zeros(3*coords_ex.shape[0])
-	# create mass weighted difference vector between ground and excited state geometry
-	for i in range(coords_ex.shape[0]):
-		coord_diff[3*i]=np.sqrt(atomic_masses[i])*(coords_ex[i,0]-coords_gs[i,0])
-		coord_diff[3*i+1]=np.sqrt(atomic_masses[i])*(coords_ex[i,1]-coords_gs[i,1])
-		coord_diff[3*i+2]=np.sqrt(atomic_masses[i])*(coords_ex[i,2]-coords_gs[i,2])
+        coord_diff=np.zeros(3*coords_ex.shape[0])
+        # create mass weighted difference vector between ground and excited state geometry
+        for i in range(coords_ex.shape[0]):
+                coord_diff[3*i]=np.sqrt(atomic_masses[i])*(coords_ex[i,0]-coords_gs[i,0])
+                coord_diff[3*i+1]=np.sqrt(atomic_masses[i])*(coords_ex[i,1]-coords_gs[i,1])
+                coord_diff[3*i+2]=np.sqrt(atomic_masses[i])*(coords_ex[i,2]-coords_gs[i,2])
 		
 	# now build Kvector.
-	Kvec=np.sqrt(1.0/const.emass_in_au)*np.dot(np.transpose(nm_gs),coord_diff) # This again follows the Barone definition.
+        Kvec=np.sqrt(1.0/const.emass_in_au)*np.dot(np.transpose(nm_gs),coord_diff) # This again follows the Barone definition.
 
-	# now just need to construct the dipole derivative in NM coordnates needed for HT calcs
-	dipole_deriv_nm=construct_dipole_deriv_nm(dipole_deriv,nm_ex,atomic_masses) 
+        # now just need to construct the dipole derivative in NM coordnates needed for HT calcs
+        dipole_deriv_nm=construct_dipole_deriv_nm(dipole_deriv,nm_ex,atomic_masses) 
 
-	return Jmat,Kvec, dipole_mom,dipole_deriv_nm
+        return Jmat,Kvec, dipole_mom,dipole_deriv_nm
 
 def moments_of_inertia(coords,atomic_masses):
 	natoms=atomic_masses.shape[0]

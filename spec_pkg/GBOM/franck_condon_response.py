@@ -85,7 +85,7 @@ def get_c_gs(freq_gs,kBT,time):
 
 @jit
 def get_c_ex(freq_ex,time):
-    tau_ex=time
+    tau_ex=1j*time
     c_mat = np.zeros((freq_ex.shape[0], freq_ex.shape[0]), dtype=np.complex_)
     counter = 0
     while counter < freq_ex.shape[0]:
@@ -221,12 +221,17 @@ def get_prefac(a_gs, a_ex, Amat, Bmat, Pmat):
 def calc_HT_correction_Souza(Dinv,Emat,dipole_mom,dipole_deriv):
     sigma=np.dot(Dinv,Emat)
     dsqu=np.dot(dipole_mom,dipole_mom)
+    sigma2=np.zeros((Dinv.shape[0],Dinv.shape[0]),dtype=np.complex_)
     sigma2=1j*Dinv
     temp_mat=np.outer(sigma,sigma)
+    print('1j*Dinv')
+    print(sigma2)
+    print('Dinv,Emat sq')
+    print(temp_mat)
     sigma2=sigma2+temp_mat
 
     # get dipole mom derivative in right dimensionality
-    eff_dipole_deriv=np.zeros((sigma.shape[0],3))
+    eff_dipole_deriv=np.zeros((sigma.shape[0],3),dtype=np.complex_)
     for i in range(dipole_deriv.shape[0]):
         eff_dipole_deriv[i,:]=dipole_deriv[i,:]
 	# only fill the first Nnormal_modes elements of the vector with the dipole derivatives. The rest is zero
@@ -235,16 +240,20 @@ def calc_HT_correction_Souza(Dinv,Emat,dipole_mom,dipole_deriv):
     du_y=eff_dipole_deriv[:,1]
     du_z=eff_dipole_deriv[:,2]
 
-#    FC_HT=0.5*(np.dot(sigma,du_x)*dipole_mom[0]+np.dot(sigma,du_y)*dipole_mom[1]+np.dot(sigma,du_z)*dipole_mom[2]) 
+
     FC_HT=(np.dot(sigma,du_x)*dipole_mom[0]+np.dot(sigma,du_y)*dipole_mom[1]+np.dot(sigma,du_z)*dipole_mom[2])
     # the effective dipole derivative matrix is twice the size of the correct dipole derivative matrix. To compensate
     # we need to divide by 2 in the FC_HT term and by 4 in the HT term --> However, this is already accounted for by 
     # setting the dipole derivative terms to zero for elements beyond Nnormal modes
 
-#    HT=0.25*(np.dot(np.dot(du_x,sigma2),du_x)+np.dot(np.dot(du_y,sigma2),du_y)+np.dot(np.dot(du_z,sigma2),du_z))
-    HT=(np.dot(np.dot(du_x,sigma2),du_x)+np.dot(np.dot(du_y,sigma2),du_y)+np.dot(np.dot(du_z,sigma2),du_z))
+    du_x_sq=np.outer(du_x,du_x)
+    du_y_sq=np.outer(du_y,du_y)
+    du_z_sq=np.outer(du_z,du_z)
 
-    correction=dsqu+2.0*FC_HT+HT
+    HT=np.trace(np.dot(du_x_sq,sigma2)+np.dot(du_y_sq,sigma2)+np.dot(du_z_sq,sigma2))
+    #HT=(np.dot(np.dot(du_x,sigma2),du_x)+np.dot(np.dot(du_y,sigma2),du_y)+np.dot(np.dot(du_z,sigma2),du_z))
+
+    correction=dsqu-2.0*FC_HT+HT
 
     return correction
 
@@ -262,17 +271,16 @@ def calc_HT_correction(Dinv,Cmat,V,dipole_mom,dipole_deriv,freq_gs):
     FC_HT=0.0
     HT=0.0
     temp=(np.dot(Dinv,V)+np.transpose(np.dot(np.transpose(Vconj),Dinv)))
-    sigma=-0.5*temp
     sigma2=-0.5*Cinv+0.25*(np.outer(temp,temp)+Dinv+np.transpose(Dinv))
-
-    # What happens if we have the wrong sigma, that doesn't contain temp?
-    sigma2=-0.5*(Cinv)  # What happens if we halve Cinv?
+    #sigma2=0.25*(np.outer(temp,temp))  #outer product only
+    sigma=-0.5*temp
 
     FC_HT=np.dot(sigma,du_x)*dipole_mom[0]+np.dot(sigma,du_y)*dipole_mom[1]+np.dot(sigma,du_z)*dipole_mom[2]
 
     HT=np.dot(np.dot(du_x,sigma2),du_x)+np.dot(np.dot(du_y,sigma2),du_y)+np.dot(np.dot(du_z,sigma2),du_z)
 
     correction=dsqu+2.0*FC_HT+HT
+    #correction=2.0*FC_HT
 
     return correction
 
@@ -358,7 +366,7 @@ def calc_chi_for_given_time(freq_gs, freq_ex, Jmat, Kmat, dipole_mom,dipole_deri
 
     chi_t = dipole_prefac*prefac * cmath.exp(total_val)
 
-    return cmath.polar(chi_t)
+    return cmath.polar(chi_t), dipole_prefac
 
 @jit 
 def calc_lineshape_for_given_time_Souza(freq_gs, freq_ex, Jmat, Kmat, kBT, time):
@@ -433,7 +441,7 @@ def compute_full_response_func(
     stdout.write('Constructing the full Franck-Condon response function for a GBOM: '+'\n')
     stdout.write('Calculating the lineshape function for '+str(steps)+' time steps and a maximum time of '+str(max_time*const.fs_to_Ha)+'  fs'+'\n')
     chi = np.zeros((steps, 3))
-    lineshape = np.zeros((steps, 2))
+    lineshape = np.zeros((steps, 4))
     response_func = np.zeros((steps, 2), dtype=np.complex_)
     step_length = max_time / steps
     stdout.write('\n'+'  Step       Time (fs)          Re[g_inf]         Im[g_inf]'+'\n')
@@ -446,7 +454,7 @@ def compute_full_response_func(
         # if it is an emission spectrum, switch definition of initial and final state around.
 	# This is already done outside of the routine. All we have to do is revert time. 
         if is_emission:
-            chi_t = calc_chi_for_given_time(
+            chi_t,dipole_prefac = calc_chi_for_given_time(
                 freq_gs, freq_ex, Jmat, Kmat, dipole_mom,dipole_deriv,kBT, -current_t,
             is_HT)
             g_inf = calc_lineshape_for_given_time_Souza(
@@ -454,7 +462,7 @@ def compute_full_response_func(
             )
         else:
             # calculate the effective lineshape function as well as chi_t
-            chi_t = calc_chi_for_given_time(
+            chi_t,dipole_prefac = calc_chi_for_given_time(
                 freq_gs, freq_ex, Jmat, Kmat, dipole_mom,dipole_deriv,kBT, current_t,
             is_HT)
             g_inf = calc_lineshape_for_given_time_Souza(
@@ -471,6 +479,10 @@ def compute_full_response_func(
             chi[counter, 1] = chi_t[0]   
             chi[counter, 2] = chi_t[1]
             lineshape[counter,1]=g_inf.real
+        # put additional dipole prefactor in the lineshape function
+        if is_HT:
+            lineshape[counter,2]=dipole_prefac.real
+            lineshape[counter,3]=dipole_prefac.imag
         stdout.write("%5d      %10.4f          %10.4e       %10.4e" % (counter+1,current_t*const.fs_to_Ha, np.real(g_inf), np.imag(g_inf))+'\n')
         counter = counter + 1
 
