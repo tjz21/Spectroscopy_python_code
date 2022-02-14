@@ -471,29 +471,24 @@ def compute_mu_U_mu_corr_func_freq(corr_func_mu_U_mu,sampling_rate_in_fs,low_fre
         return full_corr_func_freq
 
 
-# remember, mu_av and mu_reonorm and mu reorg, as well as corr_func_cross_freq, are vector quantities
+# remember, mu_av as well as corr_func_cross_freq, are vector quantities
 @jit(fastmath=True)
-def HT_2nd_order_integrant(corr_func_freq,corr_func_cross_freq,mu_av,mu_renorm,mu_reorg,kBT,t,is_dipole_only):
+def HT_2nd_order_integrant(corr_func_freq,corr_func_cross_freq,mu_av,kBT,t):
         integrant=np.zeros((corr_func_freq.shape[0],corr_func_freq.shape[1]),dtype=np.complex_)
         tol=1.0e-15
+        mu_renorm=np.dot(mu_av,mu_av) # renormalized dipole moment. Actually just the thermal average dipole moment
         for i in range(corr_func_freq.shape[0]):
                 integrant[i,0]=corr_func_freq[i,0]
                 omega=integrant[i,0]
                 # check for omega=0 condition
                 if abs(omega)<tol:
-                        denom=mu_renorm**2.0*2.0*math.pi
-                        if is_dipole_only: # only dipole dipole corr func contributes
-                            num=corr_func_freq[i,1]
-                        else:
-                            num=2.0*(mu_reorg[0]-mu_av[0])*t*corr_func_cross_freq[i,1]+2.0*(mu_reorg[1]-mu_av[1])*t*corr_func_cross_freq[i,2]+2.0*(mu_reorg[2]-mu_av[2])*t*corr_func_cross_freq[i,3]+corr_func_freq[i,1]
+                        denom=mu_renorm*2.0*math.pi
+                        num=2.0*mu_av[0]*t*corr_func_cross_freq[i,1]+2.0*mu_av[1]*t*corr_func_cross_freq[i,2]+2.0*mu_av[2]*t*corr_func_cross_freq[i,3]+corr_func_freq[i,1]
                         integrant[i,1]=num/denom
 
                 else:
-                        denom=kBT*mu_renorm**2.0*2.0*math.pi*(1.0-np.exp(-omega/kBT))
-                        if is_dipole_only:
-                            num=corr_func_freq[i,1]*omega*np.exp(-1j*omega*t)
-                        else:
-                            num=2.0*((mu_reorg[0]-mu_av[0])*corr_func_cross_freq[i,1]+(mu_reorg[1]-mu_av[1])*corr_func_cross_freq[i,2]+(mu_reorg[2]-mu_av[2])*corr_func_cross_freq[i,3])*(1.0-cmath.exp(-1j*omega*t))+corr_func_freq[i,1]*omega*np.exp(-1j*omega*t)
+                        denom=kBT*mu_renorm*2.0*math.pi*(1.0-np.exp(-omega/kBT))
+                        num=-2.0*1j*((mu_av[0])*corr_func_cross_freq[i,1]-(mu_av[1])*corr_func_cross_freq[i,2]-(mu_av[2])*corr_func_cross_freq[i,3])*(1.0-cmath.exp(-1j*omega*t))+corr_func_freq[i,1]*omega*np.exp(-1j*omega*t)
                         integrant[i,1]=num/denom
 
         return integrant
@@ -626,7 +621,7 @@ def compute_HT_term_2nd_order(corr_func_freq,corr_func_cross_freq,mu_av,mu_renor
         for i in range(steps):
                 t_current=i*step_length
                 Afunc[i,0]=t_current
-                integrant=HT_2nd_order_integrant(corr_func_freq,corr_func_cross_freq,mu_av,mu_renorm,mu_reorg,kBT,t_current,is_dipole_only)
+                integrant=HT_2nd_order_integrant(corr_func_freq,corr_func_cross_freq,mu_av,kBT,t_current)
                 Afunc[i,1]=1.0+integrate.simps(integrant[:,1],dx=(integrant[1,0]-integrant[0,0]))
 
         Afunc[:,1]=Afunc[:,1]*mu_renorm**2.0

@@ -105,7 +105,6 @@ def extract_normal_mode_freqs_vertical_gradient(filename,num_modes):
                         frozen_atoms=total_num_atoms-num_atoms_chromophore
                         print(total_num_atoms,frozen_atoms,num_atoms_chromophore)
         # Done
-        print(num_atoms_chromophore)
 
         # also return the normal modes
         nm_vec=np.zeros((num_modes,num_atoms_chromophore*3))
@@ -244,7 +243,8 @@ def extract_normal_mode_freqs(filename,num_modes):
                 current_line=lines[freq_line].split()
                 if len(current_line) == 5:
                         freqs_per_row=3
-                        lines_between_freq_rows=int(num_atoms_chromophore)+7
+                        lines_between_freq_rows=int(total_num_atoms)+7
+                        #lines_between_freq_rows=int(num_atoms_chromophore)+7
                         num_freq_loops=int(num_modes/3)
                 elif len(current_line) == 7:
                         freqs_per_row=5
@@ -305,26 +305,26 @@ def convert_string_format(string):
 	return temp_string
 
 def extract_adiabatic_freq(filename):
-	searchfile = open(filename,"r")
-	line_count=0
-	freq_line=0
-	for line in searchfile:
-		searchphrase='Energy of the 0-0 transition:'
-		if searchphrase in line:
-			freq_line=line_count
-		line_count=line_count+1
+        searchfile = open(filename,"r")
+        line_count=0
+        freq_line=0
+        for line in searchfile:
+                searchphrase='Energy of the 0-0 transition:'
+                if searchphrase in line:
+                        freq_line=line_count
+                line_count=line_count+1
 
-	if freq_line>0:
-		searchfile.close()
-		linefile=open(filename,"r")
-		lines=linefile.readlines()
-		current_line=lines[freq_line].split()
-		temp_string=convert_string_format(current_line[5])
-		freq=float(temp_string)
-		return freq/const.Ha_to_cm    # units
+        if freq_line>0:
+                searchfile.close()
+                linefile=open(filename,"r")
+                lines=linefile.readlines()
+                current_line=lines[freq_line].split()
+                temp_string=convert_string_format(current_line[5])
+                freq=float(temp_string)
+                return freq/const.Ha_to_cm    # units
 
-	else:
-		return 0.0
+        else:
+                return 0.0
 
 def extract_Kmat(filename,num_modes):
 	searchfile = open(filename,"r")

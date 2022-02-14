@@ -978,16 +978,17 @@ def HT_qm_t(freqs_gs,Kmat,Jtrans,Omega_sq,gamma,n,gs_dipole_mom,Jdip_deriv,is_3r
         for i in range(freqs_gs.shape[0]):
             for j in range(freqs_gs.shape[0]):
                 # start with dmudUdmu
-                omega_m=freqs_gs[i]-freqs_gs[j]
-                omega_p=freqs_gs[i]+freqs_gs[j]
+                omega_m=freqs_gs[j]-freqs_gs[i]
+                omega_p=freqs_gs[j]+freqs_gs[i]
 
                 # absorb the extra minus sign in the prefactor 
-                prefac1=-(Omega_sq[i,j]+Omega_sq[j,i])*np.dot(Jdip_deriv[i,:],Jdip_deriv[j,:])/(4.0*freqs_gs[i]*freqs_gs[j])
-                 
-                dmudUdmu=dmudUdmu+prefac1*HT_fac_dmu_dU_dmu((n[i]+1.0)*(n[j]+1.0),-omega_m,freqs_gs[i],t)
-                dmudUdmu=dmudUdmu+prefac1*HT_fac_dmu_dU_dmu(n[i]*n[j],omega_m,-freqs_gs[i],t)
-                dmudUdmu=dmudUdmu+prefac1*HT_fac_dmu_dU_dmu((n[i]+1.0)*n[j],-omega_p,freqs_gs[i],t)
-                dmudUdmu=dmudUdmu+prefac1*HT_fac_dmu_dU_dmu((n[j]+1.0)*n[i],omega_p,-freqs_gs[i],t)
+                prefac1=-(Omega_sq[i,j]+Omega_sq[j,i])*np.dot(Jdip_deriv[i,:],Jdip_deriv[j,:])/(4.0*freqs_gs[i]*freqs_gs[j])*(n[i]+1.0)*cmath.exp(-1j*freqs_gs[i]*t)
+                dmudUdmu=dmudUdmu+prefac1*HT_fac_dmu_dU_dmu_QM((n[j]+1.0),omega_m,t)
+                dmudUdmu=dmudUdmu+prefac1*HT_fac_dmu_dU_dmu_QM(n[j],-omega_p,t)
+                #change prefac
+                prefac1=-(Omega_sq[i,j]+Omega_sq[j,i])*np.dot(Jdip_deriv[i,:],Jdip_deriv[j,:])/(4.0*freqs_gs[i]*freqs_gs[j])*(n[i])*cmath.exp(1j*freqs_gs[i]*t)
+                dmudUdmu=dmudUdmu+prefac1*HT_fac_dmu_dU_dmu_QM((n[j]+1.0),omega_p,t)
+                dmudUdmu=dmudUdmu+prefac1*HT_fac_dmu_dU_dmu_QM(n[j],-omega_m,t)
 
                 # now dUdUdmu
                 prefac2=-(-2.0*np.dot(Jdip_deriv[i,:],gs_dipole_mom))*(Omega_sq[i,j]+Omega_sq[j,i])*gamma[j]/(4.0*freqs_gs[i]*freqs_gs[j])
@@ -1084,6 +1085,20 @@ def HT_fac_dmu_dU_dmu(prefac,omega1,omega2,t):
        term=(cmath.exp(-1j*omega2*t)-cmath.exp(-1j*omega_bar*t))/omega1
 
     return term*prefac
+
+
+@jit
+def HT_fac_dmu_dU_dmu_QM(prefac,omega1,t):
+    tiny=10e-16
+    term=0.0+1j*0.0
+
+    if abs(omega1)<tiny:
+       term=1j*t
+    else:
+       term=(1.0-cmath.exp(-1j*omega1*t))/omega1
+
+    return term*prefac
+
 
 @jit
 def HT_fac_dmu_dU_dmu_cl(prefac,kBT,omega1,omega2,t):
