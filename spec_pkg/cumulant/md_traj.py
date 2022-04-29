@@ -15,15 +15,15 @@ import spec_pkg.nonlinear_spectrum.twoDES as twoDES
 # Works
 @jit
 def ensemble_response_for_given_t(fluctuations,dipole_mom,mean,t):
-	response_val=0.0
-	icount=0
-	while icount<fluctuations.shape[0]:
-		jcount=0
-		while jcount<fluctuations.shape[1]:
-			response_val=response_val+(dipole_mom[icount,jcount])**2.0*cmath.exp(-1j*((fluctuations[icount,jcount]))*t)
-			jcount=jcount+1
-		icount=icount+1
-	return response_val/(fluctuations.shape[0]*fluctuations.shape[1]*1.0)
+        response_val=0.0
+        icount=0
+        while icount<fluctuations.shape[0]:
+                jcount=0
+                while jcount<fluctuations.shape[1]:
+                        response_val=response_val+np.dot(dipole_mom[icount,jcount,:],dipole_mom[icount,jcount,:])*cmath.exp(-1j*((fluctuations[icount,jcount]))*t)
+                        jcount=jcount+1
+                icount=icount+1
+        return response_val/(fluctuations.shape[0]*fluctuations.shape[1]*1.0)
 	
 # introduce artificial, constant SD for ensemble spectra. This can be treated as a convergence parameter to ensure smoothness
 # for insufficient sampling
