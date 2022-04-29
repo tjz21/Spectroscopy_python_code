@@ -958,9 +958,13 @@ if param_set.model=='GBOM' or param_set.model=='MD_GBOM':
                                         while counter<freqs_ex.shape[0]:
                                                 J[counter,counter]=1.0
                                                 counter=counter+1
+                                    #SCALE JMAT
+                                    # if requested, scale duschinsky rotation off diagonal elements to increase coupling
+                                    if param_set.scale_Jmat:
+                                        J=hess_to_gbom.scale_J_mixing(J,freqs_gs,param_set.freq_cutoff_gbom,param_set.Jmat_scaling_fac)
 
-                                    # if requested, remove low frequency vibrational modes:
-                                    if param_set.freq_cutoff_gbom>0.0:
+                                    # if requested, remove low frequency vibrational modes (only happens if we do not scale the J matrix):
+                                    if param_set.freq_cutoff_gbom>0.0 and not param_set.scale_Jmat:
                                         for i in range(freqs_gs.shape[0]):
                                             if freqs_gs[i]<param_set.freq_cutoff_gbom:
                                                 freqs_ex[i]=freqs_gs[i]

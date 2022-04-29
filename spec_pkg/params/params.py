@@ -84,6 +84,8 @@ class params:
         self.is_vertical_gradient=False
         self.task=''
         self.method=''
+        self.scale_Jmat=False   # do we want to manually scale the Jmatrix?
+        self.Jmat_scaling_fac=1.0  # this is the scaling factor
         self.Jpath=''
         self.Kpath=''
         self.freq_gs_path=''
@@ -154,6 +156,18 @@ class params:
             self.add_emission_shift=True
         elif par=='FALSE':
             self.add_emission_shift=False
+
+        # SCaling Jmatrix
+        par=get_param(filepath,'SCALE_JMAT')
+        if par=='TRUE':
+            self.scale_Jmat=True
+        elif par=='FALSE':
+            self.scale_Jmat=False
+        par=get_param(filepath,'JMAT_SCALING_FAC')
+        if par != '':
+            self.Jmat_scaling_fac=(float(par))
+
+
         par=get_param(filepath,'NUM_MODES')
         if par != '':
             self.num_modes=int(par)
