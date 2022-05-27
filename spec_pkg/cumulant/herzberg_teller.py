@@ -470,6 +470,54 @@ def compute_mu_U_mu_corr_func_freq(corr_func_mu_U_mu,sampling_rate_in_fs,low_fre
 
         return full_corr_func_freq
 
+# FCHT contribution only (only due to cross correlation function. This is needed for Andres' version
+@jit(fastmath=True)
+def HT_2nd_order_FCHT_only_integrant(corr_func_cross_freq,mu_av,kBT,t):
+        integrant=np.zeros((corr_func_cross_freq.shape[0],corr_func_cross_freq.shape[1]),dtype=np.complex_)
+        tol=1.0e-15
+        mu_renorm_sq=np.dot(mu_av,mu_av) # renormalized dipole moment. Actually just the thermal average dipole moment
+        for i in range(corr_func_cross_freq.shape[0]):
+                integrant[i,0]=corr_func_cross_freq[i,0]
+                omega=integrant[i,0]
+                # check for omega=0 condition
+                if abs(omega)<tol:
+                        denom=mu_renorm_sq*2.0*math.pi
+                        num=1j*(2.0*mu_av[0]*t*corr_func_cross_freq[i,1]+2.0*mu_av[1]*t*corr_func_cross_freq[i,2]+2.0*mu_av[2]*t*corr_func_cross_freq[i,3])
+                        integrant[i,1]=num/denom
+
+                else:
+
+                        denom=kBT*mu_renorm_sq*2.0*math.pi*(1.0-np.exp(-omega/kBT))
+                        num=2.0*((mu_av[0])*corr_func_cross_freq[i,1]+(mu_av[1])*corr_func_cross_freq[i,2]+(mu_av[2])*corr_func_cross_freq[i,3])*(1.0-cmath.exp(-1j*omega*t))
+                        integrant[i,1]=num/denom
+
+        return integrant
+
+
+# HT contribution only (only due to cross correlation function. This is needed for Andres' version
+@jit(fastmath=True)
+def HT_2nd_order_HT_only_integrant(corr_func_freq,mu_av,kBT,t):
+        integrant=np.zeros((corr_func_freq.shape[0],corr_func_freq.shape[1]),dtype=np.complex_)
+        tol=1.0e-15
+        mu_renorm_sq=np.dot(mu_av,mu_av) # renormalized dipole moment. Actually just the thermal average dipole moment
+        for i in range(corr_func_freq.shape[0]):
+                integrant[i,0]=corr_func_freq[i,0]
+                omega=integrant[i,0]
+                # check for omega=0 condition
+                if abs(omega)<tol:
+                        denom=mu_renorm_sq*2.0*math.pi
+                        num=corr_func_freq[i,1]
+                        integrant[i,1]=num/denom
+
+                else:
+
+                        denom=kBT*mu_renorm_sq*2.0*math.pi*(1.0-np.exp(-omega/kBT))
+                        num=corr_func_freq[i,1]*omega*np.exp(-1j*omega*t)
+                        integrant[i,1]=num/denom
+
+        return integrant
+
+
 
 # remember, mu_av as well as corr_func_cross_freq, are vector quantities
 @jit(fastmath=True)
@@ -601,7 +649,7 @@ def HT_integrant_U_U_mu(corr_func_U_U_mu_freq,mu_renorm,mu_av,kBT,t_current):
 
         return integrant
 
-def compute_HT_term_3rd_order(corr_func_U_U_mu_freq,corr_func_mu_U_mu_freq,mu_av,kBT,max_t,steps):
+def compute_HT_term_3rd_order(corr_func_U_U_mu_freq,corr_func_mu_U_mu_freq,mu_av,kBT,max_t,steps,is_emission):
         Afunc=np.zeros((steps,2),dtype=np.complex_)
         temp_func=np.zeros((steps,2))
         mu_renorm=np.sqrt(np.dot(mu_av,mu_av)) # maginitude of the "renormalized" dipole moment
@@ -609,8 +657,12 @@ def compute_HT_term_3rd_order(corr_func_U_U_mu_freq,corr_func_mu_U_mu_freq,mu_av
         for i in range(steps):
                 t_current=i*step_length
                 Afunc[i,0]=t_current
-                integrant1=HT_integrant_U_U_mu(corr_func_U_U_mu_freq,mu_renorm,mu_av,kBT,t_current)	
-                integrant2=HT_integrant_mu_U_mu(corr_func_mu_U_mu_freq,mu_renorm,kBT,t_current)
+                if is_emission:
+                    integrant1=HT_integrant_U_U_mu(corr_func_U_U_mu_freq,mu_renorm,mu_av,kBT,-t_current)
+                    integrant2=HT_integrant_mu_U_mu(corr_func_mu_U_mu_freq,mu_renorm,kBT,-t_current)
+                else:
+                    integrant1=HT_integrant_U_U_mu(corr_func_U_U_mu_freq,mu_renorm,mu_av,kBT,t_current)	
+                    integrant2=HT_integrant_mu_U_mu(corr_func_mu_U_mu_freq,mu_renorm,kBT,t_current)
                 #integrant3=HT_integrant_mu_U_U(corr_func_mu_U_U_freq,mu_reorg,mu_renorm,kBT,t_current)
                 tot_integrant=integrant1
                 tot_integrant[:,:,2]=tot_integrant[:,:,2]-1j*integrant2[:,:,2] #+integrant3[:,:,2]
@@ -623,7 +675,7 @@ def compute_HT_term_3rd_order(corr_func_U_U_mu_freq,corr_func_mu_U_mu_freq,mu_av
 
 
 # The full A func. NOTE THAT MU RENORM IS A SCALAR QUANTITY, NOT A VECTOR QUANTITY
-def compute_HT_term_2nd_order(corr_func_freq,corr_func_cross_freq,mu_av,kBT,max_t,steps):
+def compute_HT_term_2nd_order(corr_func_freq,corr_func_cross_freq,mu_av,kBT,max_t,steps,is_emission):
         Afunc=np.zeros((steps,2),dtype=np.complex_)
         temp_func=np.zeros((steps,2))
         mu_renorm=np.sqrt(np.dot(mu_av,mu_av)) # maginitude of the "renormalized" dipole moment
@@ -631,8 +683,58 @@ def compute_HT_term_2nd_order(corr_func_freq,corr_func_cross_freq,mu_av,kBT,max_
         for i in range(steps):
                 t_current=i*step_length
                 Afunc[i,0]=t_current
-                integrant=HT_2nd_order_integrant(corr_func_freq,corr_func_cross_freq,mu_av,kBT,t_current)
+                # swapping sign on HT prefactor for emission. Sufficient? 
+                if is_emission:
+                    integrant=HT_2nd_order_integrant(corr_func_freq,corr_func_cross_freq,mu_av,kBT,-t_current)
+                else:
+                    integrant=HT_2nd_order_integrant(corr_func_freq,corr_func_cross_freq,mu_av,kBT,t_current)
+
+                # STUPID TEST: WHAT HAPPENS IF WE CHANGE THE RESUMMATION OF THE EXPONENTIAL?
+                #Afunc[i,1]=integrate.simps(integrant[:,1],dx=(integrant[1,0]-integrant[0,0]))
+                #ORIGINAL VERSION:
                 Afunc[i,1]=1.0+integrate.simps(integrant[:,1],dx=(integrant[1,0]-integrant[0,0]))
+
+        Afunc[:,1]=Afunc[:,1]*mu_renorm**2.0
+
+        return Afunc
+
+#needed for Andres version
+def compute_HT_term_2nd_order_HT_only(corr_func_freq,mu_av,kBT,max_t,steps,is_emission):
+        Afunc=np.zeros((steps,2),dtype=np.complex_)
+        temp_func=np.zeros((steps,2))
+        mu_renorm=np.sqrt(np.dot(mu_av,mu_av)) # maginitude of the "renormalized" dipole moment
+        step_length=max_t/steps
+        for i in range(steps):
+                t_current=i*step_length
+                Afunc[i,0]=t_current
+                # swapping sign on HT prefactor for emission. Sufficient? 
+                if is_emission:
+                    integrant=HT_2nd_order_HT_only_integrant(corr_func_freq,mu_av,kBT,-t_current)
+                else:
+                    integrant=HT_2nd_order_HT_only_integrant(corr_func_freq,mu_av,kBT,t_current)
+
+                Afunc[i,1]=1.0+integrate.simps(integrant[:,1],dx=(integrant[1,0]-integrant[0,0]))
+
+        Afunc[:,1]=Afunc[:,1]*mu_renorm**2.0
+
+        return Afunc
+
+#needed for Andres version
+def compute_HT_term_2nd_order_FCHT_only(corr_func_cross_freq,mu_av,kBT,max_t,steps,is_emission):
+        Afunc=np.zeros((steps,2),dtype=np.complex_)
+        temp_func=np.zeros((steps,2))
+        mu_renorm=np.sqrt(np.dot(mu_av,mu_av)) # maginitude of the "renormalized" dipole moment
+        step_length=max_t/steps
+        for i in range(steps):
+                t_current=i*step_length
+                Afunc[i,0]=t_current
+                # swapping sign on HT prefactor for emission. Sufficient? 
+                if is_emission:
+                    integrant=HT_2nd_order_FCHT_only_integrant(corr_func_cross_freq,mu_av,kBT,-t_current)
+                else:
+                    integrant=HT_2nd_order_FCHT_only_integrant(corr_func_cross_freq,mu_av,kBT,t_current)
+
+                Afunc[i,1]=integrate.simps(integrant[:,1],dx=(integrant[1,0]-integrant[0,0]))
 
         Afunc[:,1]=Afunc[:,1]*mu_renorm**2.0
 

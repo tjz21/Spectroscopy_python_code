@@ -809,7 +809,7 @@ def compute_corr_func_dipole_energy_cl_t(freqs_gs,dipole_mom,reorg_dipole,dipole
     return val
 
 # full HT function
-def full_HT_term(freqs_gs,Kmat,Jmat,Omega_sq,gamma,dipole_mom,dipole_deriv,kbT,max_t,num_points,decay_length,is_qm,is_3rd_order,dipole_dipole_only,stdout):
+def full_HT_term(freqs_gs,Kmat,Jmat,Omega_sq,gamma,dipole_mom,dipole_deriv,kbT,max_t,num_points,decay_length,is_qm,is_3rd_order,dipole_dipole_only,is_emission,stdout):
     # Before doing anything, compute the dipole dipole correlation function
     Jtrans=np.transpose(Jmat)
     HT_func=np.zeros((num_points, 2), dtype=complex)
@@ -819,7 +819,7 @@ def full_HT_term(freqs_gs,Kmat,Jmat,Omega_sq,gamma,dipole_mom,dipole_deriv,kbT,m
     # modes onto ground state normal modes. This is necessary, because in the 
     # cumulant approach we expand the transition dipole moment around the ground
     # state minimum, whereas in the Franck-Condon approach, we carry out the expansion
-    # around the excited state minimum
+    # around the excited state minimum. HOWEVER: ONLY NEEDED FOR ABSORPTION, NOT EMISSION
     Jdip_deriv=np.zeros((freqs_gs.shape[0],3))
     Jdip_deriv[:,0]=np.dot(dipole_deriv[:,0],Jtrans)
     Jdip_deriv[:,1]=np.dot(dipole_deriv[:,1],Jtrans)
@@ -831,6 +831,10 @@ def full_HT_term(freqs_gs,Kmat,Jmat,Omega_sq,gamma,dipole_mom,dipole_deriv,kbT,m
     reorg_dipole[0]=np.dot(Jdip_deriv[:,0],Kmat)
     reorg_dipole[1]=np.dot(Jdip_deriv[:,1],Kmat)
     reorg_dipole[2]=np.dot(Jdip_deriv[:,2],Kmat)
+
+    # for emission, need to swap sign of reorg dipole
+    if is_emission:
+        reorg_dipole=-1.0*reorg_dipole
 
     # these two terms are only necessary to analyze the behavior of the 2nd order correlation functions in the GBOM
     # and to compare to MD based cumulant 
@@ -849,10 +853,16 @@ def full_HT_term(freqs_gs,Kmat,Jmat,Omega_sq,gamma,dipole_mom,dipole_deriv,kbT,m
     step_length=max_t/num_points
     for i in range(num_points):
         HT_func[i,0]=t
-        if is_qm:
-            HT_func[i,1]=HT_qm_t(freqs_gs,Kmat,Jtrans,Omega_sq,gamma,n_i_vec,gs_dipole,Jdip_deriv,is_3rd_order,dipole_dipole_only,t) 
+        if is_emission:
+            if is_qm:
+                HT_func[i,1]=HT_qm_t(freqs_gs,Kmat,Jtrans,Omega_sq,gamma,n_i_vec,gs_dipole,Jdip_deriv,is_3rd_order,dipole_dipole_only,-t)
+            else:
+                HT_func[i,1]=HT_cl_t(freqs_gs,cross_corr_freq,Kmat,Jtrans,Omega_sq,gamma,n_i_vec,kbT,gs_dipole,Jdip_deriv,is_3rd_order,dipole_dipole_only,-t)
         else:
-            HT_func[i,1]=HT_cl_t(freqs_gs,cross_corr_freq,Kmat,Jtrans,Omega_sq,gamma,n_i_vec,kbT,gs_dipole,Jdip_deriv,is_3rd_order,dipole_dipole_only,t)
+            if is_qm:
+                HT_func[i,1]=HT_qm_t(freqs_gs,Kmat,Jtrans,Omega_sq,gamma,n_i_vec,gs_dipole,Jdip_deriv,is_3rd_order,dipole_dipole_only,t) 
+            else:
+                HT_func[i,1]=HT_cl_t(freqs_gs,cross_corr_freq,Kmat,Jtrans,Omega_sq,gamma,n_i_vec,kbT,gs_dipole,Jdip_deriv,is_3rd_order,dipole_dipole_only,t)
         t=t+step_length
 
     # save the HT prefactor to file

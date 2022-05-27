@@ -89,7 +89,6 @@ def rms_geom_diff(geom,ref_geom,mass_vec,Tmat):
 def construct_Tmat_quarternion(geom,reference_geom,mass_vec):
     Cmat=construct_Cmat(geom, reference_geom,mass_vec)
     evals,evecs=np.linalg.eigh(Cmat)
-    print(evals)
     evec=evecs[:,0]
     Tmat=np.zeros((3,3))
     Tmat[0,0]=evec[0]*evec[0]+evec[1]*evec[1]-evec[2]*evec[2]-evec[3]*evec[3]

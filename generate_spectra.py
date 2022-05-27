@@ -263,7 +263,7 @@ def compute_GBOM_absorption(param_list,GBOM_chromophore,solvent,is_emission):
 
                 # Check if I need HT term:
                 if param_list.herzberg_teller:
-                    GBOM_chromophore.compute_HT_term(param_list.temperature,param_list.num_steps,param_list.max_t,param_list.decay_length,param_list.exact_corr,param_list.third_order,param_list.ht_dipole_dipole_only,param_list.stdout)
+                    GBOM_chromophore.compute_HT_term(param_list.temperature,param_list.num_steps,param_list.max_t,param_list.decay_length,param_list.exact_corr,param_list.third_order,param_list.ht_dipole_dipole_only,is_emission,param_list.stdout)
 
                 GBOM_chromophore.calc_cumulant_response(param_list.third_order,param_list.exact_corr,is_emission,param_list.herzberg_teller)        
                 spectrum=linear_spectrum.full_spectrum(GBOM_chromophore.cumulant_response,solvent.solvent_response,param_list.num_steps,E_start,E_end,True,is_emission,param_list.stdout)
@@ -764,7 +764,7 @@ def compute_MD_absorption(param_list,MDtraj,solvent,is_emission):
                 print(param_list.herzberg_teller)
                 if param_list.herzberg_teller:
                         print('COMPUTING HERZBERG TELLER TERM')
-                        MDtraj.calc_ht_correction(param_list.temperature,param_list.max_t,param_list.num_steps,param_list.corr_length_3rd,param_list.low_freq_cutoff,param_list.third_order,param_list.gs_reference_dipole,param_list.ht_dipole_dipole_only,param_list.stdout)
+                        MDtraj.calc_ht_correction(param_list.temperature,param_list.max_t,param_list.num_steps,param_list.corr_length_3rd,param_list.low_freq_cutoff,param_list.third_order,param_list.gs_reference_dipole,param_list.ht_dipole_dipole_only,is_emission,param_list.stdout)
                         print('Renormalized dipole mom vs standard dipole mom:')
                         print(np.dot(MDtraj.dipole_mom_av,MDtraj.dipole_mom_av),MDtraj.dipole_renorm**2.0, np.dot(MDtraj.dipole_reorg,MDtraj.dipole_reorg))
 
