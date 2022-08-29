@@ -171,6 +171,8 @@ class MDtrajs:
                 self.corr_func_3rd_qm=np.zeros((1,1))
 
 		# Herzberg-Teller correlation functions
+                self.cross_spectral_dens=np.zeros((1,4)) # cross correlation spectral density
+                self.dipole_spectral_dens=np.zeros((1,2))
                 self.corr_func_cross_cl=np.zeros((1,1,3)) # classical cross correlation function between
                 self.corr_func_dipole_cl=np.zeros((1,1)) # energy gap and dipole moment, as well as pure
 						         # dipole corr. Note that cross dipole function is a vector quantity
@@ -230,6 +232,7 @@ class MDtrajs:
 
                 # Compute spectral density: this is really only done for analysis purposes:
                 sd=cumulant.compute_spectral_dens(self.corr_func_dipole_cl,kbT, sampling_rate,self.time_step)
+                self.dipole_spectral_dens=sd # store dipole spectral dens
                 np.savetxt('Dipole_dipole_spectral_density.dat',sd)
                 sd=cumulant.compute_spectral_dens(self.corr_func_cross_cl[:,0],kbT, sampling_rate,self.time_step)
                 eff_SD=sd
@@ -254,14 +257,23 @@ class MDtrajs:
 		#	self.dipole_renorm=np.sqrt(np.dot(self.dipole_mom_av,self.dipole_mom_av)-2.0*np.dot(self.dipole_mom_av,self.dipole_reorg)+np.dot(self.dipole_reorg,self.dipole_reorg))
 
 		# now construct correlation functions in the frequency domain:
+                self.cross_spectral_dens=ht.compute_cross_corr_func_spectral_dens(self.corr_func_cross_cl,kbT,sampling_rate,self.time_step) # NEEDED FOR ANDRES TERM
                 corr_func_cross_freq=ht.compute_cross_corr_func_freq(self.corr_func_cross_cl,sampling_rate,self.time_step)
                 corr_func_dipole_freq=ht.compute_corr_func_freq(self.corr_func_dipole_cl,sampling_rate,self.time_step)
 		# now evaluate 2nd order cumulant correction term. 
-                self.A_HT2=ht.compute_HT_term_2nd_order(corr_func_dipole_freq,corr_func_cross_freq,self.dipole_mom_av,kbT,max_t,num_steps,is_emission) # do not allow for dipole-dipole only 
+                # TEST: USE ANDRES EXPRESSION
+                #self.A_HT2 = ht.compute_HT_term_zach_Gaussian(self.spectral_dens, self.dipole_spectral_dens, self.dipole_mom_av, kbT, max_t, num_steps)
+                self.A_HT2=ht.compute_HT_term_andres_Gaussian(self.cross_spectral_dens,self.dipole_spectral_dens,self.dipole_mom_av,kbT,max_t,num_steps)
+                #self.A_HT2=ht.compute_HT_term_2nd_order(corr_func_dipole_freq,corr_func_cross_freq,self.dipole_mom_av,kbT,max_t,num_steps,is_emission) # do not allow for dipole-dipole only
+
+                # print L^2 SD
+                eff_SD[:,1]=self.cross_spectral_dens[:,1]*self.cross_spectral_dens[:,1]+self.cross_spectral_dens[:,2]*self.cross_spectral_dens[:,2]+self.cross_spectral_dens[:,3]*self.cross_spectral_dens[:,3]
+
+                np.savetxt('L_squared_spectral_dens.dat',eff_SD)
 
         # TEST: BUILD ALSO ANDRES Expression
-                self.A_HT_andres=ht.compute_HT_term_2nd_order_HT_only(corr_func_dipole_freq,self.dipole_mom_av,kbT,max_t,num_steps,is_emission)
-                self.A_FCHT_andres=ht.compute_HT_term_2nd_order_FCHT_only(corr_func_cross_freq,self.dipole_mom_av,kbT,max_t,num_steps,is_emission)
+                #self.A_HT_andres=ht.compute_HT_term_2nd_order_HT_only(corr_func_dipole_freq,self.dipole_mom_av,kbT,max_t,num_steps,is_emission)
+                #self.A_FCHT_andres=ht.compute_HT_term_2nd_order_FCHT_only(corr_func_cross_freq,self.dipole_mom_av,kbT,max_t,num_steps,is_emission)
 
 		# need to compute 3rd order correction
                 if third_order:
@@ -336,6 +348,8 @@ class MDtrajs:
                                         #self.cumulant_response[i,1]=np.dot(self.dipole_mom_av,self.dipole_mom_av)*(self.cumulant_response[i,1])+self.A_HT2[i,1]
                                         # ANDRES VERSION
                                         #self.cumulant_response[i,1]=self.cumulant_response[i,1]*self.A_HT_andres[i,1]+self.A_FCHT_andres[i,1]
+                                        # FCHT only
+                                        #self.cumulant_response[i,1]=self.cumulant_response[i,1]*self.A_FCHT_andres[i,1]
                                         # ORIGINAL VERSION
                                         self.cumulant_response[i,1]=self.cumulant_response[i,1]*self.A_HT2[i,1]
                 else:
