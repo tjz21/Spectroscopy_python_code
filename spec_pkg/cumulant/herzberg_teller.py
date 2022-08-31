@@ -11,6 +11,10 @@ from spec_pkg.cumulant import cumulant as cumulant
 
 # Construct Dipole dipole fluctuation correlation function
 # this is NOT a vector quantity, but the dipole flucts are vector quantities
+
+def coth(x):
+        fxn = cmath.cosh(x)/cmath.sinh(x)
+        return fxn
 def construct_corr_func_dipole(dipole_flucts,num_trajs,tau,time_step):
         corr_func=np.zeros(dipole_flucts.shape[0]*2-1)
         dim=dipole_flucts.shape[0]
@@ -385,7 +389,7 @@ def compute_cross_corr_func_freq(cross_corr_func,sample_rate,time_step):
 
         return full_corr_func_freq
 
-def compute_cross_corr_func_spectral_dens(corr_func_cross,kbT,sample_rate,time_step):
+def compute_cross_corr_func_spectral_dens(corr_func_cross: object, kbT: object, sample_rate: object, time_step: object) -> object:
         corr_freq=np.zeros((corr_func_cross.shape[0],3),dtype=np.complex_)
 
         corr_freq[:,0]=time_step*np.fft.fftshift(np.fft.fft(np.fft.ifftshift(corr_func_cross[:,0])))
@@ -538,6 +542,160 @@ def HT_2nd_order_HT_only_integrant(corr_func_freq,mu_av,kBT,t):
 
         return integrant
 
+#
+# andres integrants
+# A term IS a vector quantity
+@jit(fastmath=True)
+def integrant_A_term(cross_spectral_dens: object, kbT: object, t: object) -> object:
+        integrant=np.zeros((cross_spectral_dens.shape[0],cross_spectral_dens.shape[1]),dtype=np.complex_)
+        tol=1.0e-15
+        for i in range(cross_spectral_dens.shape[0]):
+            integrant[i,0]=cross_spectral_dens[i,0]
+            omega=integrant[i,0]
+            f_bt = cmath.sin(omega*t) * cmath.cosh(omega/(2.0*kbT)) + 1j * cmath.sinh(omega/(2.0*kbT)) * cmath.cos(omega*t)
+            if abs(omega)<tol: # CHECK LIMIT
+                integrant[i,1:4]=0.0
+            else:
+                    #ZA-GFT A expression
+                coth = cmath.cosh(omega / (2.0 * kbT)) / cmath.sinh(omega / (2.0 * kbT))
+                real_term_za_a = cmath.cos(omega*t) - 1
+                imag_term_za_a = 1j * cmath.sin(omega*t) * coth
+
+        # Ours by gauss field theory
+                integrant[i,1:4]=(cross_spectral_dens[i,1:4]/(math.pi)) * (real_term_za_a - imag_term_za_a)
+        #De Souza integrant
+
+                #integrant[i, 1:4] = cross_spectral_dens[i,1:4]/(math.pi*omega) * (cmath.cos(omega*t) - f_bt - (1j * cmath.sin(omega*t) * (cmath.cosh(omega/(2.0*kbT))/cmath.sinh(omega/(2.0*kbT)))))
+
+        # #Tim's expressions from De Souza
+        #         A = cmath.cosh(omega/(2.0*kbT))
+        #         B = 1./(cmath.cosh(((omega/kbT)+1j*omega*t)/2.))
+        #         C = cmath.cos(omega*t/2.)
+        #         integrant[i, 1:4] = (cross_spectral_dens[i, 1:4] / (math.pi * omega)) * A*B*C
+        return integrant
+
+# @jit(fastmath=True)
+# def integrant_A_term(cross_spectral_dens: object, kbT: object, t: object) -> object:
+#         integrant=np.zeros((cross_spectral_dens.shape[0],cross_spectral_dens.shape[1]),dtype=np.complex_)
+#         tol=1.0e-15
+#         for i in range(cross_spectral_dens.shape[0]):
+#             integrant[i,0]=cross_spectral_dens[i,0]
+#             omega=integrant[i,0]
+#             f_bt = cmath.sin(omega*t) * cmath.cosh(omega/(2.0*kbT)) + 1j * cmath.sinh(omega/(2.0*kbT)) * cmath.cos(omega*t)
+#             if abs(omega)<tol: # CHECK LIMIT
+#                 integrant[i,1:4]=0.0
+#             else:
+#         # Ours by gauss field theory
+#                 integrant[i,1:4]=(cross_spectral_dens[i,1:4]/(cmath.pi*omega))*(cmath.cos(omega*t)-1j*cmath.sin(omega*t)*(cmath.cosh(omega/(2.0*kbT))/cmath.sinh(omega/(2.0*kbT))))
+#         #De Souza integrant
+#
+#                 #integrant[i, 1:4] = cross_spectral_dens[i,1:4]/(math.pi*omega) * (cmath.cos(omega*t) - f_bt - (1j * cmath.sin(omega*t) * (cmath.cosh(omega/(2.0*kbT))/cmath.sinh(omega/(2.0*kbT)))))
+#
+#         #Tim's expressions from De Souza
+#                 #integrant[i, 1:4] = cross_spectral_dens[i, 1:4] / (math.pi * omega) * (cmath.cosh(omega/(2.*kbT))*cmath.cos(omega*t/2.)/(cmath.cosh(omega/(2.*kbT)+1j*omega*t/2)))
+#         return integrant
+
+
+# B-term is NOT a vector quantity
+@jit(fastmath=True)
+def integrant_B_term(dipole_spectral_dens,kbT,t):
+        integrant=np.zeros((dipole_spectral_dens.shape[0],2),dtype=np.complex_)
+        tol=1.0e-15
+        for i in range(dipole_spectral_dens.shape[0]):
+            integrant[i,0]=dipole_spectral_dens[i,0]
+            omega=integrant[i,0]
+            if abs(omega)<tol: #CHECK LIMIT 
+                integrant[i,1]=0.0
+            else:
+                    #ZA GFT B expression
+                coth = cmath.cosh(omega/(2.0 * kbT)) / cmath.sinh(omega / (2.0 * kbT))
+                real_term_za_b = cmath.cos(omega*t) * coth
+                imag_term_za_b = 1j * cmath.sin(omega*t)
+
+                integrant[i,1]= (dipole_spectral_dens[i,1]/(math.pi)) * (real_term_za_b - imag_term_za_b)
+                # DS B term
+                #integrant[i,1]=dipole_spectral_dens[i,1]/(math.pi) * (cmath.cosh(omega/(2.0*kbT))/cmath.sinh(omega/(2.0*kbT)))
+        return integrant
+# @jit(fastmath=True)
+# def integrant_B_term(dipole_spectral_dens,kbT,t):
+#         integrant=np.zeros((dipole_spectral_dens.shape[0],2),dtype=np.complex_)
+#         tol=1.0e-15
+#         for i in range(dipole_spectral_dens.shape[0]):
+#             integrant[i,0]=dipole_spectral_dens[i,0]
+#             omega=integrant[i,0]
+#             if abs(omega)<tol: #CHECK LIMIT
+#                 integrant[i,1]=0.0
+#             else:
+#                 integrant[i,1]=dipole_spectral_dens[i,1]/(math.pi)*cmath.cos(omega*t)*(cmath.cosh(omega/(2.0*kbT))/cmath.sinh(omega/(2.0*kbT))-1j*cmath.sin(omega*t))
+#                 # DS B term
+#                 #integrant[i,1]=dipole_spectral_dens[i,1]/(math.pi) * (cmath.cosh(omega/(2.0*kbT))/cmath.sinh(omega/(2.0*kbT)))
+#         return integrant
+
+def compute_HT_term_andres_Gaussian(corr_func_cross_SD: object, corr_func_dipole_SD: object, mu_av: object, kBT: object, max_t: object, steps: object) -> object:
+        # Modifications made by ZW on 08/15:
+                # changed corr_cross to new ficticious sd
+
+        HT_func=np.zeros((steps,2),dtype=np.complex_)
+        corr_func_dipole_SD = corr_func_dipole_SD
+        temp_func=np.zeros((steps,2))
+        step_length=max_t/steps
+        #corr_func_cross_SD = np.arange(0, steps, np.int(step_length))
+        #corr_func_dipole_SD = np.arange(0, steps, np.int(step_length))
+        mu_renorm=math.sqrt(np.dot(mu_av,mu_av))
+        for i in range(steps):
+                t=i*step_length
+                HT_func[i,0]=t
+                A_integrant=integrant_A_term(corr_func_cross_SD,kBT,t)
+                B_integrant=integrant_B_term(corr_func_dipole_SD,kBT,t)
+                B_val=integrate.simps(B_integrant[:,1],dx=(B_integrant[1,0]-B_integrant[0,0]))
+                A_val=np.zeros(3,dtype=np.complex_)
+                A_val[0]=integrate.simps(A_integrant[:,1],dx=(A_integrant[1,0]-A_integrant[0,0]))
+                A_val[1]=integrate.simps(A_integrant[:,2],dx=(A_integrant[1,0]-A_integrant[0,0]))
+                A_val[2]=integrate.simps(A_integrant[:,3],dx=(A_integrant[1,0]-A_integrant[0,0]))
+
+                #New version Andres. 
+                HT_func[i,1]=B_val+mu_renorm**2.0-2.*np.dot(mu_av,A_val)+B_val+np.dot(A_val,A_val)
+
+        #np.savetxt("opt_resp_fxn_shift.dat", HT_func)
+        return HT_func
+
+def compute_HT_term_zach_Gaussian(BOM_SD: object, corr_func_dipole_SD: object, mu_av: object, kBT: object, max_t: object, steps: object) -> object:
+        # Modifications made by ZW on 08/15:
+                # changed corr_cross to new ficticious sd
+        HT_func=np.zeros((steps,2),dtype=np.complex_)
+        temp_func=np.zeros((steps,2))
+        x =1.
+        y =1.
+
+
+        BOM_SD = x * BOM_SD
+        corr_func_dipole_SD = y * corr_func_dipole_SD
+
+        M_sd = np.sqrt(BOM_SD*corr_func_dipole_SD)
+        print(np.shape(BOM_SD))
+        print(np.shape(corr_func_dipole_SD))
+        print(np.shape(M_sd))
+        step_length=max_t/steps
+
+        mu_renorm=math.sqrt(np.dot(mu_av,mu_av))
+        z = mu_renorm
+        for i in range(steps):
+                t=i * step_length
+                HT_func[i,0]=t
+                A_integrant=integrant_A_term(M_sd,kBT,t)
+                B_integrant=integrant_B_term(corr_func_dipole_SD,kBT,t)
+                B_val=integrate.simps(B_integrant[:,1],dx=(B_integrant[1,0]-B_integrant[0,0]))
+                #A_val=np.zeros(3,dtype=np.complex_)
+                A_val=integrate.simps(A_integrant[:,1],dx=(A_integrant[1,0]-A_integrant[0,0]))
+                #A_val[1]=integrate.simps(A_integrant[:,2],dx=(A_integrant[1,0]-A_integrant[0,0]))
+                #A_val[2]=integrate.simps(A_integrant[:,3],dx=(A_integrant[1,0]-A_integrant[0,0]))
+
+                #New version Andres.
+                HT_func[i,1] = B_val + z**2. + 2.*z * A_val+ mu_renorm**2.0#+A_val * A_val #mu_renorm + mu_renorm**2.0A_val * A_val
+        # np.savetxt('fict_sd_norm(kj).dat',M_sd)
+        # np.savetxt('J_sd.dat', BOM_SD)
+        # np.savetxt("dp_sd_for_norm.dat", corr_func_dipole_SD)
+        return HT_func
 
 # andres integrants
 # A term IS a vector quantity

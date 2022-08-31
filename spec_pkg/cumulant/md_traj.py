@@ -257,13 +257,14 @@ class MDtrajs:
 		#	self.dipole_renorm=np.sqrt(np.dot(self.dipole_mom_av,self.dipole_mom_av)-2.0*np.dot(self.dipole_mom_av,self.dipole_reorg)+np.dot(self.dipole_reorg,self.dipole_reorg))
 
 		# now construct correlation functions in the frequency domain:
-                self.cross_spectral_dens=ht.compute_cross_corr_func_spectral_dens(self.corr_func_cross_cl,kbT,sampling_rate,self.time_step) # NEEDED FOR ANDRES TERM 
+                self.cross_spectral_dens=ht.compute_cross_corr_func_spectral_dens(self.corr_func_cross_cl,kbT,sampling_rate,self.time_step) # NEEDED FOR ANDRES TERM
                 corr_func_cross_freq=ht.compute_cross_corr_func_freq(self.corr_func_cross_cl,sampling_rate,self.time_step)
                 corr_func_dipole_freq=ht.compute_corr_func_freq(self.corr_func_dipole_cl,sampling_rate,self.time_step)
 		# now evaluate 2nd order cumulant correction term. 
                 # TEST: USE ANDRES EXPRESSION
-                self.A_HT2=ht.compute_HT_term_andres_Gaussian(self.cross_spectral_dens,self.dipole_spectral_dens,self.dipole_mom_av,kbT,max_t,num_steps) 
-                #self.A_HT2=ht.compute_HT_term_2nd_order(corr_func_dipole_freq,corr_func_cross_freq,self.dipole_mom_av,kbT,max_t,num_steps,is_emission) # do not allow for dipole-dipole only 
+                #self.A_HT2 = ht.compute_HT_term_zach_Gaussian(self.spectral_dens, self.dipole_spectral_dens, self.dipole_mom_av, kbT, max_t, num_steps)
+                self.A_HT2=ht.compute_HT_term_andres_Gaussian(self.cross_spectral_dens,self.dipole_spectral_dens,self.dipole_mom_av,kbT,max_t,num_steps)
+                #self.A_HT2=ht.compute_HT_term_2nd_order(corr_func_dipole_freq,corr_func_cross_freq,self.dipole_mom_av,kbT,max_t,num_steps,is_emission) # do not allow for dipole-dipole only
 
                 # print L^2 SD
                 eff_SD[:,1]=self.cross_spectral_dens[:,1]*self.cross_spectral_dens[:,1]+self.cross_spectral_dens[:,2]*self.cross_spectral_dens[:,2]+self.cross_spectral_dens[:,3]*self.cross_spectral_dens[:,3]
