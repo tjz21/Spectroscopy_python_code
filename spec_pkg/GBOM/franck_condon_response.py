@@ -268,19 +268,21 @@ def calc_HT_correction(Dinv,Cmat,V,dipole_mom,dipole_deriv,freq_gs):
     du_z=dipole_deriv[:,2]
 
 
-    FC_HT=0.0
-    HT=0.0
+    FC_HT=0.0+1j*0.0
+    HT=0.0+1j*0.0
     temp=(np.dot(Dinv,V)+np.transpose(np.dot(np.transpose(Vconj),Dinv)))
     sigma2=-0.5*Cinv+0.25*(np.outer(temp,temp)+Dinv+np.transpose(Dinv))
     #sigma2=0.25*(np.outer(temp,temp))  #outer product only
     sigma=-0.5*temp
+
 
     FC_HT=np.dot(sigma,du_x)*dipole_mom[0]+np.dot(sigma,du_y)*dipole_mom[1]+np.dot(sigma,du_z)*dipole_mom[2]
 
     HT=np.dot(np.dot(du_x,sigma2),du_x)+np.dot(np.dot(du_y,sigma2),du_y)+np.dot(np.dot(du_z,sigma2),du_z)
 
     correction=dsqu+2.0*FC_HT+HT
-    #correction=2.0*FC_HT
+    # CONSIDER ONLY FCHT RIGHT NOW
+    #correction=HT
 
     return correction
 
@@ -443,6 +445,14 @@ def compute_full_response_func(
     chi = np.zeros((steps, 3))
     lineshape = np.zeros((steps, 4))
     response_func = np.zeros((steps, 2), dtype=np.complex_)
+    # TEST: COMPUTE RENORMALIZED DIPOLE MOM IN GROUND STATE!
+    x_val=np.dot(Kmat,np.dot(np.transpose(Jmat),dipole_deriv[:,0]))
+    y_val=np.dot(Kmat,np.dot(np.transpose(Jmat),dipole_deriv[:,1]))
+    z_val=np.dot(Kmat,np.dot(np.transpose(Jmat),dipole_deriv[:,2]))
+    tot=-(x_val*x_val+y_val*y_val+z_val*z_val)
+    print('dipole_reorg',tot)
+    # END TEST
+    
     step_length = max_time / steps
     stdout.write('\n'+'  Step       Time (fs)          Re[g_inf]         Im[g_inf]'+'\n')
     start_val = 0.0000001

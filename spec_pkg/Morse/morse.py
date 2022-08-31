@@ -907,13 +907,17 @@ class morse_list:
                 mean_sq=np.sum(np.real(self.exact_2nd_order_corr[:,1]))/(1.0*self.exact_2nd_order_corr.shape[0])
 
 		# subtract the square of the total omega_av_qm from the values
-                self.exact_2nd_order_corr[:,1]=self.exact_2nd_order_corr[:,1]-mean_sq
+                #self.exact_2nd_order_corr[:,1]=self.exact_2nd_order_corr[:,1]-mean_sq
+                # TEST
+                self.exact_2nd_order_corr[:,1]=self.exact_2nd_order_corr[:,1]-self.omega_av_qm 
 
 		# add a decaying exponential to make Fourier transforms well-behaved
                 for i in range(self.exact_2nd_order_corr.shape[0]):
                         self.exact_2nd_order_corr[i,1]=self.exact_2nd_order_corr[i,1]*np.exp(-abs(np.real(self.exact_2nd_order_corr[i,0]))/decay_length)
                 np.savetxt('Morse_exact_corr_func_real.dat',np.real(self.exact_2nd_order_corr))
-                print('Average energy gap Morse: '+str(self.E_adiabatic+np.sqrt(mean_sq)))
+                #print('Average energy gap Morse: '+str(self.E_adiabatic+np.sqrt(mean_sq)))
+                # TEST:
+                print('Average energy gap Morse: '+str(self.E_adiabatic+self.omega_av_qm))
 
                 self.omega_av_qm=self.omega_av_qm+self.E_adiabatic # add E_adiabatic to get the total average energy gap 
 
@@ -955,7 +959,7 @@ class morse_list:
                                 ht_term[i,1]=1.0+self.exact_2nd_order_corr_mu_mu[i+num_points,1] # correct dipole only HT prefactor
                         self.cumulant_response_func=gbom_cumulant_response.compute_cumulant_response(self.g2_exact, np.zeros((1,1)),self.eff_gbom.dipole_mom,ht_term,False,True, False)
                 else:
-                        self.cumulant_response_func=gbom_cumulant_response.compute_cumulant_response(self.g2_exact, np.zeros((1,1)),self.eff_gbom.dipole_mom,np.zeros((1,1)),False,False, False)
+                        self.cumulant_response_func=gbom_cumulant_response.compute_cumulant_response(self.g2_exact, np.zeros((1,1)),self.eff_gbom.dipole_mom,np.zeros((1,1)),np.zeros((1,1)),False,False, False)
                 for i in range(self.cumulant_response_func.shape[0]):
                         self.cumulant_response_func[i,1]=self.cumulant_response_func[i,1]*cmath.exp(-1j*self.cumulant_response_func[i,0]*self.omega_av_qm)
     

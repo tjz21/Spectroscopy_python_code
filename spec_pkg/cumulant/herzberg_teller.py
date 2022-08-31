@@ -385,6 +385,27 @@ def compute_cross_corr_func_freq(cross_corr_func,sample_rate,time_step):
 
         return full_corr_func_freq
 
+def compute_cross_corr_func_spectral_dens(corr_func_cross,kbT,sample_rate,time_step):
+        corr_freq=np.zeros((corr_func_cross.shape[0],3),dtype=np.complex_)
+
+        corr_freq[:,0]=time_step*np.fft.fftshift(np.fft.fft(np.fft.ifftshift(corr_func_cross[:,0])))
+        corr_freq[:,1]=time_step*np.fft.fftshift(np.fft.fft(np.fft.ifftshift(corr_func_cross[:,1])))
+        corr_freq[:,2]=time_step*np.fft.fftshift(np.fft.fft(np.fft.ifftshift(corr_func_cross[:,2])))
+
+        spectral_dens=np.zeros((int((corr_freq.shape[0]+1)/2),4))
+        freqs=np.fft.fftshift(np.fft.fftfreq(corr_func_cross.shape[0],d=1.0/sample_rate))
+
+        counter=0
+        shift_index=corr_freq.shape[0]-spectral_dens.shape[0]
+        while counter<spectral_dens.shape[0]:
+                spectral_dens[counter,0]=freqs[counter+shift_index]
+                spectral_dens[counter,1]=freqs[counter+shift_index]/(2.0*kbT)*corr_freq[counter+shift_index,0].real
+                spectral_dens[counter,2]=freqs[counter+shift_index]/(2.0*kbT)*corr_freq[counter+shift_index,1].real
+                spectral_dens[counter,3]=freqs[counter+shift_index]/(2.0*kbT)*corr_freq[counter+shift_index,2].real
+                counter=counter+1
+
+        return spectral_dens
+
 
 # build the vector quantity in the frequency domain:
 def compute_mu_U_U_corr_func_freq(corr_func_mu_U_U,sampling_rate_in_fs,low_freq_filter):
@@ -482,13 +503,13 @@ def HT_2nd_order_FCHT_only_integrant(corr_func_cross_freq,mu_av,kBT,t):
                 # check for omega=0 condition
                 if abs(omega)<tol:
                         denom=mu_renorm_sq*2.0*math.pi
-                        num=1j*(2.0*mu_av[0]*t*corr_func_cross_freq[i,1]+2.0*mu_av[1]*t*corr_func_cross_freq[i,2]+2.0*mu_av[2]*t*corr_func_cross_freq[i,3])
+                        num=-1j*(2.0*mu_av[0]*t*corr_func_cross_freq[i,1]+2.0*mu_av[1]*t*corr_func_cross_freq[i,2]+2.0*mu_av[2]*t*corr_func_cross_freq[i,3])
                         integrant[i,1]=num/denom
 
                 else:
 
                         denom=kBT*mu_renorm_sq*2.0*math.pi*(1.0-np.exp(-omega/kBT))
-                        num=2.0*((mu_av[0])*corr_func_cross_freq[i,1]+(mu_av[1])*corr_func_cross_freq[i,2]+(mu_av[2])*corr_func_cross_freq[i,3])*(1.0-cmath.exp(-1j*omega*t))
+                        num=-2.0*((mu_av[0])*corr_func_cross_freq[i,1]+(mu_av[1])*corr_func_cross_freq[i,2]+(mu_av[2])*corr_func_cross_freq[i,3])*(1.0-cmath.exp(-1j*omega*t))
                         integrant[i,1]=num/denom
 
         return integrant
@@ -518,6 +539,57 @@ def HT_2nd_order_HT_only_integrant(corr_func_freq,mu_av,kBT,t):
         return integrant
 
 
+# andres integrants
+# A term IS a vector quantity
+@jit(fastmath=True)
+def integrant_A_term(cross_spectral_dens,kbT,t):
+        integrant=np.zeros((cross_spectral_dens.shape[0],cross_spectral_dens.shape[1]),dtype=np.complex_)
+        tol=1.0e-15
+        for i in range(cross_spectral_dens.shape[0]):
+            integrant[i,0]=cross_spectral_dens[i,0]
+            omega=integrant[i,0]
+            if abs(omega)<tol: # CHECK LIMIT
+                integrant[i,1:4]=0.0
+            else:
+                integrant[i,1:4]=cross_spectral_dens[i,1:4]/(math.pi*omega)*(cmath.cos(omega*t)-1.0-1j*cmath.sin(omega*t)*(cmath.cosh(omega/(2.0*kbT))/cmath.sinh(omega/(2.0*kbT))))
+                return integrant
+
+# B-term is NOT a vector quantity
+@jit(fastmath=True)
+def integrant_B_term(dipole_spectral_dens,kbT,t):
+        integrant=np.zeros((dipole_spectral_dens.shape[0],2),dtype=np.complex_)
+        tol=1.0e-15
+        for i in range(dipole_spectral_dens.shape[0]):
+            integrant[i,0]=dipole_spectral_dens[i,0]
+            omega=integrant[i,0]
+            if abs(omega)<tol: #CHECK LIMIT 
+                integrant[i,1]=0.0
+            else: 
+                integrant[i,1]=1j/math.pi*cmath.sin(omega*t)*dipole_spectral_dens[i,1]
+        return integrant
+
+
+def compute_HT_term_andres_Gaussian(corr_func_cross_SD,corr_func_dipole_SD,mu_av,kBT,max_t,steps):
+        HT_func=np.zeros((steps,2),dtype=np.complex_)
+        temp_func=np.zeros((steps,2))
+        step_length=max_t/steps
+        mu_renorm=math.sqrt(np.dot(mu_av,mu_av))
+        for i in range(steps):
+                t=i*step_length
+                HT_func[i,0]=t
+                A_integrant=integrant_A_term(corr_func_cross_SD,kBT,t)
+                B_integrant=integrant_B_term(corr_func_dipole_SD,kBT,t)
+                B_val=integrate.simps(B_integrant[:,1],dx=(B_integrant[1,0]-B_integrant[0,0]))
+                A_val=np.zeros(3,dtype=np.complex_)
+                A_val[0]=integrate.simps(A_integrant[:,1],dx=(A_integrant[1,0]-A_integrant[0,0]))
+                A_val[1]=integrate.simps(A_integrant[:,2],dx=(A_integrant[1,0]-A_integrant[0,0]))
+                A_val[2]=integrate.simps(A_integrant[:,3],dx=(A_integrant[1,0]-A_integrant[0,0]))
+
+                #New version Andres. 
+                HT_func[i,1]=mu_renorm**2.0+2.0*np.dot(mu_av,A_val)+np.dot(A_val,A_val)-B_val
+
+        return HT_func
+
 
 # remember, mu_av as well as corr_func_cross_freq, are vector quantities
 @jit(fastmath=True)
@@ -531,7 +603,7 @@ def HT_2nd_order_integrant(corr_func_freq,corr_func_cross_freq,mu_av,kBT,t):
                 # check for omega=0 condition
                 if abs(omega)<tol:
                         denom=mu_renorm_sq*2.0*math.pi
-                        num=1j*(2.0*mu_av[0]*t*corr_func_cross_freq[i,1]+2.0*mu_av[1]*t*corr_func_cross_freq[i,2]+2.0*mu_av[2]*t*corr_func_cross_freq[i,3])+corr_func_freq[i,1]
+                        num=-1j*(2.0*mu_av[0]*t*corr_func_cross_freq[i,1]+2.0*mu_av[1]*t*corr_func_cross_freq[i,2]+2.0*mu_av[2]*t*corr_func_cross_freq[i,3])+corr_func_freq[i,1]
                         #num=corr_func_freq[i,1]
                         #num=-1j*(2.0*mu_av[0]*t*corr_func_cross_freq[i,1]+2.0*mu_av[1]*t*corr_func_cross_freq[i,2]+2.0*mu_av[2]*t*corr_func_cross_freq[i,3])
                         integrant[i,1]=num/denom
@@ -539,7 +611,7 @@ def HT_2nd_order_integrant(corr_func_freq,corr_func_cross_freq,mu_av,kBT,t):
                 else:
                         
                         denom=kBT*mu_renorm_sq*2.0*math.pi*(1.0-np.exp(-omega/kBT))
-                        num=2.0*((mu_av[0])*corr_func_cross_freq[i,1]+(mu_av[1])*corr_func_cross_freq[i,2]+(mu_av[2])*corr_func_cross_freq[i,3])*(1.0-cmath.exp(-1j*omega*t))+corr_func_freq[i,1]*omega*np.exp(-1j*omega*t)
+                        num=-2.0*((mu_av[0])*corr_func_cross_freq[i,1]+(mu_av[1])*corr_func_cross_freq[i,2]+(mu_av[2])*corr_func_cross_freq[i,3])*(1.0-cmath.exp(-1j*omega*t))+corr_func_freq[i,1]*omega*np.exp(-1j*omega*t)
                         #num=corr_func_freq[i,1]*omega*np.exp(-1j*omega*t)
                         #num=2.0*((mu_av[0])*corr_func_cross_freq[i,1]+(mu_av[1])*corr_func_cross_freq[i,2]+(mu_av[2])*corr_func_cross_freq[i,3])*(1.0-cmath.exp(-1j*omega*t))
                         integrant[i,1]=num/denom
@@ -561,19 +633,24 @@ def HT_integrant_mu_U_mu(corr_func_mu_U_mu_freq,mu_renorm,kBT,t_current):
 			const_fac=corr_func_mu_U_mu_freq[i,j,2]/mu_renorm**2.0
 			w_bar=w1+w2
 			if abs(w1)<tol and abs(w2)<tol:
-				num=t_current
+                # CORRECT ##
+				num=-1j*t_current
 				denom=4.0*math.pi**2.0
 			elif abs(w1)<tol:
-				num=beta**2.0*w2**2.0*t_current*np.exp(beta*w2)*np.exp(-1j*w2*t_current)
-				denom=8.0*math.pi**2.0*(np.exp(beta*w2)-beta*w2-1.0)
+                # CORRECT ##
+				num=1j*beta**2.0*w2**2.0*t_current*np.exp(-1j*w2*t_current)
+				denom=8.0*math.pi**2.0*(np.exp(-beta*w2)+beta*w2*np.exp(-beta*w2)-1.0)
 			elif abs(w2)<tol:
-				num=-1j*beta**2.0*w1*np.exp(beta*w1)*np.exp(-1j*w1*t_current)*(np.exp(1j*w1*t_current)-1.0)
-				denom=8.0*math.pi**2.0*(1.0+np.exp(beta*w1)*(beta*w1-1.0))
+                # CORRECT ##
+				num=-beta**2.0*w1*(1.0-np.exp(-1j*w1*t_current))
+				denom=8.0*math.pi**2.0*(np.exp(-beta*w1)+beta*w1-1.0)
 			elif abs(w_bar)<tol:
-				num=1j*beta**2.0*w1*(np.exp(1j*w1*t_current)-1.0)
-				denom=8.0*math.pi**2.0*(1.0-np.exp(beta*w1)-beta*w1)
+                # CORRECT ##
+				num=-beta**2.0*w2*(np.exp(-1j*w2*t_current)-1.0)
+				denom=8.0*math.pi**2.0*(1.0-np.exp(-beta*w2)-beta*w2)
 			else:
-				num=-1j*w_bar*w2*beta**2.0*(np.exp(-1j*w2*t_current)*(np.exp(1j*w2*t_current)-np.exp(-1j*w_bar*t_current)))
+                # CORRECT ##
+				num=-w_bar*w2*beta**2.0*(np.exp(-1j*w2*t_current)-np.exp(-1j*w_bar*t_current))
 				denom=8.0*math.pi**2.0*(w2*np.exp(-beta*w_bar)-w_bar*np.exp(-beta*w2)+w1)
 		
 			integrant[i,j,2]=num/denom*const_fac
@@ -630,18 +707,23 @@ def HT_integrant_U_U_mu(corr_func_U_U_mu_freq,mu_renorm,mu_av,kBT,t_current):
                         w_bar=w1+w2
                         const_fac=(corr_func_U_U_mu_freq[i,j,2]*mu_eff[0]+corr_func_U_U_mu_freq[i,j,3]*mu_eff[1]+corr_func_U_U_mu_freq[i,j,4]*mu_eff[2])/mu_renorm**2.0
                         if abs(w1)<tol and abs(w2)<tol:
+                                # CORRECT ## 
                                 num=t_current**2.0
                                 denom=8.0*math.pi**2.0
                         elif abs(w1)<tol:
-                                num=beta**2.0*np.exp(beta*w2)*np.exp(-1j*w2*t_current)*(np.exp(1j*w2*t_current)-1j*w2*t_current-1.0)
-                                denom=8.0*math.pi**2.0*(1.0-np.exp(beta*w2)+beta*w2)
+                                # CORRECT ##
+                                num=beta**2.0*(np.exp(-1j*w2*t_current)+1j*w2*t_current*np.exp(-1j*w2*t_current)-1.0)
+                                denom=8.0*math.pi**2.0*(1.0-beta*w2*np.exp(-beta*w2)-np.exp(-beta*w2))
                         elif abs(w2)<tol:
-                                num=beta**2.0*np.exp(beta*w1)*np.exp(-1j*w1*t_current)*(np.exp(1j*w1*t_current)*(1.0+1j*w1*t_current)-1.0)
-                                denom=8.0*math.pi**2.0*(1.0+np.exp(beta*w1)*(beta*w1-1.0))
+                                # CORRECT ##
+                                num=beta**2.0*(1.0-np.exp(-1j*w1*t_current)-1j*w1*t_current)
+                                denom=8.0*math.pi**2.0*(np.exp(-beta*w1)+beta*w1-1.0)
                         elif abs(w_bar)<tol:
-                                num=beta**2.0*(np.exp(1j*w1*t_current)-1j*w1*t_current-1.0)
-                                denom=8.0*math.pi**2.0*(1.0-np.exp(beta*w1)+beta*w1)
+                                # CORRECT ##
+                                num=beta**2.0*(np.exp(-1j*w2*t_current)+1j*w2*t_current-1.0)
+                                denom=8.0*math.pi**2.0*(1.0-np.exp(-beta*w2)-beta*w2)
                         else:
+                                # CORRECT ##
                                 num=beta**2.0*w_bar*w2*((1.0-np.exp(-1j*w_bar*t_current))/w_bar-(1.0-np.exp(-1j*w2*t_current))/w2)
                                 denom=8.0*math.pi**2.0*(w2*np.exp(-beta*w_bar)-w_bar*np.exp(-beta*w2)+w1)
 
@@ -665,7 +747,7 @@ def compute_HT_term_3rd_order(corr_func_U_U_mu_freq,corr_func_mu_U_mu_freq,mu_av
                     integrant2=HT_integrant_mu_U_mu(corr_func_mu_U_mu_freq,mu_renorm,kBT,t_current)
                 #integrant3=HT_integrant_mu_U_U(corr_func_mu_U_U_freq,mu_reorg,mu_renorm,kBT,t_current)
                 tot_integrant=integrant1
-                tot_integrant[:,:,2]=tot_integrant[:,:,2]-1j*integrant2[:,:,2] #+integrant3[:,:,2]
+                tot_integrant[:,:,2]=tot_integrant[:,:,2]+integrant2[:,:,2] #+integrant3[:,:,2]
                 Afunc[i,1]=cumulant.simpson_integral_2D(tot_integrant)
 
         # should be correct.

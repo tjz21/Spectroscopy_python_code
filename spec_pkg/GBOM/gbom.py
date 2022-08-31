@@ -142,6 +142,8 @@ class gbom:
 
 		# Herzberg teller contribution
         self.HT=np.zeros((1,1))
+        # ONLY NEEDED FOR ANDRES version
+        self.HT_FCHT=np.zeros((1,1))
 
 		# cumulant terms:
         self.g2_exact=np.zeros((1,1),dtype=complex)
@@ -197,9 +199,13 @@ class gbom:
     def compute_HT_term(self,temp,num_points,max_t,decay_length,is_qm,is_3rd,dipole_dipole_only,is_emission,stdout):
         kbT=const.kb_in_Ha*temp
         if is_emission:
-            self.HT=gbom_cumulant_response.full_HT_term(self.freqs_gs_emission,self.K_emission,self.J_emission,self.Omega_sq,self.gamma,self.dipole_mom,self.dipole_deriv_emission,kbT,max_t,num_points,decay_length,is_qm,is_3rd,dipole_dipole_only,is_emission,stdout)
+            self.HT=gbom_cumulant_response.full_HT_term(self.freqs_gs_emission,self.K_emission,self.J_emission,self.Omega_sq,self.gamma,self.dipole_mom_emission,self.dipole_deriv_emission,kbT,max_t,num_points,decay_length,is_qm,is_3rd,dipole_dipole_only,is_emission,stdout)
+            # ANDRES TERM
+            self.HT_FCHT=gbom_cumulant_response.full_FCHT_term_second_order(self.freqs_gs_emission,self.K_emission,self.J_emission,self.gamma,self.dipole_mom_emission,self.dipole_deriv_emission,kbT,max_t,num_points,decay_length,is_qm,is_emission)
         else:
             self.HT=gbom_cumulant_response.full_HT_term(self.freqs_gs,self.K,self.J,self.Omega_sq,self.gamma,self.dipole_mom,self.dipole_deriv,kbT,max_t,num_points,decay_length,is_qm,is_3rd,dipole_dipole_only,is_emission,stdout)
+            # ANDRES TERM
+            self.HT_FCHT=gbom_cumulant_response.full_FCHT_term_second_order(self.freqs_gs,self.K,self.J,self.gamma,self.dipole_mom,self.dipole_deriv,kbT,max_t,num_points,decay_length,is_qm,is_emission)
 
 
     def set_absorption_variables(self):
@@ -240,11 +246,12 @@ class gbom:
         self.dipole_mom_emission[2]=self.dipole_mom[2]+np.dot(self.K_emission,self.dipole_deriv[:,2])
         
 
+    # ADDED FCHT DUMMY TERM. ONLY NEEDED FOR ANDRES VERSION
     def calc_cumulant_response(self,is_3rd_order_cumulant,is_qm,is_emission,is_HT):
         if is_qm:
-            self.cumulant_response=gbom_cumulant_response.compute_cumulant_response(self.g2_exact,self.g3_exact,self.dipole_mom,self.HT,is_3rd_order_cumulant,is_HT,is_emission)
+            self.cumulant_response=gbom_cumulant_response.compute_cumulant_response(self.g2_exact,self.g3_exact,self.dipole_mom,self.HT,self.HT_FCHT,is_3rd_order_cumulant,is_HT,is_emission)
         else:
-            self.cumulant_response=gbom_cumulant_response.compute_cumulant_response(self.g2_cl,self.g3_cl,self.dipole_mom,self.HT,is_3rd_order_cumulant,is_HT,is_emission)
+            self.cumulant_response=gbom_cumulant_response.compute_cumulant_response(self.g2_cl,self.g3_cl,self.dipole_mom,self.HT,self.HT_FCHT,is_3rd_order_cumulant,is_HT,is_emission)
     
     def calc_spectral_dens(self,temp,max_t,max_steps,decay_length,is_cl,is_emission):
         kbT=const.kb_in_Ha*temp

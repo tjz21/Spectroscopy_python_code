@@ -977,7 +977,8 @@ if param_set.model=='GBOM' or param_set.model=='MD_GBOM':
                                     # GBOM assumes E_0_0 as input rather than E_adiabatic. 
                                     E_0_0=(E_adiabatic+0.5*(np.sum(freqs_ex)-np.sum(freqs_gs)))
 
-                                    # construct GBOM
+                                    # construct GBOM 
+                                    # HACK!!!!! SET GS AND EX FREQS EQUAL. REMOVE!!! SECOND FREQ SHOULD BE FREQ EX
                                     GBOM=gbom.gbom(freqs_gs,freqs_ex,J,K,E_0_0,dipole_transformed,param_set.stdout)
                                     if param_set.herzberg_teller:
                                         GBOM.dipole_deriv=dipole_deriv_nm
