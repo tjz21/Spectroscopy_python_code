@@ -898,12 +898,12 @@ def full_HT_term(freqs_gs,Kmat,Jmat,Omega_sq,gamma,dipole_mom,dipole_deriv,kbT,m
         HT_func[i,0]=t
         if is_emission:
             if is_qm:
-                HT_func[i,1]=HT_qm_t(freqs_gs,Kmat,Jtrans,Omega_sq,gamma,n_i_vec,gs_dipole,Jdip_deriv,is_3rd_order,dipole_dipole_only,-t)
+                HT_func[i,1]=HT_qm_t(freqs_gs,Kmat,Jtrans,Omega_sq,gamma,n_i_vec,kbT,gs_dipole,Jdip_deriv,is_3rd_order,dipole_dipole_only,-t)
             else:
                 HT_func[i,1]=HT_cl_t(freqs_gs,cross_corr_freq,Kmat,Jtrans,Omega_sq,gamma,n_i_vec,kbT,gs_dipole,Jdip_deriv,is_3rd_order,dipole_dipole_only,-t)
         else:
             if is_qm:
-                HT_func[i,1]=HT_qm_t(freqs_gs,Kmat,Jtrans,Omega_sq,gamma,n_i_vec,gs_dipole,Jdip_deriv,is_3rd_order,dipole_dipole_only,t) 
+                HT_func[i,1]=HT_qm_t(freqs_gs,Kmat,Jtrans,Omega_sq,gamma,n_i_vec,kbT,gs_dipole,Jdip_deriv,is_3rd_order,dipole_dipole_only,t) 
             else:
                 HT_func[i,1]=HT_cl_t(freqs_gs,cross_corr_freq,Kmat,Jtrans,Omega_sq,gamma,n_i_vec,kbT,gs_dipole,Jdip_deriv,is_3rd_order,dipole_dipole_only,t)
         t=t+step_length
@@ -941,21 +941,17 @@ def one_deriv_term_intergrant(cross_corr_func_freq,kbT,t):
 
 def HT_cl_t(freqs_gs,cross_corr_func_freq,Kmat,Jtrans,Omega_sq,gamma,n,kBT,gs_dipole_mom,Jdip_deriv,is_3rd_order,dipole_dipole_only,t):
     one_deriv_term=0.0+0.0*1j
+    alpha_term=np.zeros(3,dtype=np.complex_)  # Alpha term according to Andres. 
     # 2nd order HT term is unchanged from qm version of the same term.
     for i in range(freqs_gs.shape[0]):
         # Definitely double check this term
-        term_xyz=2.0*(np.dot(gs_dipole_mom,Jdip_deriv[i,:]))*gamma[i]/(2.0*(freqs_gs[i])**2.0)*((n[i]+1.0)*(1.0-cmath.exp(-1j*freqs_gs[i]*t))-n[i]*(1.0-cmath.exp(1j*freqs_gs[i]*t)))  # (n+1) and n term are opposite sign!)
-        one_deriv_term=one_deriv_term+term_xyz
+        alpha_term=alpha_term-Jdip_deriv[i,:]*gamma[i]/(2.0*freqs_gs[i]**2.0)*(cmath.cos(freqs_gs[i]*t)-1.0-1j*cmath.sin(freqs_gs[i]*t)*cmath.cosh(freqs_gs[i]/(2.0*kBT)/cmath.sinh(freqs_gs[i]/(2.0*kBT))))
 
-
-    # ANDRES VERSION: NO ONE DERIV TERM!!!
-    #one_deriv_term=0.0+0.0*1j
-    #END ANDRES VERSION
+    one_deriv_term=-2.0*np.dot(gs_dipole_mom,alpha_term)+np.dot(alpha_term,alpha_term)
 
     two_deriv_term=0.0+1j*0.0
     for i in range(freqs_gs.shape[0]):
-        term_xyz=np.dot(Jdip_deriv[i,:],Jdip_deriv[i,:])/(2.0*freqs_gs[i])*((n[i]+1.0)*cmath.exp(-1j*freqs_gs[i]*t)+n[i]*cmath.exp(1j*freqs_gs[i]*t))
-        two_deriv_term=two_deriv_term+term_xyz
+        two_deriv_term=two_deriv_term+np.dot(Jdip_deriv[i,:],Jdip_deriv[i,:])/(2.0*freqs_gs[i])*(cmath.cos(freqs_gs[i]*t)*cmath.cosh(freqs_gs[i]/(2.0*kBT)/cmath.sinh(freqs_gs[i]/(2.0*kBT)))-1j*cmath.sin(freqs_gs[i]*t))
 
     if is_3rd_order:
         # Compute 3rd order cumulant correction
@@ -1013,10 +1009,6 @@ def HT_cl_t(freqs_gs,cross_corr_func_freq,Kmat,Jtrans,Omega_sq,gamma,n,kBT,gs_di
         if dipole_dipole_only:  # only two derivative term
             total=np.dot(gs_dipole_mom,gs_dipole_mom)+two_deriv_term
         else:
-            # TEST ONLY CONSIDER FCHT
-            #total=two_deriv_term
-            #END TEST
-            #ORIGINAL VERSION
             total=np.dot(gs_dipole_mom,gs_dipole_mom)+one_deriv_term+two_deriv_term
 
     return total
@@ -1032,16 +1024,19 @@ def HT_mixed_FCHT_t(freqs_gs,gamma,n,gs_dipole_mom,Jdip_deriv,t):
 
 
 # HT prefactor for a given value of t if the exact quantum correlation function is used. 
-def HT_qm_t(freqs_gs,Kmat,Jtrans,Omega_sq,gamma,n,gs_dipole_mom,Jdip_deriv,is_3rd_order,dipole_dipole_only,t):
+def HT_qm_t(freqs_gs,Kmat,Jtrans,Omega_sq,gamma,n,kBT,gs_dipole_mom,Jdip_deriv,is_3rd_order,dipole_dipole_only,t):
     one_deriv_term=0.0+0.0*1j
+    alpha_term=np.zeros(3,dtype=np.complex_)  # Alpha term according to Andres. 
+    # 2nd order HT term is unchanged from qm version of the same term.
     for i in range(freqs_gs.shape[0]):
-        term_xyz=(np.dot(gs_dipole_mom,Jdip_deriv[i,:]))*gamma[i]/((freqs_gs[i])**2.0)*(1.0-(n[i]+1.0)*cmath.exp(-1j*freqs_gs[i]*t)+n[i]*(cmath.exp(1j*freqs_gs[i]*t)))
-        one_deriv_term=one_deriv_term+term_xyz
+        # Definitely double check this term
+        alpha_term=alpha_term-Jdip_deriv[i,:]*gamma[i]/(2.0*freqs_gs[i]**2.0)*(cmath.cos(freqs_gs[i]*t)-1.0-1j*cmath.sin(freqs_gs[i]*t)*cmath.cosh(freqs_gs[i]/(2.0*kBT)/cmath.sinh(freqs_gs[i]/(2.0*kBT))))
+
+    one_deriv_term=-2.0*np.dot(gs_dipole_mom,alpha_term)+np.dot(alpha_term,alpha_term)
 
     two_deriv_term=0.0+1j*0.0
     for i in range(freqs_gs.shape[0]):
-        term_xyz=(np.dot(Jdip_deriv[i,:],Jdip_deriv[i,:]))/(2.0*freqs_gs[i])*((n[i]+1.0)*cmath.exp(-1j*freqs_gs[i]*t)+n[i]*cmath.exp(1j*freqs_gs[i]*t))
-        two_deriv_term=two_deriv_term+term_xyz
+        two_deriv_term=two_deriv_term+np.dot(Jdip_deriv[i,:],Jdip_deriv[i,:])/(2.0*freqs_gs[i])*(cmath.cos(freqs_gs[i]*t)*cmath.cosh(freqs_gs[i]/(2.0*kBT)/cmath.sinh(freqs_gs[i]/(2.0*kBT)))-1j*cmath.sin(freqs_gs[i]*t))
 
     if is_3rd_order:
         # Compute 3rd order cumulant correction
@@ -1099,9 +1094,6 @@ def HT_qm_t(freqs_gs,Kmat,Jtrans,Omega_sq,gamma,n,gs_dipole_mom,Jdip_deriv,is_3r
         if dipole_dipole_only:
             total=np.dot(gs_dipole_mom,gs_dipole_mom)+two_deriv_term
         else:
-            # TEST ONLY FCHT CONTRIBUTION
-            #total=two_deriv_term
-            #ORIGINAL VERSION
             total=np.dot(gs_dipole_mom,gs_dipole_mom)+one_deriv_term+two_deriv_term
 
     return total
