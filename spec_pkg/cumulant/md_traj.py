@@ -232,10 +232,10 @@ class MDtrajs:
 
                 # Compute spectral density: this is really only done for analysis purposes:
                 sd=cumulant.compute_spectral_dens(self.corr_func_dipole_cl,kbT, sampling_rate,self.time_step)
-                self.dipole_spectral_dens=sd # store dipole spectral dens
+                self.dipole_spectral_dens=np.copy(sd) # store dipole spectral dens
                 np.savetxt('Dipole_dipole_spectral_density.dat',sd)
                 sd=cumulant.compute_spectral_dens(self.corr_func_cross_cl[:,0],kbT, sampling_rate,self.time_step)
-                eff_SD=sd
+                eff_SD=np.copy(sd)
                 eff_SD[:,1]=sd[:,1]*self.dipole_mom_av[0]
                 np.savetxt('Dipole_energy_cross_spectral_density_x.dat',sd)
                 sd=cumulant.compute_spectral_dens(self.corr_func_cross_cl[:,1],kbT, sampling_rate,self.time_step)
@@ -265,9 +265,38 @@ class MDtrajs:
 
 
                 # print L^2 SD
-                #eff_SD[:,1]=self.cross_spectral_dens[:,1]*self.cross_spectral_dens[:,1]+self.cross_spectral_dens[:,2]*self.cross_spectral_dens[:,2]+self.cross_spectral_dens[:,3]*self.cross_spectral_dens[:,3]
+                eff_SD[:,1]=self.cross_spectral_dens[:,1]*self.cross_spectral_dens[:,1]+self.cross_spectral_dens[:,2]*self.cross_spectral_dens[:,2]+self.cross_spectral_dens[:,3]*self.cross_spectral_dens[:,3]
 
-                #np.savetxt('L_squared_spectral_dens.dat',eff_SD)
+
+                eff_SD_L=np.copy(eff_SD)
+                np.savetxt('L_squared_spectral_dens.dat',eff_SD)
+
+                # print J*K spectral density
+                eff_SD[:,1]=self.dipole_spectral_dens[:,1]*self.spectral_dens[:,1]
+                eff_SD_JK=np.copy(eff_SD)
+                np.savetxt('J_timesK_spectral_dens.dat',eff_SD)
+
+
+                # build norm:
+                for i in range(eff_SD.shape[0]):
+                    if i>0:
+                        eff_SD[i,1]=abs(math.sqrt(eff_SD_JK[i,1])-math.sqrt(eff_SD_L[i,1]))/eff_SD[i,0]
+                    else:
+                        eff_SD[i,1]=abs(math.sqrt(eff_SD_JK[i,1])-math.sqrt(eff_SD_L[i,1]))
+
+                # Integrate and print:
+                gaussian_measure=integrate.simps(eff_SD[:,1],dx=(eff_SD[1,0]-eff_SD[0,0]))
+                print('Gaussian fluctuation meaure:   ', gaussian_measure/math.pi)
+
+                for i in range(eff_SD.shape[0]):
+                    if i>0:
+                        eff_SD[i,1]=abs(math.sqrt(eff_SD_JK[i,1]))/eff_SD[i,0]
+                    else:
+                        eff_SD[i,1]=abs(math.sqrt(eff_SD_JK[i,1]))
+
+                # Integrate and print:
+                gaussian_measure=integrate.simps(eff_SD[:,1],dx=(eff_SD[1,0]-eff_SD[0,0]))
+                print('JK_Measure:   ', gaussian_measure/math.pi)
 
         # TEST: BUILD ALSO ANDRES Expression
                 #self.A_HT_andres=ht.compute_HT_term_2nd_order_HT_only(corr_func_dipole_freq,self.dipole_mom_av,kbT,max_t,num_steps,is_emission)

@@ -558,8 +558,8 @@ def integrant_A_term(cross_spectral_dens: object, kbT: object, t: object) -> obj
                 real_term_za_a = cmath.cos(omega*t) - 1
                 imag_term_za_a = 1j * cmath.sin(omega*t) * coth
 
-        # Ours by gauss field theory
-                integrant[i,1:4]=(cross_spectral_dens[i,1:4]/(math.pi)) * (real_term_za_a - imag_term_za_a)
+        # Ours by gauss field theory # TJZ: Fixed mistake --> missing 1/omega factor in the integrant. 
+                integrant[i,1:4]=(cross_spectral_dens[i,1:4]/(math.pi*omega)) * (real_term_za_a - imag_term_za_a)
         #De Souza integrant
 
                 #integrant[i, 1:4] = cross_spectral_dens[i,1:4]/(math.pi*omega) * (cmath.cos(omega*t) - f_bt - (1j * cmath.sin(omega*t) * (cmath.cosh(omega/(2.0*kbT))/cmath.sinh(omega/(2.0*kbT)))))
