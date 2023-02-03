@@ -8,4 +8,5 @@ Current work in progress:
 2) nonlinear spectroscopy
 - Implement more nonlinear spectroscopy approaches
 
- 
+3) Multiple excited states
+- chain coefficients module generates model Hamiltonian for tensor network code?  

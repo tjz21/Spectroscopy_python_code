@@ -1280,8 +1280,8 @@ elif param_set.model=='MD':
                         if traj_count==1:
                                 traj_batch=np.zeros((traj_dipole.shape[0],param_set.num_trajs))
                                 dipole_batch=np.zeros((traj_dipole.shape[0],param_set.num_trajs,3))
-
-                        if not param_set.herzberg_teller:
+                        if traj_dipole.shape[1]==2:   # check if we have 2 or 5 parameters in input file
+                        #if not param_set.herzberg_teller:  # THIS IS WRONG! NEED TO CHECK DIMENSIONS OF INCOMING DATA FILE. 
                             traj_batch[:,traj_count-1]=traj_dipole[:,0]
                             # compute dipole moment from oscillator strength for each snapshot. Since direction of the 
                             # dipole moment does not matter for non-HT calculations, simply let the dipole moment point pure

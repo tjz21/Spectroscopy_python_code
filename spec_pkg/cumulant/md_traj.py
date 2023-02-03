@@ -147,6 +147,10 @@ class MDtrajs:
                         for j in range(dipoles.shape[1]):
                                 self.dipole_mom_av[:]=self.dipole_mom_av[:]+self.dipole_mom[i,j,:]/(1.0*self.dipole_mom.shape[0]*self.dipole_mom.shape[1]) # average dipole mom
 
+                #TEST
+                print('Average dipole mom')
+                print(np.sqrt(np.dot(self.dipole_mom_av,self.dipole_mom_av)))
+
 		# dipole mom, dipole mom av and all related quantities are vector quantities
                 self.dipole_reorg=np.zeros(3) # dipole reorganization and renormalized dipole moment
                 self.dipole_renorm=0.0 # required for HT terms
@@ -155,8 +159,15 @@ class MDtrajs:
                         for j in range(self.dipole_mom.shape[1]):
                                 self.dipole_fluct[i,j,:]=self.dipole_fluct[i,j,:]-self.dipole_mom_av[:] # construct fluctuations of 
                                 # dipole mom needed for Herzberg Term
-                stdout.write('Mean dipole moment: '+str(self.dipole_mom_av)+'  Ha'+'\n')
-		
+                stdout.write('Mean dipole moment: '+str(np.sqrt(np.dot(self.dipole_mom_av,self.dipole_mom_av)))+'  Ha'+'\n')
+                # COMPUTE DIPOLE SD
+                dipole_sd=0.0
+                for i in range(self.dipole_mom.shape[0]):
+                    for j in range(self.dipole_mom.shape[1]):
+                        dipole_sd=dipole_sd+np.dot(self.dipole_fluct[i,j,:],self.dipole_fluct[i,j,:])
+                dipole_sd=np.sqrt(dipole_sd/(self.dipole_mom.shape[0]*self.dipole_mom.shape[1]))
+                stdout.write('Standard deviation of dipole fluctuations: '+str(dipole_sd)+'  Ha'+'\n')
+
                 self.time_step=time_step # time between individual snapshots. Only relevant
                 # for cumulant approach. In the ensemble approach it is assumed that snapshots are completely decorrelated
                 self.tau=tau    # Artificial decay length applied to correlation funcs
@@ -233,7 +244,12 @@ class MDtrajs:
                 # Compute spectral density: this is really only done for analysis purposes:
                 sd=cumulant.compute_spectral_dens(self.corr_func_dipole_cl,kbT, sampling_rate,self.time_step)
                 self.dipole_spectral_dens=np.copy(sd) # store dipole spectral dens
-                np.savetxt('Dipole_dipole_spectral_density.dat',sd)
+                #TEST: FILTER DIPOLE SD!!!!
+                #for i in range(self.dipole_spectral_dens.shape[0]):
+                #    if self.dipole_spectral_dens[i,0]<0.00025:
+                #        self.dipole_spectral_dens[i,1]=0.0
+                # DONE TEST
+                np.savetxt('Dipole_dipole_spectral_density.dat',self.dipole_spectral_dens)
                 sd=cumulant.compute_spectral_dens(self.corr_func_cross_cl[:,0],kbT, sampling_rate,self.time_step)
                 eff_SD=np.copy(sd)
                 eff_SD[:,1]=sd[:,1]*self.dipole_mom_av[0]
