@@ -12,31 +12,61 @@ import spec_pkg.cumulant.cumulant as cumulant
 import spec_pkg.cumulant.herzberg_teller as ht
 import spec_pkg.nonlinear_spectrum.twoDES as twoDES
 
+def ensemble_response_for_given_energy(energy_fluct,dipole_mom,mean,decay_const,max_t,num_steps):
+        response_func=np.zeros((num_steps,2),dtype=complex)
+        t_step=max_t/num_steps
+        for tcount in range(num_steps):
+            t=tcount*t_step
+            response_func[tcount,0]=t
+            response_func[tcount,1]=(dipole_mom*dipole_mom*cmath.exp(-((t/(decay_const))**2.0)-1j*(mean+energy_fluct)*t))
+        return response_func
+
+
 # Works
-@jit
-def ensemble_response_for_given_t(fluctuations,dipole_mom,mean,decay_const,t):
-        response_val=0.0+0.0*1j
-        icount=0
-        while icount<fluctuations.shape[0]:
-                jcount=0
-                while jcount<fluctuations.shape[1]:
-                        response_val+=np.dot(dipole_mom[icount,jcount,:],dipole_mom[icount,jcount,:])*cmath.exp(-(t/decay_const)**2.0)*cmath.exp(-1j*((mean+fluctuations[icount,jcount]))*t)
-                        jcount=jcount+1
-                icount=icount+1
-        return response_val/(fluctuations.shape[0]*fluctuations.shape[1]*1.0)
+#@jit
+#def ensemble_response_for_given_t(fluctuations,dipole_mom,mean,decay_const,t):
+#        response_val=0.0+0.0*1j
+#        icount=0
+#        while icount<fluctuations.shape[0]:
+#                jcount=0
+#                while jcount<fluctuations.shape[1]:
+#                        response_val+=np.dot(dipole_mom[icount,jcount,:],dipole_mom[icount,jcount,:])*cmath.exp(-(t/decay_const)**2.0)*cmath.exp(-1j*((mean+fluctuations[icount,jcount]))*t)
+#                        jcount=jcount+1
+#                icount=icount+1
+#        return response_val/(fluctuations.shape[0]*fluctuations.shape[1]*1.0)
 	
 # introduce artificial, constant SD for ensemble spectra. This can be treated as a convergence parameter to ensure smoothness
 # for insufficient sampling
-def construct_full_ensemble_response(fluctuations,dipole_mom, mean, max_t,num_steps,decay_const):
-	response_func=np.zeros((num_steps,2),dtype=complex)
-	tcount=0
-	t_step=max_t/num_steps
-	while tcount<num_steps:
-		response_func[tcount,0]=tcount*t_step
-		response_func[tcount,1]=ensemble_response_for_given_t(fluctuations,dipole_mom,mean,decay_const,response_func[tcount,0])
-		tcount=tcount+1
+#def construct_full_ensemble_response(fluctuations,dipole_mom, mean, max_t,num_steps,decay_const):
+#	response_func=np.zeros((num_steps,2),dtype=complex)
+#	tcount=0
+#	t_step=max_t/num_steps
+#	while tcount<num_steps:
+#		response_func[tcount,0]=tcount*t_step
+#		response_func[tcount,1]=ensemble_response_for_given_t(fluctuations,dipole_mom,mean,decay_const,response_func[tcount,0])
+#		tcount=tcount+1
+#
+#	return response_func
 
-	return response_func
+def construct_full_ensemble_response(fluctuations,dipole_fluct,dipole_mean, mean, max_t,num_steps,decay_const):
+    response_func=np.zeros((num_steps,2),dtype=complex)
+    for i in range(fluctuations.shape[0]):
+        for j in range(fluctuations.shape[1]):
+            eff_dipole_mom=dipole_mean+np.dot(dipole_fluct[i,j,:],dipole_fluct[i,j,:])
+            single_response=ensemble_response_for_given_energy(fluctuations[i,j],eff_dipole_mom,mean,decay_const,max_t,num_steps)
+            if i==0 and j==0:
+                response_func=np.copy(single_response)
+                response_func[:,1]=response_func[:,1]/(fluctuations.shape[0]*fluctuations.shape[1]*1.0)
+            else:
+                response_func[:,1]=response_func[:,1]+1.0/(fluctuations.shape[0]*fluctuations.shape[1]*1.0)*single_response[:,1]
+
+    # TEST:
+    #single_response=ensemble_response_for_given_energy(fluctuations[0,0],dipole_mom[0,0,:],mean,decay_const,max_t,num_steps)
+    #print('dipole and fluct')
+    #print(fluctuations[0,0],dipole_mom[0,0,0])
+    #response_func=np.copy(single_response)
+
+    return response_func
 
 def construct_full_cumulant_response(g2,g3,mean,is_3rd_order,is_emission):
 	response_func=np.zeros((g2.shape[0],2),dtype=complex)
@@ -148,8 +178,6 @@ class MDtrajs:
                                 self.dipole_mom_av[:]=self.dipole_mom_av[:]+self.dipole_mom[i,j,:]/(1.0*self.dipole_mom.shape[0]*self.dipole_mom.shape[1]) # average dipole mom
 
                 #TEST
-                print('Average dipole mom')
-                print(np.sqrt(np.dot(self.dipole_mom_av,self.dipole_mom_av)))
 
 		# dipole mom, dipole mom av and all related quantities are vector quantities
                 self.dipole_reorg=np.zeros(3) # dipole reorganization and renormalized dipole moment
@@ -401,5 +429,6 @@ class MDtrajs:
 
         def calc_ensemble_response(self,max_t,num_steps):
 		# Adjust for the fact that ensemble spectrum already contains dipole moment scaling
-                self.ensemble_response=1.0/(np.dot(self.dipole_mom_av,self.dipole_mom_av))*construct_full_ensemble_response(self.fluct,self.dipole_mom, self.mean, max_t,num_steps,self.tau)
+                self.ensemble_response=construct_full_ensemble_response(self.fluct,self.dipole_mom,np.dot(self.dipole_mom_av,self.dipole_mom_av), self.mean, max_t,num_steps,self.tau)
+                self.ensemble_response[:,1]=1.0/(np.dot(self.dipole_mom_av,self.dipole_mom_av))*self.ensemble_response[:,1] # only scale x(t),not t
 
