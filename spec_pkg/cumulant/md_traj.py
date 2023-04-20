@@ -134,7 +134,7 @@ def mean_of_func_batch(func):
 	sd=np.sqrt(sd/(func.shape[0]*func.shape[1]))
 	skew=(skew)/((func.shape[0]*func.shape[1])*sd**3.0)
 
-	return mean,sd,skew
+	return mean,sd/const.Ha_to_eV,skew
 
 # generate an array of trajectory functions from files
 def get_all_trajs(num_trajs,name_list):
