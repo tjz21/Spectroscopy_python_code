@@ -69,24 +69,25 @@ def construct_full_ensemble_response(fluctuations,dipole_fluct,dipole_mean, mean
     return response_func
 
 def construct_full_cumulant_response(g2,g3,mean,is_3rd_order,is_emission):
-	response_func=np.zeros((g2.shape[0],2),dtype=complex)
-	counter=0
-	while counter<response_func.shape[0]:
-		response_func[counter,0]=g2[counter,0]
-		if is_emission:
-			if is_3rd_order:
-				g3_temp=1j*g3[counter,1]
-				response_func[counter,1]=cmath.exp(-1j*mean*g2[counter,0]-np.conj(g2[counter,1])-1j*np.conj(g3_temp))
-			else:
-				response_func[counter,1]=cmath.exp(-1j*mean*g2[counter,0]-np.conj(g2[counter,1]))
-		else:
-			if is_3rd_order:
-				response_func[counter,1]=cmath.exp(-1j*mean*g2[counter,0]-g2[counter,1]-g3[counter,1])
-			else:
-				response_func[counter,1]=cmath.exp(-1j*mean*g2[counter,0]-g2[counter,1])
+    response_func=np.zeros((g2.shape[0],2),dtype=complex)
+    counter=0
+    while counter<response_func.shape[0]:
+        response_func[counter,0]=g2[counter,0]
+        if is_emission:
+            if is_3rd_order:
+                g3_temp=1j*g3[counter,1]
+                response_func[counter,1]=cmath.exp(-1j*mean*g2[counter,0]-np.conj(g2[counter,1])-1j*np.conj(g3_temp))
+            else:
+                response_func[counter,1]=cmath.exp(-1j*mean*g2[counter,0]-np.conj(g2[counter,1]))
+        else:
+            if is_3rd_order:   # REMOVED STUPID TEST. SWAP sign of 3rd order cumulant contribution
+                #response_func[counter,1]=cmath.exp(-1j*mean*g2[counter,0]-g2[counter,1]+g3[counter,1])
+                response_func[counter,1]=cmath.exp(-1j*mean*g2[counter,0]-g2[counter,1]-g3[counter,1])
+            else:
+                response_func[counter,1]=cmath.exp(-1j*mean*g2[counter,0]-g2[counter,1])
 
-		counter=counter+1
-	return response_func
+        counter=counter+1
+    return response_func
 
 # return dipole moment squared for all transitions 
 def get_dipole_mom(oscillators,trajs):
@@ -130,8 +131,8 @@ def mean_of_func_batch(func):
 			skew=skew+(y-mean)**3.0
 
 	mean=mean/const.Ha_to_eV
-	sd=np.sqrt(sd/(func.shape[0]*func.shape[1])/const.Ha_to_eV)
-	skew=(skew/const.Ha_to_eV)/((func.shape[0]*func.shape[1])*sd**3.0)
+	sd=np.sqrt(sd/(func.shape[0]*func.shape[1]))
+	skew=(skew)/((func.shape[0]*func.shape[1])*sd**3.0)
 
 	return mean,sd,skew
 
