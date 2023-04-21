@@ -80,9 +80,9 @@ def construct_full_cumulant_response(g2,g3,mean,is_3rd_order,is_emission):
             else:
                 response_func[counter,1]=cmath.exp(-1j*mean*g2[counter,0]-np.conj(g2[counter,1]))
         else:
-            if is_3rd_order:   # REMOVED STUPID TEST. SWAP sign of 3rd order cumulant contribution
-                #response_func[counter,1]=cmath.exp(-1j*mean*g2[counter,0]-g2[counter,1]+g3[counter,1])
+            if is_3rd_order:   # STUPID TEST. SWAP sign of 3rd order cumulant contribution
                 response_func[counter,1]=cmath.exp(-1j*mean*g2[counter,0]-g2[counter,1]-g3[counter,1])
+                #response_func[counter,1]=cmath.exp(-1j*mean*g2[counter,0]-g2[counter,1]-g3[counter,1])
             else:
                 response_func[counter,1]=cmath.exp(-1j*mean*g2[counter,0]-g2[counter,1])
 
@@ -343,24 +343,24 @@ class MDtrajs:
                 gaussian_measure=integrate.simps(eff_SD[:,1],dx=(eff_SD[1,0]-eff_SD[0,0]))
                 print('JK_Measure:   ', gaussian_measure/math.pi)
 
-        # TEST: BUILD ALSO ANDRES Expression
-                #self.A_HT_andres=ht.compute_HT_term_2nd_order_HT_only(corr_func_dipole_freq,self.dipole_mom_av,kbT,max_t,num_steps,is_emission)
-                #self.A_FCHT_andres=ht.compute_HT_term_2nd_order_FCHT_only(corr_func_cross_freq,self.dipole_mom_av,kbT,max_t,num_steps,is_emission)
-
-		# need to compute 3rd order correction
-                if third_order:
-                        self.corr_func_mu_U_mu_cl=ht.construct_corr_func_3rd_mu_U_mu(self.dipole_fluct,self.fluct, self.num_trajs,corr_length,self.tau,self.time_step,stdout)
-                        self.corr_func_U_U_mu_cl=ht.construct_corr_func_3rd_U_U_mu(self.dipole_fluct,self.fluct, self.num_trajs,corr_length,self.tau,self.time_step,stdout)
-			#self.corr_func_mu_U_U_cl=ht.construct_corr_func_3rd_mu_U_U(self.dipole_fluct,self.fluct, self.num_trajs,corr_length,self.tau,self.time_step,stdout)
-                        #mu_U_U not actually needed. 
-           
-			# Fourier transform 
-                        corr_func_mu_U_mu_freq=ht.compute_mu_U_mu_corr_func_freq(self.corr_func_mu_U_mu_cl,sampling_rate_in_fs,low_freq_filter)
-
-                        corr_func_U_U_mu_freq=ht.compute_mu_U_U_corr_func_freq(self.corr_func_U_U_mu_cl,sampling_rate_in_fs,low_freq_filter)
-
-			# build 3rd order correction:
-                        self.A_HT3=ht.compute_HT_term_3rd_order(corr_func_U_U_mu_freq,corr_func_mu_U_mu_freq,self.dipole_mom_av,kbT,max_t,num_steps,is_emission)
+#        # TEST: BUILD ALSO ANDRES Expression
+#                #self.A_HT_andres=ht.compute_HT_term_2nd_order_HT_only(corr_func_dipole_freq,self.dipole_mom_av,kbT,max_t,num_steps,is_emission)
+#                #self.A_FCHT_andres=ht.compute_HT_term_2nd_order_FCHT_only(corr_func_cross_freq,self.dipole_mom_av,kbT,max_t,num_steps,is_emission)
+#
+#		# need to compute 3rd order correction
+#                if third_order:
+#                        self.corr_func_mu_U_mu_cl=ht.construct_corr_func_3rd_mu_U_mu(self.dipole_fluct,self.fluct, self.num_trajs,corr_length,self.tau,self.time_step,stdout)
+#                        self.corr_func_U_U_mu_cl=ht.construct_corr_func_3rd_U_U_mu(self.dipole_fluct,self.fluct, self.num_trajs,corr_length,self.tau,self.time_step,stdout)
+#			#self.corr_func_mu_U_U_cl=ht.construct_corr_func_3rd_mu_U_U(self.dipole_fluct,self.fluct, self.num_trajs,corr_length,self.tau,self.time_step,stdout)
+#                        #mu_U_U not actually needed. 
+#           
+#			# Fourier transform 
+#                        corr_func_mu_U_mu_freq=ht.compute_mu_U_mu_corr_func_freq(self.corr_func_mu_U_mu_cl,sampling_rate_in_fs,low_freq_filter)
+#
+#                        corr_func_U_U_mu_freq=ht.compute_mu_U_U_corr_func_freq(self.corr_func_U_U_mu_cl,sampling_rate_in_fs,low_freq_filter)
+#
+#			# build 3rd order correction:
+#                        self.A_HT3=ht.compute_HT_term_3rd_order(corr_func_U_U_mu_freq,corr_func_mu_U_mu_freq,self.dipole_mom_av,kbT,max_t,num_steps,is_emission)
 
         def calc_2nd_order_divergence(self):
                 omega_step=self.spectral_dens[1,0]-self.spectral_dens[0,0]
@@ -414,7 +414,7 @@ class MDtrajs:
                 if is_ht: # add herzberg-teller correction
                         for i in range(self.cumulant_response.shape[0]):
                                 if is_3rd_order:
-                                        self.cumulant_response[i,1]=self.cumulant_response[i,1]*(self.A_HT2[i,1]+self.A_HT3[i,1])
+                                        self.cumulant_response[i,1]=self.cumulant_response[i,1]*(self.A_HT2[i,1])#+self.A_HT3[i,1])
                                 else:
                                         # STUPID TEST: CHANGE RESUMMATION OF CUMULANT!
                                         #self.cumulant_response[i,1]=np.dot(self.dipole_mom_av,self.dipole_mom_av)*(self.cumulant_response[i,1])+self.A_HT2[i,1]

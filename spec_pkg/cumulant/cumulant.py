@@ -306,24 +306,24 @@ def integrant_3rd_order_cumulant_lineshape(corr_func_freq,freq_list,t_val,kbT):
 			integrant[icount,jcount,0]=omega1
 			integrant[icount,jcount,1]=omega2
 
-			if abs(omega1)<tol and abs(omega2)<tol:
-				integrant[icount,jcount,2]=1j*1.0/3.0*corr_func_freq[icount,jcount]*t_val**3.0/(8.0*math.pi**2.0)
-			elif abs(omega_bar)<tol:
-				num=1j*(-omega1**2.0*t_val**2.0/2.0+1.0-cmath.exp(1j*omega1*t_val)+1j*omega1*t_val)
-				denom=omega1*(-omega2/kbT-math.exp(-omega2/kbT)+1.0)  # i think this is right...
-				integrant[icount,jcount,2]=1j*corr_func_freq[icount,jcount]*num/(8.0*math.pi**2.0*kbT**2.0*denom)
+			if abs(omega1)<tol and abs(omega2)<tol: # fixed negative sign 
+				integrant[icount,jcount,2]=-1j*1.0/3.0*corr_func_freq[icount,jcount]*t_val**3.0/(8.0*math.pi**2.0)
+			elif abs(omega_bar)<tol:   # 
+				num=(-omega1**2.0*t_val**2.0/2.0+1.0-cmath.exp(1j*omega1*t_val)+1j*omega1*t_val) # corrected. 
+				denom=omega1*(-omega2/kbT-math.exp(-omega2/kbT)+1.0)  # correct
+				integrant[icount,jcount,2]=corr_func_freq[icount,jcount]*num/(8.0*math.pi**2.0*kbT**2.0*denom)
 			elif abs(omega1)<tol:
-				num=1j*(2.0*(cmath.exp(-1j*omega2*t_val)-1.0)+1j*omega2*t_val*(cmath.exp(-1j*omega2*t_val)+1.0))
-				denom=omega2*(1.0-omega2/kbT*math.exp(-omega2/kbT)-math.exp(-omega2/kbT))	
-				integrant[icount,jcount,2]=1j*corr_func_freq[icount,jcount]*num/(8.0*math.pi**2.0*kbT**2.0*denom)
+				num=(2.0*(cmath.exp(-1j*omega2*t_val)-1.0)+1j*omega2*t_val*(cmath.exp(-1j*omega2*t_val)+1.0)) #correct
+				denom=omega2*(1.0-omega2/kbT*math.exp(-omega2/kbT)-math.exp(-omega2/kbT))	# correct
+				integrant[icount,jcount,2]=corr_func_freq[icount,jcount]*num/(8.0*math.pi**2.0*kbT**2.0*denom)
 			elif abs(omega2)<tol:
-				num=1j*(-omega1**2.0*t_val**2.0/2.0+1.0-1j*omega1*t_val-cmath.exp(-1j*omega1*t_val))
-				denom=omega1*(omega1/kbT+math.exp(-omega1/kbT)-1.0)
-				integrant[icount,jcount,2]=1j*corr_func_freq[icount,jcount]*num/(8.0*math.pi**2.0*kbT**2.0*denom)
+				num=(-omega1**2.0*t_val**2.0/2.0+1.0-1j*omega1*t_val-cmath.exp(-1j*omega1*t_val)) #correct
+				denom=omega1*(omega1/kbT+math.exp(-omega1/kbT)-1.0) # correct
+				integrant[icount,jcount,2]=corr_func_freq[icount,jcount]*num/(8.0*math.pi**2.0*kbT**2.0*denom)
 			else:
-				num=1j*(cmath.exp(-1j*omega2*t_val)-1.0+omega2/omega_bar*(1.0-cmath.exp(-1j*omega_bar*t_val))+omega1/omega2*(cmath.exp(-1j*omega2*t_val)-1.0+1j*omega2*t_val))
-				denom=omega2*math.exp(-omega_bar/kbT)-omega_bar*math.exp(-omega2/kbT)+omega1
-				integrant[icount,jcount,2]=1j*corr_func_freq[icount,jcount]/(8.0*math.pi**2.0*kbT**2.0)*num/denom
+				num=(cmath.exp(-1j*omega2*t_val)-1.0+omega2/omega_bar*(1.0-cmath.exp(-1j*omega_bar*t_val))+omega1/omega2*(cmath.exp(-1j*omega2*t_val)-1.0+1j*omega2*t_val)) #correct!
+				denom=omega2*math.exp(-omega_bar/kbT)-omega_bar*math.exp(-omega2/kbT)+omega1 # correct
+				integrant[icount,jcount,2]=corr_func_freq[icount,jcount]/(8.0*math.pi**2.0*kbT**2.0)*num/denom # correct
 
 			jcount=jcount+1
 		icount=icount+1
