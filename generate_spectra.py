@@ -756,7 +756,7 @@ def compute_MD_absorption(param_list,MDtraj,solvent,is_emission):
         # now check if this is a cumulant or a classical ensemble calculation
         if param_list.method=='CUMULANT':
                 MDtraj.calc_2nd_order_corr()
-                MDtraj.calc_spectral_dens(param_list.temperature_MD)
+                MDtraj.calc_spectral_dens(param_list.temperature_MD, param_list.J_filter_length, param_list.J_filter_freq, param_list.J_filter_type)
                 np.savetxt(param_list.MD_root+'MD_spectral_density.dat', MDtraj.spectral_dens)
 
                 MDtraj.calc_g2(param_list.temperature,param_list.max_t,param_list.num_steps,param_list.stdout)
