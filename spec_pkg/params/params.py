@@ -120,6 +120,9 @@ class params:
         self.J_filter_type = 1
         self.J_filter_length = 2.0 # rate at which dreuency cutoff is enabled, on cm^-1
         self.J_filter_freq = 1E10 # low frequency cutoff, in cm^-1
+        
+        #   parallel computing options
+        self.parallel_method = 'thread' #   either 'thread' or 'mp'
 
         # now start filling keyword list by parsing input file.
         self.task=get_param(filepath,'TASK')  # absorption, emission, 2DES, other spectroscopy techniqes
@@ -354,3 +357,13 @@ class params:
         par=get_param(filepath, 'J_FILTER_FREQ')
         if par != '':
             self.J_filter_freq = float(par)/const.Ha_to_cm
+
+        #   parallel options
+        par=get_param(filepath, 'PARALLEL_METHOD')
+        if par != '':
+            if par.upper() == 'THREAD':
+                self.parallel_method = 'THREAD'
+            elif par.upper() == 'MP':
+                self.parallel_method = 'MP'
+            else:
+                raise ValueError('input option PARALLEL_METHOD can only be set to THREAD or MP')

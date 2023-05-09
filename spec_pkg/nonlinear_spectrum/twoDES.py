@@ -9,6 +9,11 @@ import time
 from numba import config,jit, njit
 from spec_pkg.cumulant import cumulant as cumul
 from spec_pkg.GBOM import gbom_cumulant_response as cumul_gbom
+from multiprocessing.pool import Pool
+
+#	parallel settings
+PARALLEL_METHOD = 'THREAD'
+N_CORES = 1
 
 # basic analysis routines. Printing full 2DES, printing slices through the full 2DES along xaxis, yaxis and diagonal.
 
@@ -143,9 +148,84 @@ def calc_2DES_time_series_batch(q_batch,dipole_batch,num_batches,E_min1,E_max1,E
 		np.savetxt(rootname+'_2DES_2nd_order_cumulant_averaged_spectrum.txt',averaged_val)
 
 
+def spectrum_2D_runner(param_list: tuple):
+	'''
+		Function called by Muleiprocessing Pool. 
+		This function loops over all 2DES spectrum in the param_list
+	'''
+	results = []
+	for params in param_list:
+		print("IN WORKER: ", params['ID'])
+		args = params['func_args']
+		worker_ID = params['ID']
+		out_file_name = params['out_file_name']
+
+		spectrum_2D=calc_2D_spectrum(*args)
+		print_2D_spectrum(out_file_name,spectrum_2D,False)
+
+		#compute transient absorption contribution here:
+		transient = transient_abs_from_2DES(spectrum_2D)
+		averaged_val = cumul.simpson_integral_2D(spectrum_2D)
+
+		results.append((transient, averaged_val))
+
+	return tuple(results)
+
+def calc_2DES_time_series_multiprocess(q_func,dipole_mom,E_min1,E_max1,E_min2,E_max2,num_points_2D,rootname,num_times,time_step,mean):
+		'''
+			Equivilant to calc_2DES_time_series(), but multiprocessed
+		'''
+		print("IN TIME SERIES")
+		averaged_val=np.zeros((num_times,2))
+		transient_abs=np.zeros((num_times,num_points_2D,3))
+
+		# make sure chosen delay times break down into an integer number of timesteps in the response function
+		step_length_t=(q_func[1,0]-q_func[0,0]).real
+		eff_time_index_2DES=int(round(time_step/step_length_t))
+		eff_time_step_2DES=eff_time_index_2DES*step_length_t
+
+		delay_times = np.arange(num_times)*eff_time_step_2DES
+		delay_time_indicies = np.arange(num_times)*eff_time_index_2DES
+		
+		#	build up parameter list
+		worker_params = [[] for n in range(N_CORES)]
+		for counter, (current_delay, current_delay_index) in enumerate(zip(delay_times, delay_time_indicies)):
+			params = {}
+			worker_idx = counter % N_CORES
+			params['ID'] = worker_idx
+			params['out_file_name'] = rootname+'_2DES_'+str(counter)+'.dat'
+			params['func_args'] = (q_func,dipole_mom,current_delay,current_delay_index,E_min1,E_max1,E_min2,E_max2,num_points_2D,mean)
+			params['counter'] = counter
+			worker_params[worker_idx].append(params)
+		
+		#	run the 2DES times
+		with Pool(N_CORES) as pool:
+			worker_results = pool.map(spectrum_2D_runner,  worker_params)
+
+		#	combine all results together
+		for res, params in zip(worker_results, worker_params):
+			for sub_res, sub_params in zip(res, params):
+				transient_temp, averaged_tmp = sub_res
+				counter = sub_params['counter']
+				current_delay = sub_params['func_args'][2]
+
+				transient_abs[counter,:,0]=current_delay
+				transient_abs[counter,:,1]=transient_temp[:,0]
+				transient_abs[counter,:,2]=transient_temp[:,1]
+				
+				averaged_val[counter,0]=current_delay
+				averaged_val[counter,1]=averaged_tmp
+
+		print_2D_spectrum(rootname+'_2nd_order_cumulant_transient_absorption_spec.txt',transient_abs,False)
+		np.savetxt(rootname+'_2DES_2nd_order_cumulant_averaged_spectrum.txt',averaged_val)
+
 # basic calculation routines:
 # calculate a full series of 2DES spectra, sampled with a certain delay time step
 def calc_2DES_time_series(q_func,dipole_mom,E_min1,E_max1,E_min2,E_max2,num_points_2D,rootname,num_times,time_step,mean):
+		print("IN TIME SERIES: ", PARALLEL_METHOD, N_CORES)
+		if PARALLEL_METHOD == 'MP' and N_CORES > 1:
+			calc_2DES_time_series_multiprocess(q_func,dipole_mom,E_min1,E_max1,E_min2,E_max2,num_points_2D,rootname,num_times,time_step,mean)
+			return
 		averaged_val=np.zeros((num_times,2))
 		transient_abs=np.zeros((num_times,num_points_2D,3))
 
