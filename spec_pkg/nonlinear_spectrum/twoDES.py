@@ -6,7 +6,7 @@ import math
 import cmath
 from scipy import integrate
 import time
-from numba import config,jit, njit
+from numba import config,jit, njit, prange
 from spec_pkg.cumulant import cumulant as cumul
 from spec_pkg.GBOM import gbom_cumulant_response as cumul_gbom
 from multiprocessing.pool import Pool
@@ -357,11 +357,31 @@ def calc_pump_probe_time_series(q_func,dipole_mom,E_min,E_max,num_points_2D,root
 # Should be scaled by |mu|^4, where mu is the transition dipole moment. 
 @jit
 def calc_2D_spectrum(q_func,dipole_mom,delay_time,delay_index,E_min1,E_max1,E_min2,E_max2,num_points_2D,mean):
+	if PARALLEL_METHOD == 'THREAD' and N_CORES > 1:
+		return calc_2D_spectrum_threaded(q_func,dipole_mom,delay_time,delay_index,E_min1,E_max1,E_min2,E_max2,num_points_2D,mean)
+	
 	full_2D_spectrum=np.zeros((num_points_2D,num_points_2D,3))
 	step_length=((E_max1-E_min1)/num_points_2D)
 
 	rfunc=calc_Rfuncs_tdelay(q_func,delay_time,delay_index)
 	for counter1 in range(num_points_2D):
+		omega1=E_min1+counter1*step_length
+		for counter2 in range(num_points_2D):
+				omega2=E_min2+counter2*step_length
+				full_2D_integrant=twoD_spectrum_integrant(rfunc,q_func,omega1-mean,omega2-mean,delay_time)
+				full_2D_spectrum[counter1,counter2,0]=omega1
+				full_2D_spectrum[counter1,counter2,1]=omega2
+				full_2D_spectrum[counter1,counter2,2]=(np.dot(dipole_mom,dipole_mom))**2.0*cumul.simpson_integral_2D(full_2D_integrant).real
+
+	return full_2D_spectrum
+
+@jit(parallel=True)
+def calc_2D_spectrum_threaded(q_func,dipole_mom,delay_time,delay_index,E_min1,E_max1,E_min2,E_max2,num_points_2D,mean):
+	full_2D_spectrum=np.zeros((num_points_2D,num_points_2D,3))
+	step_length=((E_max1-E_min1)/num_points_2D)
+
+	rfunc=calc_Rfuncs_tdelay(q_func,delay_time,delay_index)
+	for counter1 in prange(num_points_2D):
 		omega1=E_min1+counter1*step_length
 		for counter2 in range(num_points_2D):
 				omega2=E_min2+counter2*step_length
