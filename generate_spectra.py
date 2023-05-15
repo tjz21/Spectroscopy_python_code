@@ -8,6 +8,8 @@ import numpy as np
 import math
 import cmath
 from numba import config
+import scipy.integrate
+import scipy.interpolate
 import spec_pkg.constants.constants as const
 from spec_pkg.GBOM import gbom
 from spec_pkg.GBOM import extract_model_params_gaussian as gaussian_params
@@ -247,11 +249,58 @@ def compute_GBOM_absorption(param_list,GBOM_chromophore,solvent,is_emission):
                         GBOM_chromophore.calc_spectral_dens(param_list.temperature,param_list.max_t,param_list.num_steps,param_list.decay_length,False,is_emission)
                         np.savetxt(param_list.GBOM_root+'_spectral_density_exact_corr.dat', GBOM_chromophore.spectral_dens)
                         GBOM_chromophore.calc_g2_qm(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.stdout)
-
                         # only compute third order cumulant if needed
                         if param_list.third_order:
                                 GBOM_chromophore.calc_g3_qm(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.four_phonon_term,param_list.g3_cutoff,param_list.stdout)
+                                if param_list.cumulant_nongaussian_prefactor:
+                                        #generate ensemble spectra to extract statistics as was done in the GBOM scan
+                                        GBOM_chromophore.calc_ensemble_response(param_list.temperature,param_list.num_steps,param_list.max_t,param_list.qm_wigner_dist,is_emission,param_list.stdout)       
+                                        ensemble_spectrum=linear_spectrum.full_spectrum(GBOM_chromophore.ensemble_response,solvent.solvent_response,param_list.num_steps,E_start,E_end,True,is_emission,param_list.stdout)   
+                                        y = ensemble_spectrum[:,1]
+                                        x = ensemble_spectrum[:,0]
+                                        y[np.where(y < 0.001)] = 0 
+                                        vol = scipy.integrate.simpson(y, ensemble_spectrum[:,0], ensemble_spectrum[1,0] - ensemble_spectrum[0,0])
+                                        y_normalized = y/vol
+                                        mean = scipy.integrate.simpson(x*y_normalized,x, dx= x[1] - x[0])
+                                        var = scipy.integrate.simpson((x-mean)**2*y_normalized, x, dx=x[1]-x[0])
+                                        skew = scipy.integrate.simpson(((x-mean)**3 * y_normalized) ,x, dx= x[1] - x[0])/ (var**(3/2))
+                                        kurtosis = scipy.integrate.simpson(y_normalized * (x-mean)**4  / var**2, x, x[1] - x[0]) - 3
+                                        #build spline and predict prefactor, rescale g_3 exact
+                                        cofs = [0.5704207280544358,0.5121728697163654,0.19152366513038535,14.037923420679276,1.9225644473520938
+                                                ,1.731540247289854,-0.2850403241337555,0.27133579735792684,-1.1394462432833181,1.2203032510849585, -0.48192256127602257, 0.30922580126562926,-3.5581880060082836,0.5262346303535038, 0.20572744884039815, 0.12231112351678848]
+                                        tx = [-0.45615384615384613,-0.45615384615384613,-0.45615384615384613,-0.45615384615384613,1.086923076923077,1.086923076923077
+                                              , 1.086923076923077,1.086923076923077]
+                                        ty = [-0.08476923076923078, -0.08476923076923078, -0.08476923076923078,-0.08476923076923078,1.6819999999999997,1.6819999999999997,1.6819999999999997,1.6819999999999997]
+                                        tck = (tx,ty,cofs,3,3)
+                                        spline = scipy.interpolate.SmoothBivariateSpline._from_tck(tck)
+                                        prefactor = spline(skew, kurtosis)
+                                        if prefactor < 0:
+                                                prefactor = 0
+                                        if prefactor > 1:
+                                                prefactor = 1
+                                        GBOM_chromophore.g3_exact[:,1] = prefactor * GBOM_chromophore.g3_exact[:,1]
+                                        #check if we're interpolating or extrapolating
+                                        p1,p2,p3,p4,p5 = [-0.5, 0.5],[0.1, -0.1],[0.1, 0.5],[0.66, 1.7],[1.1,1.7]
+                                        interpolate = False
+                                        C1,C2 = ((p5[1] - p2[1])/(p5[0] - p2[0])**2) * (skew - p2[0])**2 + p2[1], ((p4[1] - p3[1])/(p4[0] - p3[0])**2) * (skew - p3[0])**2 + p3[1]    
+                                        if p1[0] <= skew and skew <= p3[0]:
+                                                if C1 <= kurtosis and kurtosis <= p1[1]:
+                                                        interpolate = True
+                                        if p3[0] <= skew and skew <= p4[0]:
+                                                if C1<= kurtosis and kurtosis <= C2:
+                                                        interpolate = True
+                                        if p4[0] <= skew and skew <= p5[0]:
+                                                if C1 <= kurtosis and kurtosis <= p4[1]:
+                                                        interpolate = True
+                                        
+                                        if interpolate:
+                                                print("PREFACTOR: ", prefactor, " SKEW: ", skew, " KURTOSIS: ", kurtosis, " VALUE LIES IN SAMPLED REGION")
+                                        else:
+                                                print("PREFACTOR: ", prefactor, " SKEW: ", skew, " KURTOSIS: ", kurtosis, " WARNING! VALUE LIES OUTSIDE OF SAMPLED REGION. THIS IS AN ESTIMATE")
 
+  
+
+                                        
                 else:
                         GBOM_chromophore.calc_spectral_dens(param_list.temperature,param_list.max_t,param_list.num_steps,param_list.decay_length,True,is_emission)
                         np.savetxt(param_list.GBOM_root+'_spectral_density_harmonic_qcf.dat', GBOM_chromophore.spectral_dens)
@@ -755,27 +804,79 @@ def compute_MD_absorption(param_list,MDtraj,solvent,is_emission):
 
         # now check if this is a cumulant or a classical ensemble calculation
         if param_list.method=='CUMULANT':
+                print("HERE")
                 MDtraj.calc_2nd_order_corr()
                 MDtraj.calc_spectral_dens(param_list.temperature_MD)
                 np.savetxt(param_list.MD_root+'MD_spectral_density.dat', MDtraj.spectral_dens)
 
                 MDtraj.calc_g2(param_list.temperature,param_list.max_t,param_list.num_steps,param_list.stdout)
                 # check if we need to compute HT corrections:
-                print(param_list.herzberg_teller)
                 if param_list.herzberg_teller:
                         print('COMPUTING HERZBERG TELLER TERM')
                         MDtraj.calc_ht_correction(param_list.temperature,param_list.max_t,param_list.num_steps,param_list.corr_length_3rd,param_list.low_freq_cutoff,param_list.third_order,param_list.gs_reference_dipole,param_list.ht_dipole_dipole_only,is_emission,param_list.stdout)
                         print('Renormalized dipole mom vs standard dipole mom:')
                         print(np.dot(MDtraj.dipole_mom_av,MDtraj.dipole_mom_av),MDtraj.dipole_renorm**2.0, np.dot(MDtraj.dipole_reorg,MDtraj.dipole_reorg))
-
                 if param_list.third_order:
                         MDtraj.calc_3rd_order_corr(param_list.corr_length_3rd,param_list.stdout)
                         # technically, in 3rd order cumulant, can have 2 different temperatures again. one at
                         # which the MD was performed and one at wich the spectrum is simulated. Fix this...
                         MDtraj.calc_g3(param_list.temperature,param_list.max_t,param_list.num_steps,param_list.low_freq_cutoff,param_list.g3_cutoff,param_list.stdout)
+                        if param_list.cumulant_nongaussian_prefactor:
+
+                                        #generate ensemble spectra to extract statistics as was done in the GBOM scan
+                                        MDtraj.calc_ensemble_response(param_list.max_t,param_list.num_steps)
+                                        if param_list.is_solvent:
+                                                ensemble_spectrum=linear_spectrum.full_spectrum(MDtraj.ensemble_response,solvent.solvent_response,param_list.num_steps,E_start,E_end,True,is_emission,param_list.stdout)
+                                        else:
+                                                ensemble_spectrum=linear_spectrum.full_spectrum(MDtraj.ensemble_response,np.zeros((1,1)),param_list.num_steps,E_start,E_end,False,is_emission,param_list.stdout)              
+                                        y = ensemble_spectrum[:,1]
+                                        x = ensemble_spectrum[:,0]
+                                        y[np.where(y < 0.001)] = 0 
+                                        vol = scipy.integrate.simpson(y, ensemble_spectrum[:,0], ensemble_spectrum[1,0] - ensemble_spectrum[0,0])
+                                        y_normalized = y/vol
+                                        mean = scipy.integrate.simpson(x*y_normalized,x, dx= x[1] - x[0])
+                                        var = scipy.integrate.simpson((x-mean)**2*y_normalized, x, dx=x[1]-x[0])
+                                        skew = scipy.integrate.simpson(((x-mean)**3 * y_normalized) ,x, dx= x[1] - x[0])/ (var**(3/2))
+                                        kurtosis = scipy.integrate.simpson(y_normalized * (x-mean)**4  / var**2, x, x[1] - x[0]) - 3
+                                        #build spline and predict prefactor, rescale g_3 exact
+                                        cofs = [0.5704207280544358,0.5121728697163654,0.19152366513038535,14.037923420679276,1.9225644473520938
+                                                ,1.731540247289854,-0.2850403241337555,0.27133579735792684,-1.1394462432833181,1.2203032510849585, -0.48192256127602257, 0.30922580126562926,-3.5581880060082836,0.5262346303535038, 0.20572744884039815, 0.12231112351678848]
+                                        tx = [-0.45615384615384613,-0.45615384615384613,-0.45615384615384613,-0.45615384615384613,1.086923076923077,1.086923076923077
+                                              , 1.086923076923077,1.086923076923077]
+                                        ty = [-0.08476923076923078, -0.08476923076923078, -0.08476923076923078,-0.08476923076923078,1.6819999999999997,1.6819999999999997,1.6819999999999997,1.6819999999999997]
+                                        tck = (tx,ty,cofs,3,3)
+                                        spline = scipy.interpolate.SmoothBivariateSpline._from_tck(tck)
+                                        prefactor = spline(skew, kurtosis)
+                                        if prefactor < 0:
+                                                prefactor = 0
+                                        if prefactor > 1:
+                                                prefactor = 1
+                                        MDtraj.g3[:,1] = prefactor * MDtraj.g3[:,1]
+                                        #check if we're interpolating or extrapolating
+                                        p1,p2,p3,p4,p5 = [-0.5, 0.5],[0.1, -0.1],[0.1, 0.5],[0.66, 1.7],[1.1,1.7]
+                                        interpolate = False
+                                        C1,C2 = ((p5[1] - p2[1])/(p5[0] - p2[0])**2) * (skew - p2[0])**2 + p2[1], ((p4[1] - p3[1])/(p4[0] - p3[0])**2) * (skew - p3[0])**2 + p3[1]    
+                                        if p1[0] <= skew and skew <= p3[0]:
+                                                if C1 <= kurtosis and kurtosis <= p1[1]:
+                                                        interpolate = True
+                                        if p3[0] <= skew and skew <= p4[0]:
+                                                if C1<= kurtosis and kurtosis <= C2:
+                                                        interpolate = True
+                                        if p4[0] <= skew and skew <= p5[0]:
+                                                if C1 <= kurtosis and kurtosis <= p4[1]:
+                                                        interpolate = True
+                                        
+                                        if interpolate:
+                                                print("PREFACTOR: ", prefactor, " SKEW: ", skew, " KURTOSIS: ", kurtosis, " VALUE LIES IN SAMPLED REGION")
+                                        else:
+                                                print("PREFACTOR: ", prefactor, " SKEW: ", skew, " KURTOSIS: ", kurtosis, " WARNING! VALUE LIES OUTSIDE OF SAMPLED REGION. THIS IS AN ESTIMATE")
+
                         MDtraj.calc_cumulant_response(True,is_emission,param_list.herzberg_teller)
+               
                 else:
                         MDtraj.calc_cumulant_response(False,is_emission,param_list.herzberg_teller)
+
+
 
                 # compute linear spectrum
                 if param_list.is_solvent:
