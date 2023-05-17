@@ -4,6 +4,7 @@ from scipy import integrate
 import numpy as np
 import cmath
 import math
+from numba import prange, jit, njit
 from ..constants import constants as const
 
 # analysis routines for linear spectrum
@@ -39,7 +40,7 @@ def compute_mean_sd_skew(spec):
 
     return mean,sd,skew
 
-
+@jit
 def spectrum_prefactor(Eval,is_emission):
     # prefactor alpha in Ha atomic units
     # Absorption: prefac=10*pi*omega*mu**2*alpha/(3*epsilon_0*ln(10))
@@ -56,7 +57,8 @@ def spectrum_prefactor(Eval,is_emission):
 
     return prefac
 
-def full_spectrum(response_func,solvent_response_func,steps_spectrum,start_val,end_val,is_solvent,is_emission,stdout):
+# @jit(parallel=False)
+def full_spectrum(response_func,solvent_response_func,steps_spectrum: int,start_val,end_val,is_solvent,is_emission,stdout):
     spectrum=np.zeros((steps_spectrum,2))
     counter=0
     # print total response function
@@ -69,7 +71,9 @@ def full_spectrum(response_func,solvent_response_func,steps_spectrum,start_val,e
     stdout.write('\n'+'Total linear spectrum of the system:'+'\n')
     stdout.write('Energy (Ha)         Absorbance (Ha)'+'\n')	
     step_length=((end_val-start_val)/steps_spectrum)
-    while counter<spectrum.shape[0]:
+
+    # while counter<spectrum.shape[0]:
+    for counter in prange(spectrum.shape[0]):
         E_val=start_val+counter*step_length
         prefac=spectrum_prefactor(E_val,is_emission)
         integrant=full_spectrum_integrant(response_func,solvent_response_func,E_val,is_solvent)
@@ -91,6 +95,7 @@ def full_spectrum(response_func,solvent_response_func,steps_spectrum,start_val,e
 
     return spectrum
 
+@jit
 def full_spectrum_integrant(response_func,solvent_response_func,E_val,is_solvent):
     integrant=np.zeros(response_func.shape[0])
     counter=0

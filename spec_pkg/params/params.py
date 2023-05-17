@@ -117,7 +117,7 @@ class params:
         self.target_excited_state=1  # TARGET excited state specifies which is the state we are interested in. Only really necessary for Terachem calculation where we extract excited state parameters directly from its output file. 
 
         #   high and low filtering for spectral density
-        self.J_filter_type = 1
+        self.J_filter_type = -1
         self.J_filter_length = 2.0 # rate at which dreuency cutoff is enabled, on cm^-1
         self.J_filter_freq = 1E10 # low frequency cutoff, in cm^-1
         
@@ -350,7 +350,9 @@ class params:
             if par.lower() == 'low':
                 self.J_filter_type = -1
             elif par.lower() == 'high':
-                self.J_filter_freq = +1
+                self.J_filter_type = +1
+            print("J_FILTER_TYPE: ", self.J_filter_type, par.lower() == 'high')
+
         par=get_param(filepath, 'J_FILTER_LENGTH')
         if par != '':
             self.J_filter_length = float(par)/const.Ha_to_cm
