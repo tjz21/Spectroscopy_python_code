@@ -124,6 +124,9 @@ class params:
         #   parallel computing options
         self.parallel_method = 'thread' #   either 'thread' or 'mp'
 
+        #   printing and output
+        self.print_2DES = True
+
         # now start filling keyword list by parsing input file.
         self.task=get_param(filepath,'TASK')  # absorption, emission, 2DES, other spectroscopy techniqes
         self.model=get_param(filepath,'CHROMOPHORE_MODEL') # model for the chromophore degrees of freedom
@@ -369,3 +372,11 @@ class params:
                 self.parallel_method = 'MP'
             else:
                 raise ValueError('input option PARALLEL_METHOD can only be set to THREAD or MP')
+
+        #   printing and output options
+        par=get_param(filepath, 'PRINT_2DES')
+        if par != '':
+            if par == 'TRUE':
+                self.print_2DES = True
+            elif par == 'FALSE':
+                self.print_2DES == False

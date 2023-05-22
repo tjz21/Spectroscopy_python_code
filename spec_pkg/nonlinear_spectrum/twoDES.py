@@ -14,6 +14,7 @@ from multiprocessing.pool import Pool
 #	parallel settings
 PARALLEL_METHOD = 'THREAD'
 N_CORES = 1
+PRINT_2DES = True
 
 # basic analysis routines. Printing full 2DES, printing slices through the full 2DES along xaxis, yaxis and diagonal.
 
@@ -83,7 +84,8 @@ def calc_2DES_time_series_batch_Eopt_av(q_batch,dipole_batch,num_batches,E_min1,
                 while counter<num_times:
                                 print(counter,current_delay,E_min1,E_max1)
                                 spectrum_2D=calc_2D_spectrum_Eopt_av_cumul(q_batch,dipole_batch,current_delay,current_delay_index,E_min1,E_max1,E_min2,E_max2,num_points_2D,mean_fluct)
-                                print_2D_spectrum(rootname+'_2DES_Eopt_av'+str(counter)+'.dat',spectrum_2D,False)
+                                if PRINT_2DES:
+                                    print_2D_spectrum(rootname+'_2DES_Eopt_av'+str(counter)+'.dat',spectrum_2D,False)
 
                                 #compute transient absorption contribution here:
                                 transient_temp=transient_abs_from_2DES(spectrum_2D)
@@ -128,7 +130,7 @@ def calc_2DES_time_series_batch(q_batch,dipole_batch,num_batches,E_min1,E_max1,E
 								spectrum_2D[:,:,2]=spectrum_2D[:,:,2]+spectrum_2D_temp[:,:,2]
 						batch_count=batch_count+1
 				spectrum_2D[:,:,2]=spectrum_2D[:,:,2]/(1.0*num_batches)
-				print_2D_spectrum(rootname+'_2DES_'+str(counter)+'.dat',spectrum_2D,False)
+				if PRINT_2DES: print_2D_spectrum(rootname+'_2DES_'+str(counter)+'.dat',spectrum_2D,False)
 
 				#compute transient absorption contribution here:
 				transient_temp=transient_abs_from_2DES(spectrum_2D)
@@ -161,7 +163,7 @@ def spectrum_2D_runner(param_list: tuple):
 		out_file_name = params['out_file_name']
 
 		spectrum_2D=calc_2D_spectrum(*args)
-		print_2D_spectrum(out_file_name,spectrum_2D,False)
+		if PRINT_2DES: print_2D_spectrum(out_file_name,spectrum_2D,False)
 
 		#compute transient absorption contribution here:
 		transient = transient_abs_from_2DES(spectrum_2D)
@@ -240,7 +242,7 @@ def calc_2DES_time_series(q_func,dipole_mom,E_min1,E_max1,E_min2,E_max2,num_poin
 		while counter<num_times:
 				print(counter,current_delay)
 				spectrum_2D=calc_2D_spectrum(q_func,dipole_mom,current_delay,current_delay_index,E_min1,E_max1,E_min2,E_max2,num_points_2D,mean)
-				print_2D_spectrum(rootname+'_2DES_'+str(counter)+'.dat',spectrum_2D,False)
+				if PRINT_2DES: print_2D_spectrum(rootname+'_2DES_'+str(counter)+'.dat',spectrum_2D,False)
 
 				#compute transient absorption contribution here:
 				transient_temp=transient_abs_from_2DES(spectrum_2D)
@@ -279,7 +281,7 @@ def calc_2DES_time_series_3rd(q_func,dipole_mom,h1_func,h2_func,h4_func,h5_func,
 		while counter<num_times:
 				print(counter,current_delay)
 				spectrum_2D=calc_2D_spectrum_3rd(q_func,g_func,h1_func,h2_func,h4_func,h5_func,corr_func_freq_qm,dipole_mom,current_delay,current_delay_index,E_min1,E_max1,E_min2,E_max2,num_points_2D,mean)
-				print_2D_spectrum(rootname+'_2DES_'+str(counter)+'.dat',spectrum_2D,False)
+				if PRINT_2DES: print_2D_spectrum(rootname+'_2DES_'+str(counter)+'.dat',spectrum_2D,False)
 
 				#compute transient absorption contribution here:
 				transient_temp=transient_abs_from_2DES(spectrum_2D)
@@ -315,7 +317,7 @@ def calc_2DES_time_series_GBOM_3rd(q_func,g_func,h1_func,h2_func,h4_func,h5_func
 		while counter<num_times:
 				print(counter,current_delay)
 				spectrum_2D=calc_2D_spectrum_GBOM_3rd(q_func,g_func,h1_func,h2_func,h4_func,h5_func,corr_func,freqs_gs,Omega_sq,gamma,kbT,dipole_mom,current_delay,current_delay_index,E_min1,E_max1,E_min2,E_max2,num_points_2D,mean,is_cl,no_dusch,four_phonon_term)
-				print_2D_spectrum(rootname+'_2DES_'+str(counter)+'.dat',spectrum_2D,False)
+				if PRINT_2DES: print_2D_spectrum(rootname+'_2DES_'+str(counter)+'.dat',spectrum_2D,False)
 
 				#compute transient absorption contribution here:
 				transient_temp=transient_abs_from_2DES(spectrum_2D)

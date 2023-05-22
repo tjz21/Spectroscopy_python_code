@@ -1411,6 +1411,7 @@ if __name__ == '__main__':
             param_set.stdout.write('\n'+'Setting up 2DES calculation:'+'\n')
             twoDES.PARALLEL_METHOD = param_set.parallel_method
             twoDES.N_CORES = num_cores
+            twoDES.PRINT_2DES = param_set.print_2DES
             if param_set.model=='GBOM' and param_set.num_gboms==1:
                     if not param_set.is_solvent:
                             sys.exit('Error: Pure GBOM calculations require some form of additional solvent broadening provided by a solvent model')
