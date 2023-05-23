@@ -12,7 +12,7 @@ from spec_pkg.GBOM import gbom_cumulant_response as cumul_gbom
 from multiprocessing.pool import Pool
 
 #	parallel settings
-PARALLEL_METHOD = 'MP'
+PARALLEL_METHOD = 'THREAD'
 N_CORES = 1
 PRINT_2DES = True
 
@@ -735,7 +735,8 @@ def twoD_spectrum_integrant(rfuncs,q_func,omega1,omega2,t_delay):
 	step_length=(rfuncs[1,0,0]-rfuncs[0,0,0]).real
 	steps_in_t_delay=int(t_delay/step_length)  # NOTE: delay time is rounded to match with steps in the response function
 	# this means that by default, the resolution of delay time in the 2DES spectrum is 1 fs. 
-	max_index=int((q_func.shape[0]-steps_in_t_delay)/2.0)
+	# max_index=int((q_func.shape[0]-steps_in_t_delay)/2.0)
+	max_index = rfuncs.shape[0]
 	integrant=np.zeros((max_index,max_index,3),dtype=np.complex_)
 
 	for count1 in range(max_index):
