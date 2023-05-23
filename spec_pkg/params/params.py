@@ -122,7 +122,7 @@ class params:
         self.J_filter_freq = 1E10 # low frequency cutoff, in cm^-1
         
         #   parallel computing options
-        self.parallel_method = 'thread' #   either 'thread' or 'mp'
+        self.parallel_method = 'MP' #   either 'thread' or 'mp'
 
         #   printing and output
         self.print_2DES = True

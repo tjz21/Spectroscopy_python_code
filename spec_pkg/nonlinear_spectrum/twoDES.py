@@ -12,7 +12,7 @@ from spec_pkg.GBOM import gbom_cumulant_response as cumul_gbom
 from multiprocessing.pool import Pool
 
 #	parallel settings
-PARALLEL_METHOD = 'THREAD'
+PARALLEL_METHOD = 'MP'
 N_CORES = 1
 PRINT_2DES = True
 
