@@ -379,4 +379,4 @@ class params:
             if par == 'TRUE':
                 self.print_2DES = True
             elif par == 'FALSE':
-                self.print_2DES == False
+                self.print_2DES = False
