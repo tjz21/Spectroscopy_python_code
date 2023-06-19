@@ -18,6 +18,28 @@ from ..constants import constants as const
 #  modes.                                                             #
 #######################################################################
 
+
+# sometimes we want to test what the impact of a certain scaling in the off-diagonal J coupling would be (pushing
+# system further away from the displaced harmonic oscillator model and increasing the nonlinear energy gap fluctuations). 
+def scale_J_mixing(Jmat,gs_freqs,cutoff_freq,scaling_fac):
+        # find cutoff index
+        cutoff_index=0
+        for i in range(gs_freqs.shape[0]):
+            if gs_freqs[i]<cutoff_freq:
+                cutoff_index=i
+
+        # now scale the off-diagonal blocks of J.
+        for i in range(cutoff_index+1,Jmat.shape[0]): # i index is larger than cutoff index
+            for j in range(cutoff_index): # j index goes from 0 to cutoff index
+                Jmat[i,j]=Jmat[i,j]*scaling_fac
+                Jmat[j,i]=Jmat[j,i]*scaling_fac
+
+        # successfully scaled off diagonal elements. Now need to do a fresh Gram-Schmidt orthonormalization. 
+        Q,R=np.linalg.qr(Jmat) # qr decomposition of Jmat, Q is guaranteed to be an orthogonal matrix
+
+        return Q  # returns Q as the new, effective J matrix. 
+
+
 def construct_freqs_J_K(coords_gs,coords_ex,hessian_gs,hessian_ex,dipole_mom,dipole_deriv,atomic_masses,frozen_atoms,frozen_atom_list):
 	gs_freqs,gs_nm=freqs_NM_from_hessian(hessian_gs, coords_gs,atomic_masses,frozen_atoms,frozen_atom_list)
 	ex_freqs,ex_nm=freqs_NM_from_hessian(hessian_ex, coords_ex,atomic_masses,frozen_atoms,frozen_atom_list)

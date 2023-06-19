@@ -72,6 +72,7 @@ class params:
 					   # wigner distribution. Only relevant for GBOM and ensemble method
         self.gs_reference_dipole=True  # Take the ground state as a reference in MD calculations with HT effects
         self.third_order=False
+        self.cumulant_nongaussian_prefactor = False
         self.g3_cutoff=-1.0
         self.is_solvent=False
         self.no_dusch=False
@@ -84,6 +85,8 @@ class params:
         self.is_vertical_gradient=False
         self.task=''
         self.method=''
+        self.scale_Jmat=False   # do we want to manually scale the Jmatrix?
+        self.Jmat_scaling_fac=1.0  # this is the scaling factor
         self.Jpath=''
         self.Kpath=''
         self.freq_gs_path=''
@@ -137,6 +140,13 @@ class params:
 									    # this will be extended to other supported codes
 
         # dealt with keywords that were names. Now deal with variables
+
+        par = get_param(filepath, 'CUMULANT_NONGAUSSIAN_PREFACTOR')
+        if par == 'TRUE':
+            self.cumulant_nongaussian_prefactor = True
+        if par == 'FALSE':
+            self.cumulant_nongaussian_prefactor = False
+
         par=get_param(filepath,'GS_REFERENCE_DIPOLE')
         if par=='TRUE':
             self.gs_reference_dipole=True
@@ -154,6 +164,18 @@ class params:
             self.add_emission_shift=True
         elif par=='FALSE':
             self.add_emission_shift=False
+
+        # SCaling Jmatrix
+        par=get_param(filepath,'SCALE_JMAT')
+        if par=='TRUE':
+            self.scale_Jmat=True
+        elif par=='FALSE':
+            self.scale_Jmat=False
+        par=get_param(filepath,'JMAT_SCALING_FAC')
+        if par != '':
+            self.Jmat_scaling_fac=(float(par))
+
+
         par=get_param(filepath,'NUM_MODES')
         if par != '':
             self.num_modes=int(par)
