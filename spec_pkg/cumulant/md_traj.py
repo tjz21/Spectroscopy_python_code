@@ -5,6 +5,7 @@ import numpy as np
 import math
 import cmath
 from scipy import integrate
+from scipy.special import erf
 import time
 from numba import jit
 from spec_pkg.constants import constants as const
@@ -372,10 +373,20 @@ class MDtrajs:
         def calc_3rd_order_corr(self,corr_length,stdout):
                 self.corr_func_3rd_cl=cumulant.construct_corr_func_3rd(self.fluct,self.num_trajs,corr_length,self.tau,self.time_step,stdout)
 
-        def calc_spectral_dens(self,temp):
+        def calc_spectral_dens(self,temp, J_filter_length=1.0, J_filter_freq=30, J_filter_type=-1):
+                const.Ha_to_cm
                 kbT=temp*const.kb_in_Ha
                 sampling_rate=1.0/self.time_step*math.pi*2.0   # angular frequency associated with the sampling time step
                 self.spectral_dens=cumulant.compute_spectral_dens(self.corr_func_cl,kbT, sampling_rate,self.time_step)
+
+                ####################################### CHRIS' EDIT ###################################################
+                omega = self.spectral_dens[:, 0]
+                omega_LF = J_filter_freq
+                sigma = J_filter_length
+                s = J_filter_type
+                filter = 0.5*(1.0 + s*erf((omega - omega_LF)/sigma))
+                self.spectral_dens[:, 1] = filter*self.spectral_dens[:, 1]
+                #######################################################################################################
 
         def calc_g2(self,temp,max_t,num_steps,stdout):
                 kbT=temp*const.kb_in_Ha

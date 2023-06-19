@@ -69,7 +69,7 @@ class params:
         self.temperature_MD=300.0  # temperature at which the MD simulation was carried out
         self.exact_corr=True
         self.qm_wigner_dist=False  # Whether nuclei in ensemble appraoch are sampled with QM 
-					   # wigner distribution. Only relevant for GBOM and ensemble method
+                       # wigner distribution. Only relevant for GBOM and ensemble method
         self.gs_reference_dipole=True  # Take the ground state as a reference in MD calculations with HT effects
         self.third_order=False
         self.cumulant_nongaussian_prefactor = False
@@ -98,9 +98,9 @@ class params:
         self.MD_input_code=''
         self.GBOM_root=''
         self.add_emission_shift=False # shift omega_eg_av by twice the solvent broadening (GBOM) or the total spectral dens
-						# reorganization energy (cumulant MD). This accounts for the fact that we have an 
-						# emission spectrum and havent dealt with the changes this does to the average energy
-						# gap.
+                        # reorganization energy (cumulant MD). This accounts for the fact that we have an 
+                        # emission spectrum and havent dealt with the changes this does to the average energy
+                        # gap.
 
         self.morse_gs_path='' # ground state potential parameters D and alpha, mu
         self.morse_ex_path='' # excited state potential parameters D and alpha, and shift (relative to gs minimum. Reduced mass is assumed to be identical to GS) 
@@ -117,10 +117,21 @@ class params:
         self.spectral_window=3.0/const.Ha_to_eV   # width of the window in which the spectrum gets calculated. 3eV as default
         self.target_excited_state=1  # TARGET excited state specifies which is the state we are interested in. Only really necessary for Terachem calculation where we extract excited state parameters directly from its output file. 
 
+        #   high and low filtering for spectral density
+        self.J_filter_type = -1
+        self.J_filter_length = 2.0 # rate at which dreuency cutoff is enabled, on cm^-1
+        self.J_filter_freq = 1E10 # low frequency cutoff, in cm^-1
+        
+        #   parallel computing options
+        self.parallel_method = 'MP' #   either 'thread' or 'mp'
+
+        #   printing and output
+        self.print_2DES = True
+
         # now start filling keyword list by parsing input file.
         self.task=get_param(filepath,'TASK')  # absorption, emission, 2DES, other spectroscopy techniqes
         self.model=get_param(filepath,'CHROMOPHORE_MODEL') # model for the chromophore degrees of freedom
-								   # Current options: MD, GBOM, MORSE
+                                   # Current options: MD, GBOM, MORSE
         self.method=get_param(filepath,'METHOD') # ensemble, EZTFC, cumulant, FC etc, EOPT_AV  # EOPT_AV only works for GBOMs
         self.method_2DES=get_param(filepath,'NONLINEAR_EXP')  # 2DES, PUMP_PROBE
         self.Jpath=get_param(filepath,'JMAT')
@@ -137,7 +148,7 @@ class params:
         self.MD_input_code=get_param(filepath, 'MD_INPUT_CODE')
         self.GBOM_root=get_param(filepath, 'GBOM_ROOTNAME')
         self.GBOM_input_code=get_param(filepath, 'GBOM_INPUT_CODE') # specify whether the GBOM input is a Gaussian or Terachem input
-									    # this will be extended to other supported codes
+                                        # this will be extended to other supported codes
 
         # dealt with keywords that were names. Now deal with variables
 
@@ -343,3 +354,37 @@ class params:
                 self.is_solvent=False
             if par == 'OHMIC':
                 self.is_solvent=True
+
+        #   High and Low filtering
+        par=get_param(filepath, 'J_FILTER_TYPE')
+        if par != '':
+            if par.lower() == 'low':
+                self.J_filter_type = -1
+            elif par.lower() == 'high':
+                self.J_filter_type = +1
+            print("J_FILTER_TYPE: ", self.J_filter_type, par.lower() == 'high')
+
+        par=get_param(filepath, 'J_FILTER_LENGTH')
+        if par != '':
+            self.J_filter_length = float(par)/const.Ha_to_cm
+        par=get_param(filepath, 'J_FILTER_FREQ')
+        if par != '':
+            self.J_filter_freq = float(par)/const.Ha_to_cm
+
+        #   parallel options
+        par=get_param(filepath, 'PARALLEL_METHOD')
+        if par != '':
+            if par.upper() == 'THREAD':
+                self.parallel_method = 'THREAD'
+            elif par.upper() == 'MP':
+                self.parallel_method = 'MP'
+            else:
+                raise ValueError('input option PARALLEL_METHOD can only be set to THREAD or MP')
+
+        #   printing and output options
+        par=get_param(filepath, 'PRINT_2DES')
+        if par != '':
+            if par == 'TRUE':
+                self.print_2DES = True
+            elif par == 'FALSE':
+                self.print_2DES = False
