@@ -913,21 +913,22 @@ def compute_MD_absorption(param_list,MDtraj,solvent,is_emission):
 
 # main driver #
 # start timer.
-if __name__ == '__main__':
+# if __name__ == '__main__':
+def main(argv, outfile=None):
     start_time=time.time()
 
-    input_file=sys.argv[1]
-    if len(sys.argv)<3:
+    input_file=argv[0]
+    if len(argv)<2:
             num_cores=1
     else:
-            num_cores=int(sys.argv[2])
+            num_cores=int(argv[1])
             twoDES.N_CORES = num_cores
 
     config.NUMBA_NUM_THREADS=num_cores
 
     # parse input values
     if os.path.exists(input_file):
-            param_set=params.params(input_file)
+            param_set=params.params(input_file, outfile)
     else:
             sys.exit('Error: Could not find input file')
 
@@ -1952,3 +1953,6 @@ if __name__ == '__main__':
     param_set.stdout.write('\n'+'###############################################################################'+'\n')
     param_set.stdout.write('Successfully finished spectrum calculation. Elapsed time: '+str(end_time-start_time)+' s.')
     param_set.stdout.write('\n'+'###############################################################################'+'\n')
+
+if __name__ == "__main__":
+    main(sys.argv[1:])

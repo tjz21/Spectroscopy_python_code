@@ -47,10 +47,14 @@ def get_param_list(filename,keyword):
 # class definition
 
 class params:
-    def __init__(self,filepath):
+    def __init__(self,filepath, outfile=None):
+
+        if outfile is None or isinstance(outfile, str):
+            self.stdout=open(filepath+'.out','w')  # standard output file
+        else:
+            self.stdout = outfile
         self.freq_cutoff_gbom=-1.0
         self.low_freq_cutoff=-1.0
-        self.stdout=open(filepath+'.out','w')  # standard output file
         self.num_trajs=1
         self.num_gboms=1
         self.num_modes=0
