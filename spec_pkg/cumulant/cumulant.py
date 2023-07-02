@@ -630,6 +630,11 @@ def compute_2nd_order_cumulant_from_spectral_dens(spectral_dens,kbT,max_t,steps,
 		q_func[counter,1]=integrate.simps(integrant[:,1],dx=(integrant[1,0]-integrant[0,0]))   #  give x and y axis
 		stdout.write("%5d      %10.4f          %10.4e           %10.4e" % (counter,t_current*const.fs_to_Ha, np.real(q_func[counter,1]), np.imag(q_func[counter,1]))+'\n')
 		counter=counter+1
+	np.savetxt(
+		'2nd_order_cumulant_from_spectral_dens.dat',
+		np.transpose([q_func[:, 0].real, q_func[:, 1].real, q_func[:, 1].imag]),
+		header='{:>22s} {:>24s} {:>24s}'.format('time(fs)', 'Re[g_2]', 'Imag[g_2]')
+		)
 	return q_func
 
 # fix limit of x-->0, Sign in imaginary term?
