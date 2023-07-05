@@ -3,24 +3,15 @@ import numpy as np
 from spec_pkg.constants import constants as const
 
 # Function definition
-# function searches through input file for given keyword and returns keyword string
-def get_param(filename,keyword):
-    searchfile = open(filename,"r")
-    line_count=0
-    keyword_line=9999999
-    for line in searchfile:
-        # account for comments in input file 
-        if keyword in line and keyword_line==9999999 and line[0]!='#':
-            keyword_line=line_count
-        line_count=line_count+1
-    searchfile.close()
-    if keyword_line < 9999999:
-        linefile=open(filename,"r")
-        lines=linefile.readlines()
-        keyword=lines[keyword_line].split()
-        return keyword[1]
-    else:
-        return ''
+# function searches through input file for given keyword and returns keyword string    
+def get_param(filename, keyword):
+    #   TODO: need to only open file once
+    file_data = {}
+    with open(filename) as file:
+        for line in file:
+            sp = line.split()
+            file_data[sp[0]] = sp[1]
+    return file_data.get(keyword, '')
 
 
 def get_param_list(filename,keyword):
