@@ -2,3 +2,5 @@
 .*
 !.gitignore
 debugging
+tests/data/reference/*.pkl
+.DS_Store

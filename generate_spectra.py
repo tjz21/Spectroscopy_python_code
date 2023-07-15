@@ -806,6 +806,7 @@ def compute_MD_absorption(param_list,MDtraj,solvent,is_emission):
         if param_list.method=='CUMULANT':
                 print("HERE")
                 MDtraj.calc_2nd_order_corr()
+                np.savetxt(param_list.MD_root+'MD_correlation_function_cl.dat', MDtraj.corr_func_cl)
                 MDtraj.calc_spectral_dens(param_list.temperature_MD, param_list.J_filter_length, param_list.J_filter_freq, param_list.J_filter_type)
                 np.savetxt(param_list.MD_root+'MD_spectral_density.dat', MDtraj.spectral_dens)
 
