@@ -139,7 +139,7 @@ def compute_lineshape_func_3rd(corr_func,kbT,sampling_rate_in_fs,max_t,steps,low
 	stdout.write('\n'+"Computing third order cumulant lineshape function."+'\n')
 	if low_freq_filter>0.0:
 		 stdout.write("Applying a low pass frequency filter of "+str(low_freq_filter*const.Ha_to_cm)+' cm^(-1)'+'\n')
-	g_func=np.zeros((steps,2),dtype=np.complex)
+	g_func=np.zeros((steps,2),dtype=np.complex128)
 	# need to constuct 3rd order correlation function in the frequency domain. 
 	step_length_corr=corr_func[1,1,0]-corr_func[0,0,0]
  
@@ -150,7 +150,7 @@ def compute_lineshape_func_3rd(corr_func,kbT,sampling_rate_in_fs,max_t,steps,low
 	padding=np.array([new_dim,new_dim])
 
 	# try padding:
-	extended_func=np.zeros((new_dim,new_dim),dtype=np.complex)
+	extended_func=np.zeros((new_dim,new_dim),dtype=np.complex128)
 
 	# pad with zeros:
 	start_index=int((new_dim-corr_func.shape[0])/2)
@@ -297,7 +297,7 @@ def compute_h3_val(qm_corr_func_freq,t1,t2,t3):
 @jit(fastmath=True)
 def integrant_3rd_order_cumulant_lineshape(corr_func_freq,freq_list,t_val,kbT):
 	tol=10e-15
-	integrant=np.zeros((corr_func_freq.shape[0],corr_func_freq.shape[0],3),dtype=np.complex_)
+	integrant=np.zeros((corr_func_freq.shape[0],corr_func_freq.shape[0],3),dtype=np.complex128)
 	for icount in range(corr_func_freq.shape[0]):
 		for jcount in range(corr_func_freq.shape[0]):
 			omega1=freq_list[icount]
@@ -640,7 +640,7 @@ def compute_2nd_order_cumulant_from_spectral_dens(spectral_dens,kbT,max_t,steps,
 # fix limit of x-->0, Sign in imaginary term?
 @jit(fastmath=True)
 def integrant_2nd_order_cumulant_lineshape(spectral_dens,t_val,kbT):
-	integrant=np.zeros((spectral_dens.shape[0],spectral_dens.shape[1]),dtype=np.complex_)
+	integrant=np.zeros((spectral_dens.shape[0],spectral_dens.shape[1]),dtype=np.complex128)
 	for counter in range(spectral_dens.shape[0]):
 		omega=spectral_dens[counter,0]
 		integrant[counter,0]=omega
