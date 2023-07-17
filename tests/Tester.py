@@ -3,9 +3,11 @@ from os import chdir
 import numpy as np
 import pickle
 import io
+import sys
 from generate_spectra import main
 
 SAVE_RESULTS = True
+HIDE_STDOUT = False
 
 class Tester():
     def __init__(self, input_file):
@@ -29,7 +31,14 @@ class Tester():
         np.savetxt = self.savetxt_orig
 
     def run_molspecpy(self):
-        main([self.input_file], self.output_file)
+        if HIDE_STDOUT:
+            old_stdout = sys.stdout
+            with io.StringIO() as fake_file:
+                sys.stdout = fake_file
+                main([self.input_file], self.output_file)
+                sys.stdout = old_stdout
+        else:
+            main([self.input_file], self.output_file)
 
     def check_files(self, name: str):
         '''
