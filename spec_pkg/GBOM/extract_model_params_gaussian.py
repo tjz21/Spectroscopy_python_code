@@ -16,9 +16,9 @@ def extract_transition_dipole(filename,target_state):
 		if searchphrase in line:
 			dipole_line=line_count
 		line_count=line_count+1
+	searchfile.close()
 	if dipole_line>0:
 		dipole_line=dipole_line+1+target_state
-		searchfile.close()
 		linefile=open(filename,"r")
 		lines=linefile.readlines()
 		current_line=lines[dipole_line].split()
@@ -90,8 +90,8 @@ def extract_normal_mode_freqs_vertical_gradient(filename,num_modes):
                 if searchphrase in line and freq_line==0:
                         freq_line=line_count
                 line_count=line_count+1
+        searchfile.close()
         if freq_line>0:
-                searchfile.close()
                 linefile=open(filename,"r")
                 lines=linefile.readlines()
                 current_line=lines[freq_line].split()
@@ -213,6 +213,7 @@ def extract_normal_mode_freqs(filename,num_modes):
                 searchfile.close()
                 linefile=open(filename,"r")
                 lines=linefile.readlines()
+                linefile.close()
                 current_line=lines[freq_line].split()
                 if int(current_line[3])<num_modes: # no frozen atoms
                         num_atoms_chromophore=(num_modes+6)/3
@@ -239,6 +240,7 @@ def extract_normal_mode_freqs(filename,num_modes):
         if freq_line>0:
                 linefile=open(filename,"r")
                 lines=linefile.readlines()
+                linefile.close()
 
                 current_line=lines[freq_line].split()
                 if len(current_line) == 5:
@@ -261,6 +263,7 @@ def extract_normal_mode_freqs(filename,num_modes):
                 searchfile.close()
                 linefile=open(filename,"r")
                 lines=linefile.readlines()
+                linefile.close()
                 while row_counter<num_freq_loops:
                         current_line_start=row_counter*lines_between_freq_rows+freq_line
                         current_line=lines[current_line_start].split()
@@ -313,9 +316,10 @@ def extract_adiabatic_freq(filename):
                 if searchphrase in line:
                         freq_line=line_count
                 line_count=line_count+1
+        searchfile.close()
 
         if freq_line>0:
-                searchfile.close()
+                
                 linefile=open(filename,"r")
                 lines=linefile.readlines()
                 current_line=lines[freq_line].split()
@@ -335,10 +339,11 @@ def extract_Kmat(filename,num_modes):
 		if searchphrase in line:
 			k_line=line_count+3
 		line_count=line_count+1
+	searchfile.close()
 
 	if k_line>0:
 		Kmat=np.zeros(num_modes)
-		searchfile.close()
+		
 		linefile=open(filename,"r")
 		lines=linefile.readlines()
 		counter=0
@@ -363,13 +368,14 @@ def extract_duschinsky_mat(filename,num_modes):
 		if searchphrase in line and duschinsky_line==0:
 			duschinsky_line=line_count
 		line_count=line_count+1
+	searchfile.close()
 
 	if duschinsky_line>0:
 		start_line=duschinsky_line+5
 		lines_between_rows=num_modes+1
 		full_rows=int(num_modes/5)  # 5 columns in each row
 		num_leftover_rows=num_modes-full_rows*5  # only if total value of normal modes is divisible by 5 this is zero
-		searchfile.close()
+		
 		linefile=open(filename,"r")
 		lines=linefile.readlines()
 		row_counter=0
