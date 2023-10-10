@@ -6,7 +6,7 @@ import io
 import sys
 from generate_spectra import main
 
-SAVE_RESULTS = True
+SAVE_RESULTS = False
 HIDE_STDOUT = True
 
 class Tester():
