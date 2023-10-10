@@ -1,0 +1,54 @@
+
+    ###########################################################
+    ###########################################################
+    #  __  __       _ ____                  _    ____         #
+    # |  \/  | ___ | / ___| ____   ___  ___| | _|  _ \ _  __  #
+    # | |\/| |/ _ \| \___ \| ._ \ / _ \/ __| |/ / |_) | | | | #
+    # | |  | | (_) | |___) | |_) |  __/ (__|   <|  __/| |_| | #
+    # |_|  |_|\___/|_|____/| .__/ \___|\___|_|\_\_|    \__, | #
+    #                      |_|                         |___/  #
+    ###########################################################
+    ###########################################################
+    #                     Version 0.1                         #
+    # Copyright (C) 2019-2020 Tim J. Zuehlsdorff. The source  #
+    # code is subject to the terms of the Mozilla Public      #
+    # License, v. 2.0. This program is distributed in the     #
+    # hope that it will be useful, but WITHOUT ANY WARRANTY.  #
+    # See the Mozilla Public License, v. 2.0 for details.     #
+    ###########################################################
+    #                   Acknowledgements:                     #
+    # The purpose of this code is to generate linear and non- #
+    # linear optical spectra for a variety of realistic and   #
+    # simplified model systems in a variety of different      #
+    # approximations.                                         #
+    # The underlying algorithms implemented in this code are  #
+    # described in the following publications:                #
+    # 1) T. J. Zuehlsdorff, A. Montoya-Castillo, J. A. Napoli,#
+    #    T. E. Markland, and C. M. Isborn, J. Chem. Phys. 151 #
+    #    074111 (2019).                                       #
+    # 2) T. J. Zuehlsdorff, H. Hong, L. Shi, and C. M. Isborn,#
+    #    J. Chem. Phys. 153, 044127 (2020).                   #
+    # 3) T. J. Zuehlsdorff, and C. M. Isborn, J. Chem. Phys.  #
+    #    148, 024110 (2018).                                  #
+    # 4) T. J. Zuehlsdorff, J. A. Napoli, J. M. Milanese, T.  #
+    #    E. Markland, and C. M. Isborn, J. Chem. Phys. 149,   #
+    #    024107 (2018).                                       #
+    # The code for computing Franck-Condon linear absorption  #
+    # and emission spectra is based on the algorithm des-     #
+    # cribed in: B. de Souza, F. Neese, and R. Izsak, J.      #
+    # Chem. Phys. 148, 034104 (2018).                         #
+    # Part of the interface between MolSpeckPy and Terachem   #
+    # is based on code originally written by Ajay Khanna.     #
+    ###########################################################
+
+Successfully parsed the input file!
+Now starting spectrum calculation
+Created solvent model!
+Solvent reorg:    0.0001 Ha
+Cutoff frequency:  0.0001 Ha
+
+Requested a GBOM model calculation with parameter: MODEL   GBOM
+Constructing a GBOM model.
+This is a calculation involving only a single GBOM model with 108 normal modes.
+Attempting to compute GBOM model from the following Gaussian output files: 
+phenolate_gs.log	phenolate_ex.log	phenolate_vibronic.log	

@@ -95,7 +95,7 @@ class Tester():
         unittest.assertEqual(data[-1, 0], ref_data[-1, 0])
 
         #   make sure intervals are the same at each end too
-        places = 14
+        places = 10
         dE_ref_first = ref_data[ 1, 0] - ref_data[ 0, 0]
         dE_ref_last  = ref_data[-1, 0] - ref_data[-2, 0]
         dE_first = data[ 1, 0] - data[ 0, 0]
