@@ -1,8 +1,8 @@
 from tests.Tester import Tester
-import unittest
+from unittest import TestCase
 
-class test_MD(unittest.TestCase):
-    def test_MD_cumulant(self):
+class MD_cumulant(TestCase):
+    def runTest(self):
         tester = Tester('input_file_MD_cumulant')
         tester.run_molspecpy()
         tester.check_files('MD_cumulant')
@@ -10,7 +10,8 @@ class test_MD(unittest.TestCase):
         tester.compare_spectra(self, 'MD_resonance_raman.dat')
         tester.compare_spectra(self, 'MD_spectral_density.dat')
 
-    def test_MD_cumulant_ohmic(self):
+class MD_cumulant_ohmic(TestCase):
+    def runTest(self):
         tester = Tester('input_file_MD_cumulant_ohmic')
         tester.run_molspecpy()
         tester.check_files('MD_cumulant_ohmic')
@@ -18,13 +19,15 @@ class test_MD(unittest.TestCase):
         tester.compare_spectra(self, 'MD_resonance_raman.dat')
         tester.compare_spectra(self, 'MD_spectral_density.dat')
 
-    def test_MD_ensemble(self):
+class MD_ensemble(TestCase):
+    def runTest(self):
         tester = Tester('input_file_MD_ensemble')
         tester.run_molspecpy()
         tester.check_files('MD_ensemble')
         tester.compare_spectra(self, 'MD_ensemble_spectrum.dat')
 
-    def test_MD_cumulant_3rd(self):
+class MD_cumulant_3rd(TestCase):
+    def runTest(self):
         tester = Tester('input_file_MD_cumulant_3rd')
         tester.run_molspecpy()
         tester.check_files('MD_cumulant_3rd')

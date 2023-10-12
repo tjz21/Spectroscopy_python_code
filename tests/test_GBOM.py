@@ -1,15 +1,17 @@
 from tests.Tester import Tester
-import unittest
+from unittest import TestCase
 import warnings
 from numba.core.errors import NumbaPerformanceWarning
 
-class test_GBOM(unittest.TestCase):
-    warnings.simplefilter("ignore", NumbaPerformanceWarning)
+class GBOM_all_CL(TestCase):
+    
 
-    def test_all_classical(self):
+    def runTest(self):
         # tester = Tester('input_file_GBOM_mBlue')
-        #   can't find where this file worning is happening, so it's ignored for now
-        warnings.simplefilter("ignore", ResourceWarning)
+        if Tester.HIDE_WARNINGS:
+            #   can't find where this file worning is happening, so it's ignored for now
+            warnings.simplefilter("ignore", ResourceWarning)
+            warnings.simplefilter("ignore", NumbaPerformanceWarning)
         tester = Tester('input_file_GBOM_phenolate_cl')
         tester.run_molspecpy()
         tester.check_files('GBOM_cl')
@@ -23,11 +25,13 @@ class test_GBOM(unittest.TestCase):
         tester.compare_spectra(self, 'phenolate_resonance_raman_harmonic_qcf.dat')
         tester.compare_spectra(self, 'phenolate_spectral_density_harmonic_qcf.dat')
 
-
-    def test_all_exact(self):
-        # tester = Tester('input_file_GBOM_mBlue')
-        #   can't find where this file worning is happening, so it's ignored for now
-        warnings.simplefilter("ignore", ResourceWarning)
+class GBOM_all_QM(TestCase):
+    def runTest(self):
+        if Tester.HIDE_WARNINGS:
+            #   can't find where this file worning is happening, so it's ignored for now
+            warnings.simplefilter("ignore", ResourceWarning)
+            warnings.simplefilter("ignore", NumbaPerformanceWarning)
+            warnings.simplefilter("ignore", DeprecationWarning) #   TODO: Fix complex warnings
         tester = Tester('input_file_GBOM_phenolate_exact')
         tester.run_molspecpy()
         tester.check_files('GBOM_exact')

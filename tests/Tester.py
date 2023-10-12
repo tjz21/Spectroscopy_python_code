@@ -5,13 +5,15 @@ import pickle
 import io
 import sys
 from generate_spectra import main
-
-SAVE_RESULTS = False
-HIDE_STDOUT = True
+from unittest import TestCase
 
 class Tester():
+    ### Controll Flags ###
+    SAVE_RESULTS = False    #   save results and overwrite existing reference data
+    HIDE_STDOUT = True      #   do not show stdout in colsole
+    HIDE_WARNINGS = False    #   hide all warnings
+
     def __init__(self, input_file):
-        
         #   change directory to data filder
         self.data_dir = join(dirname(__file__), 'data')
         chdir(self.data_dir)
@@ -31,7 +33,7 @@ class Tester():
         np.savetxt = self.savetxt_orig
 
     def run_molspecpy(self):
-        if HIDE_STDOUT:
+        if self.HIDE_STDOUT:
             old_stdout = sys.stdout
             with io.StringIO() as fake_file:
                 sys.stdout = fake_file
@@ -56,7 +58,7 @@ class Tester():
         ref_file_loc = join('reference', name) + '.pkl'
 
         #   dump results, used to reset or update tests
-        if SAVE_RESULTS:
+        if self.SAVE_RESULTS:
             with open(ref_file_loc, 'wb') as file:
                 pickle.dump(self.file_data, file)
         
@@ -68,12 +70,14 @@ class Tester():
         for file_name in self.file_data:
             assert file_name in self.ref_file_data
 
-    def compare_spectra(self, unittest, spectrum_name: str):
+    def compare_spectra(self, test_case: TestCase, spectrum_name: str):
         '''
             Compares linear spectrum array information, like absorption and emission
 
             Parameters
             ----------
+            test_case: TestCase
+                the current TestCase object being run
             spectrum_name : str
                 the suffix of the spectrum data file (i.e. 'MD_ensemble_spectrum.dat')
         '''
@@ -85,14 +89,14 @@ class Tester():
             if spectrum_name in file:
                 data.append(d)
                 ref_data.append(self.ref_file_data[file])
-        unittest.assertEqual(len(data), 1)
+        test_case.assertEqual(len(data), 1)
 
         data = data[0]
         ref_data = ref_data[0]
 
         #   make sure first and last energies are the same
-        unittest.assertEqual(data[ 0, 0], ref_data[ 0, 0])
-        unittest.assertEqual(data[-1, 0], ref_data[-1, 0])
+        test_case.assertEqual(data[ 0, 0], ref_data[ 0, 0])
+        test_case.assertEqual(data[-1, 0], ref_data[-1, 0])
 
         #   make sure intervals are the same at each end too
         places = 10
@@ -100,13 +104,61 @@ class Tester():
         dE_ref_last  = ref_data[-1, 0] - ref_data[-2, 0]
         dE_first = data[ 1, 0] - data[ 0, 0]
         dE_last  = data[-1, 0] - data[-2, 0]
-        unittest.assertAlmostEqual(dE_ref_first,    dE_first,       places=places)
-        unittest.assertAlmostEqual(dE_ref_last,     dE_last,        places=places)
-        unittest.assertAlmostEqual(dE_ref_first,    dE_ref_last,    places=places)
-        unittest.assertAlmostEqual(dE_first,        dE_last,        places=places)
+        test_case.assertAlmostEqual(dE_ref_first,    dE_first,       places=places)
+        test_case.assertAlmostEqual(dE_ref_last,     dE_last,        places=places)
+        test_case.assertAlmostEqual(dE_ref_first,    dE_ref_last,    places=places)
+        test_case.assertAlmostEqual(dE_first,        dE_last,        places=places)
 
         #   no NaNs are allowed
-        unittest.assertEqual(np.sum(np.isnan(data)), 0)
+        test_case.assertEqual(np.sum(np.isnan(data)), 0)
 
         #   now check actual spectrum data itself
         np.testing.assert_array_almost_equal(data, ref_data, places, verbose=True)
+
+def compare_spectra_2d(self, test_case: TestCase, spectrum_name: str):
+        '''
+            Compares 2D spectrum array information, either 2DES w1/w3 data or transient absorption
+
+            Parameters
+            ----------
+            test_case: TestCase
+                the current TestCase object being run
+            spectrum_name : str
+                the suffix of the spectrum data file (i.e. 'MD_ensemble_spectrum.dat')
+        '''
+        
+        #   grab data and make sure there is only one
+        tst_data = []
+        ref_data = []
+        for file, d in self.file_data.items():
+            if spectrum_name in file:
+                tst_data.append(d)
+                ref_data.append(self.ref_file_data[file])
+        test_case.assertEqual(len(tst_data), 1)
+
+
+        #   make sure the shapes match
+        dim_tst = tst_data.shape
+        dim_ref = ref_data.shape
+        test_case.assertEqual(len(dim_tst), 2)
+        test_case.assertEqual(len(dim_tst), len(dim_ref))
+        test_case.assertEqual(dim_tst[0], dim_ref[0])
+        test_case.assertEqual(dim_tst[1], dim_ref[1])
+
+        places = 10
+        test_case.assertAlmostEqual(tst_data[1, 0] - tst_data[0, 0], 
+                                   ref_data[1, 0] - ref_data[0, 0], places=places)
+        test_case.assertAlmostEqual(tst_data[0, 1] - tst_data[0, 0], 
+                                   ref_data[0, 1] - ref_data[0, 0], places=places)
+        test_case.assertAlmostEqual(tst_data[-1, 0] - tst_data[-2, 0], 
+                                   ref_data[-1, 0] - ref_data[-2, 0], places=places)
+        test_case.assertAlmostEqual(tst_data[0, -1] - tst_data[0, -2], 
+                                   ref_data[0, -1] - ref_data[0, -2], places=places)
+
+        #   no NaNs are allowed
+        test_case.assertEqual(np.sum(np.isnan(tst_data)), 0)
+
+        #   now check actual spectrum data itself
+        np.testing.assert_array_almost_equal(tst_data, ref_data, places, verbose=True)
+
+
