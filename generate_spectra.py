@@ -367,7 +367,7 @@ def compute_GBOM_absorption(param_list,GBOM_chromophore,solvent,is_emission):
                         np.savetxt(param_list.GBOM_root+'_spectral_density_harmonic_qcf.dat', GBOM_chromophore.spectral_dens)
                         GBOM_chromophore.calc_g2_cl(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.stdout)
                         if param_list.third_order:
-                                GBOM_chromophore.calc_g3_cl(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.four_phonon_term,param_list,g3_cutoff,param_list.stdout)
+                                GBOM_chromophore.calc_g3_cl(param_list.temperature,param_list.num_steps,param_list.max_t,is_emission,param_list.four_phonon_term,param_list.g3_cutoff,param_list.stdout)
                 GBOM_chromophore.calc_cumulant_response(param_list.third_order,param_list.exact_corr, is_emission,param_list.herzberg_teller)       
                 spectrum=linear_spectrum.full_spectrum(GBOM_chromophore.cumulant_response,solvent.solvent_response,param_list.num_steps,E_start,E_end,True,is_emission,param_list.stdout)
 
