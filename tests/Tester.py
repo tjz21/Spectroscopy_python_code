@@ -11,9 +11,19 @@ class Tester():
     ### Controll Flags ###
     SAVE_RESULTS = False    #   save results and overwrite existing reference data
     HIDE_STDOUT = True      #   do not show stdout in colsole
-    HIDE_WARNINGS = False    #   hide all warnings
+    HIDE_WARNINGS = True    #   hide all warnings
 
-    def __init__(self, input_file):
+    def __init__(self, input_file: str):
+        '''
+        Contains methods to analyze spectra tests. The class also routes all 
+        np.savetxt to `io.StringIO()` so that tests do not creat actual output
+        files, but instead keeps them in memory. 
+
+        Parameters
+        ----------
+        input_file: str
+            name of the input file with options to run MolSpecPy
+        '''
         #   change directory to data filder
         self.data_dir = join(dirname(__file__), 'data')
         chdir(self.data_dir)
@@ -70,7 +80,7 @@ class Tester():
         for file_name in self.file_data:
             assert file_name in self.ref_file_data
 
-    def compare_spectra(self, test_case: TestCase, spectrum_name: str):
+    def compare_linear_spectra(self, test_case: TestCase, spectrum_name: str):
         '''
             Compares linear spectrum array information, like absorption and emission
 
@@ -146,14 +156,15 @@ def compare_spectra_2d(self, test_case: TestCase, spectrum_name: str):
         test_case.assertEqual(dim_tst[1], dim_ref[1])
 
         places = 10
+        #   make sure first and and last intervals, in both x any y directions, also match
         test_case.assertAlmostEqual(tst_data[1, 0] - tst_data[0, 0], 
-                                   ref_data[1, 0] - ref_data[0, 0], places=places)
+                                    ref_data[1, 0] - ref_data[0, 0], places=places)
         test_case.assertAlmostEqual(tst_data[0, 1] - tst_data[0, 0], 
-                                   ref_data[0, 1] - ref_data[0, 0], places=places)
+                                    ref_data[0, 1] - ref_data[0, 0], places=places)
         test_case.assertAlmostEqual(tst_data[-1, 0] - tst_data[-2, 0], 
-                                   ref_data[-1, 0] - ref_data[-2, 0], places=places)
+                                    ref_data[-1, 0] - ref_data[-2, 0], places=places)
         test_case.assertAlmostEqual(tst_data[0, -1] - tst_data[0, -2], 
-                                   ref_data[0, -1] - ref_data[0, -2], places=places)
+                                    ref_data[0, -1] - ref_data[0, -2], places=places)
 
         #   no NaNs are allowed
         test_case.assertEqual(np.sum(np.isnan(tst_data)), 0)

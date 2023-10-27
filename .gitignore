@@ -1,7 +1,13 @@
 *.pyc
 .*
 !.gitignore
-debugging
-tests/data/reference/*.pkl
 .DS_Store
-tests/data/debugging
+
+#   debugging
+debugging
+
+#   unit testing
+tests/data/reference/*.pkl
+tests/data/debugging*
+.coverage*
+htmlcov*
