@@ -10,7 +10,7 @@ from unittest import TestCase
 class Tester():
     ### Controll Flags ###
     SAVE_RESULTS = False    #   save results and overwrite existing reference data
-    HIDE_STDOUT = True      #   do not show stdout in colsole
+    HIDE_STDOUT = False      #   do not show stdout in colsole
     HIDE_WARNINGS = True    #   hide all warnings
 
     def __init__(self, input_file: str):
@@ -71,6 +71,10 @@ class Tester():
         if self.SAVE_RESULTS:
             with open(ref_file_loc, 'wb') as file:
                 pickle.dump(self.file_data, file)
+
+        #   print created files
+        # for f in self.file_data:
+        #     print("FILE: ", f)
         
         #   load reference data
         with open(ref_file_loc, 'rb') as file:
