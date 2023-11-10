@@ -10,15 +10,22 @@ from numba import config,jit, njit, prange
 from spec_pkg.cumulant import cumulant as cumul
 from spec_pkg.GBOM import gbom_cumulant_response as cumul_gbom
 from multiprocessing.pool import Pool
+from io import StringIO
 
 #	parallel settings
 PARALLEL_METHOD = 'THREAD'
 N_CORES = 1
 PRINT_2DES = True
 
-# basic analysis routines. Printing full 2DES, printing slices through the full 2DES along xaxis, yaxis and diagonal.
+#	write to 'file_writer' instead of open()
+file_writer = None
+opened_files = []
 
-def print_2D_spectrum(filename,spectrum_2D,is_imag):
+# basic analysis routines. Printing full 2DES, printing slices through the full 2DES along xaxis, yaxis and diagonal.
+def print_2D_spectrum_original(filename,spectrum_2D,is_imag):
+		'''
+			Original function: kep for legacy purposes
+		'''
 		outfile=open(filename, 'w')
 		icount=0
 		jcount=0
@@ -32,6 +39,29 @@ def print_2D_spectrum(filename,spectrum_2D,is_imag):
 						outfile.write(outline)
 
 						jcount=jcount+1
+				outfile.write('\n')
+				icount=icount+1
+
+def print_2D_spectrum(filename,spectrum_2D,is_imag):
+		if file_writer is not None:
+			outfile = file_writer(filename)
+		else:
+			outfile=open(filename, 'w')
+		opened_files.append(outfile)
+		icount=0
+		while icount<spectrum_2D.shape[0]:
+				out_data = []
+				out_data.append(spectrum_2D[icount, :, 0].real)
+				out_data.append(spectrum_2D[icount, :, 1].real)
+				if not is_imag:
+					out_data.append(spectrum_2D[icount, :, 2].real)
+				else:
+					out_data.append(spectrum_2D[icount, :, 2].imag)
+
+				#	print as a string in order to be compatible with 
+				# the previous print_2D_spectrum_original() function
+				out_data = np.transpose(out_data).astype(str)
+				np.savetxt(outfile, out_data, fmt='%s')
 				outfile.write('\n')
 				icount=icount+1
 

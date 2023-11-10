@@ -7,6 +7,25 @@ import sys
 from generate_spectra import main
 from unittest import TestCase
 
+def _update_file_data(file_data_container: dict, file, X):
+    #   a string assumes that it is overriting the file
+    if isinstance(file, str):
+        file_data_container[file] = X
+    #   FakeFile is only used for 2DES file writing (for now)
+    elif isinstance(file, FakeFile):
+        file_name = file.file_name
+        if file_name not in file_data_container:
+            file_data_container[file_name] = [X]
+        else:
+            file_data_container[file_name].append(X)
+    else:
+        raise ValueError('"file" must be a string ofr FakeFile object')
+
+class FakeFile(io.StringIO):
+    def __init__(self, file_name, initial_value: str = None, newline: str = None) -> None:
+        super().__init__(initial_value, newline)
+        self.file_name = file_name
+
 class Tester():
     ### Controll Flags ###
     SAVE_RESULTS = False    #   save results and overwrite existing reference data
@@ -29,20 +48,21 @@ class Tester():
         chdir(self.data_dir)
 
         #   override np.savetxt so we capture the raw data and prevent writing to disk
-        self.savetxt_orig = np.savetxt
         self.file_data = {'test': []}
         self.ref_file_data = {}
-        def savetxt_new(fname, X, **kwargs):
-            self.file_data[fname] = X
-        np.savetxt = savetxt_new
 
         self.input_file = join(self.data_dir, input_file)
         self.output_file = io.StringIO()
-        
-    def __del__(self):
-        np.savetxt = self.savetxt_orig
 
     def run_molspecpy(self):
+
+        #   override numpy savetxt
+        def savetxt_new(file, X, **kwargs):
+            _update_file_data(self.file_data, file, X)
+
+        savetxt_orig = np.savetxt
+        np.savetxt = savetxt_new
+        
         if self.HIDE_STDOUT:
             old_stdout = sys.stdout
             with io.StringIO() as fake_file:
@@ -51,6 +71,9 @@ class Tester():
                 sys.stdout = old_stdout
         else:
             main([self.input_file], self.output_file)
+
+        #   restore numpy savetxt
+        np.savetxt = savetxt_orig
 
     def check_files(self, name: str):
         '''
@@ -65,6 +88,17 @@ class Tester():
                 The name of the test that is to be loaded and checked
         '''
 
+        # for file, data in self.file_data.items():
+        #     #   strings should already be taken care of 
+        #     #   through the np.savetxt override
+        #     if isinstance(file, str):
+        #         continue
+        #     elif isinstance(file, FakeFile):
+        #         self.file_data.pop(file)
+        #         file.seek(0)
+        #         self.file_data[file.file_name] = np.
+
+
         ref_file_loc = join('reference', name) + '.pkl'
 
         #   dump results, used to reset or update tests
@@ -73,8 +107,8 @@ class Tester():
                 pickle.dump(self.file_data, file)
 
         #   print created files
-        # for f in self.file_data:
-        #     print("FILE: ", f)
+        for f in self.file_data:
+            print("FILE: ", f)
         
         #   load reference data
         with open(ref_file_loc, 'rb') as file:
@@ -129,7 +163,7 @@ class Tester():
         #   now check actual spectrum data itself
         np.testing.assert_array_almost_equal(data, ref_data, places, verbose=True)
 
-def compare_spectra_2d(self, test_case: TestCase, spectrum_name: str):
+    def compare_spectra_2d(self, test_case: TestCase, spectrum_name: str):
         '''
             Compares 2D spectrum array information, either 2DES w1/w3 data or transient absorption
 
@@ -142,38 +176,49 @@ def compare_spectra_2d(self, test_case: TestCase, spectrum_name: str):
         '''
         
         #   grab data and make sure there is only one
-        tst_data = []
-        ref_data = []
+        tst_file_data = []
+        ref_file_data = []
         for file, d in self.file_data.items():
             if spectrum_name in file:
-                tst_data.append(d)
-                ref_data.append(self.ref_file_data[file])
-        test_case.assertEqual(len(tst_data), 1)
+                tst_file_data.append(d)
+                ref_file_data.append(self.ref_file_data[file])
+        test_case.assertEqual(len(tst_file_data), 1)
 
+        tst_data = np.array(tst_file_data[0], dtype=float)
+        ref_data = np.array(ref_file_data[0], dtype=float)
 
-        #   make sure the shapes match
+        #   compare dimensions of data
         dim_tst = tst_data.shape
         dim_ref = ref_data.shape
-        test_case.assertEqual(len(dim_tst), 2)
+        test_case.assertEqual(len(dim_tst), 3)
         test_case.assertEqual(len(dim_tst), len(dim_ref))
+        test_case.assertEqual(dim_tst[2], 3)
         test_case.assertEqual(dim_tst[0], dim_ref[0])
         test_case.assertEqual(dim_tst[1], dim_ref[1])
+        test_case.assertEqual(dim_tst[2], dim_ref[2])
 
+        #   loop over each omega_1 value and check spectra as a function of omega_3
         places = 10
-        #   make sure first and and last intervals, in both x any y directions, also match
-        test_case.assertAlmostEqual(tst_data[1, 0] - tst_data[0, 0], 
-                                    ref_data[1, 0] - ref_data[0, 0], places=places)
-        test_case.assertAlmostEqual(tst_data[0, 1] - tst_data[0, 0], 
-                                    ref_data[0, 1] - ref_data[0, 0], places=places)
-        test_case.assertAlmostEqual(tst_data[-1, 0] - tst_data[-2, 0], 
-                                    ref_data[-1, 0] - ref_data[-2, 0], places=places)
-        test_case.assertAlmostEqual(tst_data[0, -1] - tst_data[0, -2], 
-                                    ref_data[0, -1] - ref_data[0, -2], places=places)
+        for tst_data_i, ref_data_i in zip(tst_data, ref_data):
+            #   first and last values should be equal
+            for j in range(3):
+                test_case.assertAlmostEqual(tst_data_i[0, j], ref_data_i[0, j], places=places)
+                test_case.assertAlmostEqual(tst_data_i[-1, j], ref_data_i[-1, j], places=places)
 
-        #   no NaNs are allowed
-        test_case.assertEqual(np.sum(np.isnan(tst_data)), 0)
 
-        #   now check actual spectrum data itself
-        np.testing.assert_array_almost_equal(tst_data, ref_data, places, verbose=True)
+            #   make sure first and and last intervals, in both x any y directions, also match
+            test_case.assertAlmostEqual(tst_data_i[1, 0] - tst_data_i[0, 0], 
+                                        ref_data_i[1, 0] - ref_data_i[0, 0], places=places)
+            test_case.assertAlmostEqual(tst_data_i[0, 1] - tst_data_i[0, 0], 
+                                        ref_data_i[0, 1] - ref_data_i[0, 0], places=places)
+            test_case.assertAlmostEqual(tst_data_i[-1, 0] - tst_data_i[-2, 0], 
+                                        ref_data_i[-1, 0] - ref_data_i[-2, 0], places=places)
+            test_case.assertAlmostEqual(tst_data_i[0, -1] - tst_data_i[0, -2], 
+                                        ref_data_i[0, -1] - ref_data_i[0, -2], places=places)
 
+            #   no NaNs are allowed
+            test_case.assertEqual(np.sum(np.isnan(tst_data_i)), 0)
+
+            #   now check actual spectrum data itself
+            np.testing.assert_array_almost_equal(tst_data_i, ref_data_i, places, verbose=True)
 
