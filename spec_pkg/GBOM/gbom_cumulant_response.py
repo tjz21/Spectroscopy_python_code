@@ -4896,7 +4896,7 @@ def prefactor_jung(omega1, omega2, kbT):
 # Exact contribution to the 3rd order correlation function correction h1(t1,t2) to
 # the 3rd order response function, for a specific value of omega1 and omega2.
 # WORK THIS OUT PROPERLY, THEN SPEED UP THE CODE
-@njit(fastmath=True, parallel=True)
+@njit(fastmath=True)
 def prefactor_2DES_h1_QM(const_fac, omega1, omega2, kbT, t1, t2):
     val = const_fac / (4.0 * math.pi ** 2.0)
     omega12 = omega1 + omega2

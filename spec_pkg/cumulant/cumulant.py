@@ -59,7 +59,7 @@ def construct_corr_func_3rd_qm_freq(corr_func,kbT,sampling_rate_in_fs,low_freq_f
 	extended_func=np.zeros((new_dim,new_dim),dtype=complex)
 
 	# pad with zeros:
-	start_index=(new_dim-corr_func.shape[0])/2
+	start_index=int((new_dim-corr_func.shape[0])/2)
 	end_index=start_index+corr_func.shape[0]	
 	icount=0
 	while icount<new_dim:
@@ -336,7 +336,7 @@ def integrant_3rd_order_cumulant_lineshape(corr_func_freq,freq_list,t_val,kbT):
 @jit(fastmath=True, parallel=True)
 def integrant_h1(qm_corr_func_freq,t1,t2):
 	tol=10e-15
-	integrant=np.zeros((qm_corr_func_freq.shape[0],qm_corr_func_freq.shape[0],3),dtype=complex)
+	integrant=np.zeros((qm_corr_func_freq.shape[0],qm_corr_func_freq.shape[0],3),dtype=np.complex128)
 	icount=0
 	while icount<qm_corr_func_freq.shape[0]:
 		jcount=0
@@ -444,7 +444,7 @@ def integrant_h3(qm_corr_func_freq,t1,t2,t3):
 	return integrant
 
 # prefactor defined by Jung that transforms the classical correlation function in Frequency space to its QM counterpart
-@njit(fastmath=True, parallel=True)
+@njit(fastmath=True)
 def prefactor_jung(omega1,omega2,kbT):
 	omega_bar=omega1+omega2
 	tol=10e-15
