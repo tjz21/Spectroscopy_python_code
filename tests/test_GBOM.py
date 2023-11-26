@@ -7,7 +7,8 @@ class GBOM_all_CL(TestCase):
     def runTest(self):
         # tester = Tester('input_file_GBOM_mBlue')
         if Tester.HIDE_WARNINGS:
-            #   can't find where this file worning is happening, so it's ignored for now
+            #   can't find where this file warning is happening, so it's ignored for now
+            #   might be only a unittest thing
             warnings.simplefilter("ignore", ResourceWarning)
             warnings.simplefilter("ignore", NumbaPerformanceWarning)
         tester = Tester('input_file_GBOM_phenolate_cl')
@@ -28,8 +29,8 @@ class GBOM_all_CL_3rd(TestCase):
     def runTest(self):
         # tester = Tester('input_file_GBOM_mBlue')
         if Tester.HIDE_WARNINGS:
-            #   can't find where this file worning is happening, so it's ignored for now
-            warnings.simplefilter("ignore", ResourceWarning)
+            #   can't find where this file warning is happening, so it's ignored for now
+            #   might be only a unittest thing
             warnings.simplefilter("ignore", NumbaPerformanceWarning)
         tester = Tester('input_file_GBOM_phenolate_cl_3rd')
         tester.run_molspecpy()

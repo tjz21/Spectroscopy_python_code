@@ -107,8 +107,8 @@ class Tester():
                 pickle.dump(self.file_data, file)
 
         #   print created files
-        for f in self.file_data:
-            print("FILE: ", f)
+        # for f in self.file_data:
+        #     print("FILE: ", f)
         
         #   load reference data
         with open(ref_file_loc, 'rb') as file:
