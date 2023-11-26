@@ -68,6 +68,7 @@ def print_2D_spectrum(filename,spectrum_2D,is_imag):
 def read_2D_spectrum(filename,num_points):
 		line_data=open(filename,"r")
 		lines=line_data.readlines()
+		print("NUM_LINES: ", len(lines))
 		outarray=np.zeros((num_points,num_points,3),dtype=complex)
 		icount=0
 		jcount=0
@@ -295,7 +296,7 @@ def calc_2DES_time_series(q_func,dipole_mom,E_min1,E_max1,E_min2,E_max2,num_poin
 # basic calculation routines:
 # calculate a full series of 2DES spectra, sampled with a certain delay time step
 # this routine is specifficaly for the 3rd order cumulant correction and an MD time series
-def calc_2DES_time_series_3rd(q_func,dipole_mom,h1_func,h2_func,h4_func,h5_func,corr_func_freq_qm,E_min1,E_max1,E_min2,E_max2,num_points_2D,rootname,num_times,time_step,mean):
+def calc_2DES_time_series_3rd(q_func,g_func, dipole_mom,h1_func,h2_func,h4_func,h5_func,corr_func_freq_qm,E_min1,E_max1,E_min2,E_max2,num_points_2D,rootname,num_times,time_step,mean):
 		averaged_val=np.zeros((num_times,2))
 		transient_abs=np.zeros((num_times,num_points_2D,3))
 
@@ -327,7 +328,7 @@ def calc_2DES_time_series_3rd(q_func,dipole_mom,h1_func,h2_func,h4_func,h5_func,
 				current_delay_index=current_delay_index+eff_time_index_2DES
 
 		print_2D_spectrum(rootname+'_3rd_order_cumulant_transient_absorption_spec.txt',transient_abs,False)
-		ep.savetxt(rootname+'2DES_3rd_order_cumulant_averaged_spectrum.txt',averaged_val)
+		np.savetxt(rootname+'2DES_3rd_order_cumulant_averaged_spectrum.txt',averaged_val)
 
 # basic calculation routines:
 # calculate a full series of 2DES spectra, sampled with a certain delay time step
@@ -529,8 +530,10 @@ def calc_2D_spectrum_3rd(q_func,g_func,h1_func,h2_func,h4_func,h5_func,corr_func
 				full_2D_integrant=twoD_spectrum_integrant_3rd(rfunc,rfunc_3rd,q_func,omega1-mean,omega2-mean,delay_time)
 				full_2D_spectrum[counter1,counter2,0]=omega1
 				full_2D_spectrum[counter1,counter2,1]=omega2
+				integral = (np.dot(dipole_mom,dipole_mom))**2.0*cumul.simpson_integral_2D(full_2D_integrant).real
 				full_2D_spectrum[counter1,counter2,2]=(np.dot(dipole_mom,dipole_mom))**2.0*cumul.simpson_integral_2D(full_2D_integrant).real
 				counter2=counter2+1
+				# print("TYPE: ", type(omega1), type(omega2), type(integral))
 		counter1=counter1+1
 
 	return full_2D_spectrum
@@ -699,7 +702,8 @@ def calc_Rfuncs_3rd_GBOM_tdelay(g_func,h1_func,h2_func,h4_func,h5_func,corr_func
 
 # this function computes the 3rd order cumulant correction for R1, R2, R3 and R4 functions for a given
 # delay time t_delay
-@jit(fastmath=True, parallel=True)
+# @jit(fastmath=True, parallel=True)
+@jit(fastmath=True)
 def calc_Rfuncs_3rd_tdelay(g_func,h1_func,h2_func,h4_func,h5_func, qm_corr_func_freq,t_delay,steps_in_t_delay):
 	print('Entering Rfuncs_3rd')
 	step_length=g_func[1,0].real-g_func[0,0].real
@@ -709,10 +713,10 @@ def calc_Rfuncs_3rd_tdelay(g_func,h1_func,h2_func,h4_func,h5_func, qm_corr_func_
 	max_index=0
 	if (temp_max_index%2)==0:
 		# even.
-		max_index=temp_max_index/2
+		max_index=temp_max_index//2
 	else:
 		# odd
-		max_index=(temp_max_index-1)/2
+		max_index=(temp_max_index-1)//2
 #	 max_index=int(((g_func.shape[0]-steps_in_t_delay)/2.0))
 	rfuncs=np.zeros((max_index,max_index,6),dtype=np.complex_) # first and 2nd number are the times, 3rd number is R1, 4th number is R2 etc.
 
@@ -781,9 +785,10 @@ def twoD_spectrum_integrant(rfuncs,q_func,omega1,omega2,t_delay):
 
 # integrant of the 3rd order response function in the 3rd order cumulant approximation. Need to include possibility to add pulse shape
 # omega_av is already incorporated in the function q. No need to account for the mean in the equation below
-@jit(fastmath=True, parallel=True)
+# @jit(fastmath=True, parallel=True)
+@jit(fastmath=True)
 def twoD_spectrum_integrant_3rd(rfuncs,rfuncs_3rd,q_func,omega1,omega2,t_delay):
-	step_length=rfuncs[1,0,0]-rfuncs[0,0,0]
+	step_length=(rfuncs[1,0,0]-rfuncs[0,0,0]).real
 	steps_in_t_delay=int(t_delay/step_length)  # NOTE: delay time is rounded to match with steps in the response function
 	# this means that by default, the resolution of delay time in the 2DES spectrum is 1 fs. 
 	max_index=int((q_func.shape[0]-steps_in_t_delay)/2.0)

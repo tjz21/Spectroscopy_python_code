@@ -1900,6 +1900,8 @@ def main(argv, outfile=None):
                                     MDtraj.h5[:,:,2]=MDtraj.h5[:,:,2]+1j*(twoDES.read_2D_spectrum('h5_imag.dat',param_set.num_steps))[:,:,2]
 
                             else:
+                                #     MDtraj.h1=twoDES.read_2D_spectrum('h1_real.dat',param_set.num_steps)
+                                #     MDtraj.h1[:,:,2]=MDtraj.h1[:,:,2]+1j*(twoDES.read_2D_spectrum('h1_imag.dat',param_set.num_steps))[:,:,2]     
                                     MDtraj.calc_h1(param_set.max_t,param_set.num_steps)
                                     twoDES.print_2D_spectrum('h1_real.dat',(MDtraj.h1),False)
                                     twoDES.print_2D_spectrum('h1_imag.dat',MDtraj.h1,True)
@@ -1937,7 +1939,7 @@ def main(argv, outfile=None):
                     if param_set.method_2DES=='2DES':
                             # Check if this is a 3rd order cumulant calculation
                             if param_set.third_order:
-                                    twoDES.calc_2DES_time_series_3rd(q_func_eff,MDtraj.g3,MDtraj.h1,MDtraj.h2,MDtraj.h4,MDtraj.h5,MDtraj.corr_func_3rd_qm_freq,E_start1,E_end1,E_start2,E_end2,param_set.num_steps_2DES,filename_2DES,param_set.num_time_samples_2DES,param_set.t_step_2DES,MDtraj.mean)
+                                    twoDES.calc_2DES_time_series_3rd(q_func_eff,MDtraj.g3,param_set.dipole_mom,MDtraj.h1,MDtraj.h2,MDtraj.h4,MDtraj.h5,MDtraj.corr_func_3rd_qm_freq,E_start1,E_end1,E_start2,E_end2,param_set.num_steps_2DES,filename_2DES,param_set.num_time_samples_2DES,param_set.t_step_2DES,MDtraj.mean)
                             else:
                                     twoDES.calc_2DES_time_series(q_func_eff,param_set.dipole_mom,E_start1,E_end1,E_start2,E_end2,param_set.num_steps_2DES,filename_2DES,param_set.num_time_samples_2DES,param_set.t_step_2DES,MDtraj.mean)
                     elif param_set.method_2DES=='PUMP_PROBE':
