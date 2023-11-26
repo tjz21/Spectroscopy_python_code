@@ -56,7 +56,7 @@ def construct_corr_func_3rd_qm_freq(corr_func,kbT,sampling_rate_in_fs,low_freq_f
 	padding=np.array([new_dim,new_dim])
 
 	# try padding:
-	extended_func=np.zeros((new_dim,new_dim),dtype=complex)
+	extended_func=np.zeros((new_dim,new_dim),dtype=np.complex128)
 
 	# pad with zeros:
 	start_index=int((new_dim-corr_func.shape[0])/2)
@@ -125,7 +125,7 @@ def construct_corr_func_3rd_qm(corr_func,kbT,sampling_rate_in_fs,low_freq_filter
         corr_func_qm=(np.fft.fftshift(np.fft.ifftn(np.fft.ifftshift(eff_corr))))
 
 
-        new_corr_func=np.zeros((corr_func.shape[0],corr_func.shape[0],3),dtype=complex)
+        new_corr_func=np.zeros((corr_func.shape[0],corr_func.shape[0],3),dtype=np.complex128)
 	
         new_corr_func[:,:,0]=corr_func[:,:,0]
         new_corr_func[:,:,1]=corr_func[:,:,1]
@@ -206,9 +206,10 @@ def compute_lineshape_func_3rd(corr_func,kbT,sampling_rate_in_fs,max_t,steps,low
 
 def compute_h1_func(qm_corr_func_freq,max_t,steps):
 	step_length=max_t/steps
-	h1_func=np.zeros((steps,steps,3),dtype=complex)
+	h1_func=np.zeros((steps,steps,3),dtype=np.complex128)
 	icount=0
 	print('Computing H1')
+	print(f'{steps=}')
 	while icount<steps:
 		jcount=0
 		print(icount)
@@ -226,7 +227,7 @@ def compute_h1_func(qm_corr_func_freq,max_t,steps):
 
 def compute_h2_func(qm_corr_func_freq,max_t,steps):
 	step_length=max_t/steps
-	h2_func=np.zeros((steps,steps,3),dtype=complex)
+	h2_func=np.zeros((steps,steps,3),dtype=np.complex128)
 	icount=0
 	print('Computing H2')
 	while icount<steps:
@@ -246,7 +247,7 @@ def compute_h2_func(qm_corr_func_freq,max_t,steps):
 
 def compute_h4_func(qm_corr_func_freq,max_t,steps):
 	step_length=max_t/steps	
-	h4_func=np.zeros((steps,steps,3),dtype=complex)
+	h4_func=np.zeros((steps,steps,3),dtype=np.complex128)
 	icount=0
 	print('Computing H4')
 	while icount<steps:
@@ -267,7 +268,7 @@ def compute_h4_func(qm_corr_func_freq,max_t,steps):
 
 def compute_h5_func(qm_corr_func_freq,max_t,steps):
 	step_length=max_t/steps
-	h5_func=np.zeros((steps,steps,3),dtype=complex)
+	h5_func=np.zeros((steps,steps,3),dtype=np.complex128)
 	icount=0
 	print('Computing H5')
 	while icount<steps:
@@ -360,7 +361,7 @@ def integrant_h1(qm_corr_func_freq,t1,t2):
 @jit(fastmath=True, parallel=True)
 def integrant_h2(qm_corr_func_freq,t1,t2):
 	tol=10e-15
-	integrant=np.zeros((qm_corr_func_freq.shape[0],qm_corr_func_freq.shape[0],3),dtype=complex)
+	integrant=np.zeros((qm_corr_func_freq.shape[0],qm_corr_func_freq.shape[0],3),dtype=np.complex128)
 	icount=0
 	while icount<qm_corr_func_freq.shape[0]:
 		jcount=0
@@ -382,7 +383,7 @@ def integrant_h2(qm_corr_func_freq,t1,t2):
 @jit(fastmath=True, parallel=True)
 def integrant_h4(qm_corr_func_freq,t1,t2):
 	tol=10e-15
-	integrant=np.zeros((qm_corr_func_freq.shape[0],qm_corr_func_freq.shape[0],3),dtype=complex)
+	integrant=np.zeros((qm_corr_func_freq.shape[0],qm_corr_func_freq.shape[0],3),dtype=np.complex128)
 	icount=0
 	while icount<qm_corr_func_freq.shape[0]:
 		jcount=0
@@ -404,7 +405,7 @@ def integrant_h4(qm_corr_func_freq,t1,t2):
 @jit(fastmath=True, parallel=True)
 def integrant_h5(qm_corr_func_freq,t1,t2):
 	tol=10e-15
-	integrant=np.zeros((qm_corr_func_freq.shape[0],qm_corr_func_freq.shape[0],3),dtype=complex)
+	integrant=np.zeros((qm_corr_func_freq.shape[0],qm_corr_func_freq.shape[0],3),dtype=np.complex128)
 	icount=0
 	while icount<qm_corr_func_freq.shape[0]:
 		jcount=0
@@ -426,7 +427,7 @@ def integrant_h5(qm_corr_func_freq,t1,t2):
 @jit(fastmath=True, parallel=True)
 def integrant_h3(qm_corr_func_freq,t1,t2,t3):
 	tol=10e-15
-	integrant=np.zeros((qm_corr_func_freq.shape[0],qm_corr_func_freq.shape[0],3),dtype=complex)
+	integrant=np.zeros((qm_corr_func_freq.shape[0],qm_corr_func_freq.shape[0],3),dtype=np.complex128)
 	icount=0
 	while icount<qm_corr_func_freq.shape[0]:
 		jcount=0	
@@ -617,7 +618,7 @@ def compute_spectral_dens(corr_func,kbT, sample_rate,time_step):
 
 # define the maximum number of t points this should be calculated for and the maximum number of steps
 def compute_2nd_order_cumulant_from_spectral_dens(spectral_dens,kbT,max_t,steps,stdout):
-	q_func=np.zeros((steps,2),dtype=complex)
+	q_func=np.zeros((steps,2),dtype=np.complex128)
 	stdout.write('\n'+"Computing second order cumulant lineshape function."+'\n')
 	stdout.write('\n'+'  Step       Time (fs)          Re[g_2]         Im[g_2]'+'\n')
 	step_length=max_t/steps
