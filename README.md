@@ -1,4 +1,4 @@
-# Spectroscopy python code
+# MolSpeckPy: A python code for simulating linear and nonlinear spectroscopy experiments
 
 This code is designed to compute a linear and nonlinear optical spectra of condensed phase systems under a 
 range of different approximations. The two basic ways to specify a system in the code is either by constructing
