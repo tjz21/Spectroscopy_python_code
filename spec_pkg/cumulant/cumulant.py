@@ -627,7 +627,7 @@ def compute_2nd_order_cumulant_from_spectral_dens(spectral_dens,kbT,max_t,steps,
 		t_current=counter*step_length
 		q_func[counter,0]=t_current
 		integrant=integrant_2nd_order_cumulant_lineshape(spectral_dens,t_current,kbT)
-		q_func[counter,1]=integrate.simps(integrant[:,1],dx=(integrant[1,0]-integrant[0,0]))   #  give x and y axis
+		q_func[counter,1]=integrate.simps(integrant[:,1],dx=(integrant[1,0].real-integrant[0,0].real))   #  give x and y axis
 		stdout.write("%5d      %10.4f          %10.4e           %10.4e" % (counter,t_current*const.fs_to_Ha, np.real(q_func[counter,1]), np.imag(q_func[counter,1]))+'\n')
 		counter=counter+1
 	return q_func
