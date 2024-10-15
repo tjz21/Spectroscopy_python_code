@@ -642,7 +642,7 @@ def integrant_2nd_order_cumulant_lineshape(spectral_dens,t_val,kbT):
 		if counter==0:
 			integrant[counter,1]=0.0
 		else:
-			integrant[counter,1]=1.0/math.pi*spectral_dens[counter,1]/(omega**2.0)*(2.0*cmath.cosh(omega/(2.0*kbT))/cmath.sinh(omega/(2.0*kbT))*(math.sin(omega*t_val/2.0))**2.0+1j*(math.sin(omega*t_val)-omega*t_val))
+			integrant[counter,1]=1.0/math.pi*spectral_dens[counter,1]/(omega**2.0)*(2.0*math.cosh(np.real(omega)/(2.0*kbT))/math.sinh(np.real(omega)/(2.0*kbT))*(math.sin(omega*t_val/2.0))**2.0+1j*(math.sin(omega*t_val)-omega*t_val))
 
 	return integrant
 
