@@ -73,6 +73,7 @@ class params:
         self.gs_reference_dipole=True  # Take the ground state as a reference in MD calculations with HT effects
         self.third_order=False
         self.cumulant_nongaussian_prefactor = False
+        self.FC2DES_device = "CPU"
         self.g3_cutoff=-1.0
         self.is_solvent=False
         self.no_dusch=False
@@ -146,6 +147,13 @@ class params:
             self.cumulant_nongaussian_prefactor = True
         if par == 'FALSE':
             self.cumulant_nongaussian_prefactor = False
+
+        par = get_param(filepath, 'FC2DES_DEVICE')
+        if par == 'CPU':
+            self.FC2DES_device = 'CPU'
+        if par == 'GPU':
+            self.cumulant_nongaussian_prefactor = 'GPU'
+
 
         par=get_param(filepath,'GS_REFERENCE_DIPOLE')
         if par=='TRUE':
