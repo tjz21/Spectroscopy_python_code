@@ -12,14 +12,16 @@ Franck-Condon to second- and 3rd order cumulant approximation, as well as classi
 and the hybrid E-ZTFC method. If the model is constructed from an MD trajectory input, only cumulant and ensemble 
 spectra can be computed. 
 
-For nonlinear spectroscpy, only transient absorption and 2DES are implemented so far, and regardless of whether
-an GBOM or an MD trajectory is used as an input, nonlinear spectra can only be computed in the second and third 
-order cumulant approach. 
+For nonlinear spectroscpy, only transient absorption and 2DES are implemented so far. When using an MD trajectory,
+nonlinear spectra can be generated using the second- or 3rd order cumulant approach. When using a GBOM Hamiltonian
+as input, spectra can either be generated using the cumulant method, or using an exact closed-form expression of the
+finite temperature nonlinear response function derived by us recently (FC2DES, see below). 
+
 
 # References
 The module computing Franck-Condon spectra for a GBOM is based on the algorithm outlined in 
 B. de Souza, F. Neese, and R. Izsak, J. Chem. Phys. 148, 034104 (2018).
-An extension of the formalism to nonlinear spectroscopy was developed recently by us and is outlined in
+An extension of the formalism to nonlinear spectroscopy (FC2DES) was developed recently by us and is outlined in
 L. Allan, and T. J. Zuehlsdorff, J. Chem. Theory Comput. 21, 5625-5621 (2025)
 
 The cumulant solutions of the GBOM, as well as the third order cumulant approximation as applied to systems sampled
