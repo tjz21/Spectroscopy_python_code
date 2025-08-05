@@ -19,14 +19,18 @@ order cumulant approach.
 # References
 The module computing Franck-Condon spectra for a GBOM is based on the algorithm outlined in 
 B. de Souza, F. Neese, and R. Izsak, J. Chem. Phys. 148, 034104 (2018).
+An extension of the formalism to nonlinear spectroscopy was developed recently by us and is outlined in
+L. Allan, and T. J. Zuehlsdorff, J. Chem. Theory Comput. 21, 5625-5621 (2025)
 
 The cumulant solutions of the GBOM, as well as the third order cumulant approximation as applied to systems sampled
 from MD trajectories are detailed in 
-T. J. Zuehlsdorff, A. Montoya-Castillo, J. A. Napoli, T. E. Markland, and C. M. Isborn, J. Chem. Phys. 151, 074111 (2019)
+T. J. Zuehlsdorff, A. Montoya-Castillo, J. A. Napoli, T. E. Markland, and C. M. Isborn, J. Chem. Phys. 151, 074111 (2019); 
+L. Allan, and T. J. Zuehlsdorff, J. Chem. Phys. 160, 074108 (2024)
 for linear spectroscopy and 
-T. J. Zuehlsdorff, H. Hong, L. Shi, and C. M. Isborn, "Nonlinear spectroscopy in the condensed phase: The role of Duschinsky 
-rotations and third order cumulant contributions" https://doi.org/10.26434/chemrxiv.12302018.v1 (2020)
-for nonlinear spectroscopy. 
+T. J. Zuehlsdorff, H. Hong, L. Shi, and C. M. Isborn, J. Chem. Phys. 153, 044127 (2020)
+for nonlinear spectroscopy. An extension of the Cumulant formalism to account for non-Condon effects through dipole moment
+fluctuations was developed in 
+Z. R. Wiethorn, K. E. Hunter, T. J. Zuehlsdorff, and A.-M. Castillo, J. Chem. Phys. 59, 244114 (2023)
 
 The theoretical underpinnings of hybrid approaches such as the E-ZTFC method are described in the following 
 references:
@@ -35,7 +39,8 @@ T. J. Zuehlsdorff, J. A. Napoli, J. M. Milanese, T. E. Markland, and C. M. Isbor
 T. J. Zuehlsdorff, A. Montoya-Castillo, J. A. Napoli, T. E. Markland, and C. M. Isborn, J. Chem. Phys. 151, 074111 (2019).
 
 Parts of the interface allowing for the construction of the GBOM from TeraChem (http://www.petachem.com/products.html) 
-output files are based on code written by Ajay Khanna. 
+output files are based on code written by Ajay Khanna. The implementation of "tamed" third order cumulant contributions, 
+as well as a formultion of nonlinear spectroscopy for GBOM Hamiltonians was carried out by Lucas Allan. 
 
 # License
 Copyright (C) 2019-2020 Tim J. Zuehlsdorff (zuehlsdt@oregonstate.edu)
