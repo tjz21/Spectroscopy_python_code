@@ -30,7 +30,7 @@ for linear spectroscopy and
 T. J. Zuehlsdorff, H. Hong, L. Shi, and C. M. Isborn, J. Chem. Phys. 153, 044127 (2020)
 for nonlinear spectroscopy. An extension of the Cumulant formalism to account for non-Condon effects through dipole moment
 fluctuations was developed in 
-Z. R. Wiethorn, K. E. Hunter, T. J. Zuehlsdorff, and A.-M. Castillo, J. Chem. Phys. 59, 244114 (2023)
+Z. R. Wiethorn, K. E. Hunter, T. J. Zuehlsdorff, and A.-M. Castillo, J. Chem. Phys. 59, 244114 (2023).
 
 The theoretical underpinnings of hybrid approaches such as the E-ZTFC method are described in the following 
 references:
@@ -43,7 +43,7 @@ output files are based on code written by Ajay Khanna. The implementation of "ta
 as well as a formultion of nonlinear spectroscopy for GBOM Hamiltonians was carried out by Lucas Allan. 
 
 # License
-Copyright (C) 2019-2020 Tim J. Zuehlsdorff (zuehlsdt@oregonstate.edu)
+Copyright (C) 2019-2025 Tim J. Zuehlsdorff (zuehlsdt@oregonstate.edu)
 
 The source code is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not 
 distributed with this file, You can obtain one at http://mozilla.org/MPL/2.0/.
