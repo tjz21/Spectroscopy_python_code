@@ -1520,7 +1520,7 @@ elif param_set.task=='2DES':
                                 sys.exit('Error: Pure GBOM calculations require some form of additional solvent broadening provided by a solvent model')
                         solvent_mod.calc_spectral_dens(param_set.num_steps)
                         solvent_mod.calc_g2_solvent(param_set.temperature,param_set.num_steps,param_set.max_t,param_set.stdout)
-                        FC2DES.Calc_2DES_time_series(solvent_mod.g2_solvent, param_set.temperature, GBOM,param_set.E_adiabatic, param_set.num_steps_2DES, param_set.spectral_window, param_set.num_time_samples_2DES, param_set.t_step_2DES,param_set.FC2DES_device)
+                        FC2DES.Calc_2DES_time_series(solvent_mod.g2_solvent,param_set, GBOM)
                 if param_set.method == 'CUMULANT':
                         if not param_set.is_solvent:
                                 sys.exit('Error: Pure GBOM calculations require some form of additional solvent broadening provided by a solvent model')
